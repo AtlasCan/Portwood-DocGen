@@ -10,7 +10,7 @@ global with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
     
     global DocGenBatch(Id jobId) {
         this.jobId = jobId;
-        DocGen_Job__c job = [SELECT Template__c, Template__r.Base_Object_API__c, Query_Condition__c FROM DocGen_Job__c WHERE Id = :jobId];
+        DocGen_Job__c job = [SELECT Template__c, Template__r.Base_Object_API__c, Query_Condition__c FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE];
         this.templateId = job.Template__c;
         this.baseObject = job.Template__r.Base_Object_API__c;
         this.condition = job.Query_Condition__c;
@@ -24,9 +24,10 @@ global with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
         if (String.isNotBlank(condition)) {
             query += ' WHERE ' + condition;
         }
+        query += ' WITH USER_MODE';
         
         // Count total records for progress tracking
-        Integer total = Database.countQuery('SELECT Count() FROM ' + String.escapeSingleQuotes(baseObject) + (String.isNotBlank(condition) ? ' WHERE ' + condition : ''));
+        Integer total = Database.countQuery('SELECT Count() FROM ' + String.escapeSingleQuotes(baseObject) + (String.isNotBlank(condition) ? ' WHERE ' + condition : '') + ' WITH USER_MODE');
         update new DocGen_Job__c(Id = jobId, Status__c = 'Processing', Total_Records__c = total);
         
         return Database.getQueryLocator(query);

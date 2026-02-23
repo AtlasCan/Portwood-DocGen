@@ -298,7 +298,7 @@ public with sharing class DocGenService {
             System.debug('DocGen: Collecting Rendition Capture for ' + cv.Id);
             DocGenRenditionService.addPendingRendition(cv.Id);
         }
-        return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
+        return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH USER_MODE].ContentDocumentId;
     }
     private static String generateDocTitle(String format, Map<String, Object> data) {
         if (String.isBlank(format)) return null;

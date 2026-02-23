@@ -64,12 +64,28 @@ Need to generate documents for hundreds of records at once?
 - **Dynamic Loopback**: Uses native Salesforce Connect APIs via `Url.getOrgDomainUrl()`. No Named Credentials or Remote Site Settings required!
 - **Resilience**: Built-in 3x retry mechanism gracefully handles `202 Accepted` latency from Salesforce servers.
 
+### 7. Native Electronic Signatures (Experience Cloud)
+- **Architecture**: A zero-cost, 100% native electronic signature engine.
+- **Experience Cloud Integration**: Leverages Screen Flows running in **System Context** to ensure guest users can sign and process documents without permission blocks.
+- **OpenXML Stamping**: Signatures are injected directly into the DOCX source file before being flattened to PDF.
+- **Tamper Evidence**: Every signed document is mathematically hashed (SHA-256), creating an immutable audit trail for non-repudiation.
+
 ---
 
 ## 🛠 Prerequisites & Setup
+
+### 1. Basic Setup
 1. **Assign Permissions**: Assign the `DocGen Admin` or `DocGen User` permission set to yourself and your users.
 2. **Assign the App**: Ensure users have access to the **DocGen** Lightning App.
 3. **Files Access**: The platform uses standard Salesforce Files. Ensure users have the proper permissions to create ContentDocuments.
+
+### 2. E-Signature Setup (Required for Public Signing)
+1. **Enable Digital Experiences**: Go to **Setup > Digital Experiences** and enable the feature if not already done.
+2. **Create a Site**: Create a new Experience Cloud site (Help Center or Build Your Own is recommended).
+3. **Configure Settings**: Navigate to the **DocGen Setup** tab in the DocGen app and complete the 4-step wizard. This configures the secure loopback and saves your Site URL.
+4. **Embed Flow**: In **Experience Builder**, create a new public page and drag the **Flow** component onto it. Select the **DocGen Signature Submission** flow.
+5. **Pass Parameters**: Ensure the "Pass URL parameter values into flow variables" checkbox is checked in the Flow component properties.
+6. **Publish**: Publish your site. Signature links generated from record pages will now point to this secure portal.
 
 ---
 

@@ -17,8 +17,13 @@ public with sharing class DocGenRenditionService {
     public static void enqueueRenditions() {
         if (cvIdsCollector.isEmpty()) return;
         
-        if (!Test.isRunningTest()) {
-            System.enqueueJob(new DocGenRenditionQueueable(new List<Id>(cvIdsCollector)));
+        List<DocGen_Rendition_Event__e> events = new List<DocGen_Rendition_Event__e>();
+        for (Id cvId : cvIdsCollector) {
+            events.add(new DocGen_Rendition_Event__e(Source_CV_Id__c = (String)cvId));
+        }
+        
+        if (!events.isEmpty()) {
+            EventBus.publish(events);
         }
         cvIdsCollector.clear();
     }
@@ -28,19 +33,17 @@ public with sharing class DocGenRenditionService {
      * Returns a new (unsaved) ContentVersion record containing the PDF data.
      */
     public static ContentVersion capturePdfRendition(Id cvId) {
-        ContentVersion cv = [SELECT ContentDocumentId, Title, PathOnClient FROM ContentVersion WHERE Id = :cvId LIMIT 1];
+        ContentVersion cv = [SELECT ContentDocumentId, Title, PathOnClient FROM ContentVersion WHERE Id = :cvId WITH SYSTEM_MODE LIMIT 1];
         String fileId = cv.ContentDocumentId;
         
-        // Use VF page to get a full Session ID for the background job
-        String sessionId = !Test.isRunningTest() ? Page.DocGenSessionProvider.getContent().toString().trim() : 'test_session_id';
-        
-        // Endpoint for PDF Rendition (Dynamic Loopback instead of hardcoded Named Credential)
-        String endpoint = Url.getOrgDomainUrl().toExternalForm() + '/services/data/v65.0/connect/files/' + fileId + '/rendition?type=PDF';
+        // Use a secure Named Credential instead of the Visualforce Session Hack
+        // This is the AppExchange-approved architecture for REST API Loopbacks.
+        String endpoint = 'callout:DocGen_Loopback/services/data/v65.0/connect/files/' + fileId + '/rendition?type=PDF';
         
         HttpRequest req = new HttpRequest();
         req.setEndpoint(endpoint);
         req.setMethod('GET');
-        req.setHeader('Authorization', 'Bearer ' + sessionId);
+        // The Authorization Bearer header is automatically injected by the Named Credential
         
         Http h = new Http();
         HttpResponse res = h.send(req);
@@ -52,7 +55,6 @@ public with sharing class DocGenRenditionService {
             pdfCv.Title = cv.Title + ' (PDF)';
             pdfCv.PathOnClient = cv.Title + '.pdf';
             pdfCv.VersionData = pdfBlob;
-            pdfCv.FirstPublishLocationId = findRecordId(cv.ContentDocumentId);
             
             return pdfCv;
         } else if (res.getStatusCode() == 202 || res.getStatusCode() == 404 || res.getStatusCode() == 301 || res.getStatusCode() == 302) {
@@ -60,10 +62,5 @@ public with sharing class DocGenRenditionService {
         } else {
             throw new RenditionException('Failed to capture rendition: ' + res.getStatusCode() + ' ' + res.getStatus() + ' ' + res.getBody());
         }
-    }
-
-    private static Id findRecordId(Id docId) {
-        List<ContentDocumentLink> links = [SELECT LinkedEntityId FROM ContentDocumentLink WHERE ContentDocumentId = :docId AND LinkedEntityId != :UserInfo.getUserId() LIMIT 1];
-        return links.isEmpty() ? null : links[0].LinkedEntityId;
     }
 }

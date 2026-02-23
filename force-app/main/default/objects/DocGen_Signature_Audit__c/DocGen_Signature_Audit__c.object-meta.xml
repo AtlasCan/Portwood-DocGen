@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <label>DocGen Signature Audit</label>
+    <nameField>
+        <displayFormat>AUD-{000000}</displayFormat>
+        <label>Audit Number</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>DocGen Signature Audits</pluralLabel>
+    <sharingModel>ControlledByParent</sharingModel>
+</CustomObject>

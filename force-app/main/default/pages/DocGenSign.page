@@ -1,0 +1,158 @@
+<apex:page controller="DocGenSignatureController" showHeader="false" sidebar="false" standardStylesheets="false" applyBodyTag="false" applyHtmlTag="false" docType="html-5.0">
+    <html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <title>Document Signature</title>
+        <apex:slds />
+        <!-- Include Lightning Out scripts -->
+        <apex:includeLightning />
+        <style>
+            body {
+                background-color: #f3f2f2;
+                font-family: 'Salesforce Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+            }
+            .page-wrapper {
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+            }
+            #lwc-container {
+                width: 100%;
+                max-width: 600px;
+            }
+            .loading-state {
+                text-align: center;
+                color: #4b5563;
+                padding: 2rem;
+            }
+            .error-state {
+                background: white;
+                border: 1px solid #fca5a5;
+                border-radius: 8px;
+                padding: 2rem;
+                max-width: 600px;
+                width: 100%;
+                text-align: center;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            .error-icon {
+                color: #ef4444;
+                font-size: 3rem;
+                margin-bottom: 1rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="page-wrapper">
+            <div id="loading" class="loading-state">
+                <div class="slds-spinner_container slds-is-fixed">
+                    <div role="status" class="slds-spinner slds-spinner_medium slds-spinner_brand">
+                        <span class="slds-assistive-text">Loading</span>
+                        <div class="slds-spinner__dot-a"></div>
+                        <div class="slds-spinner__dot-b"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="error-container" class="error-state" style="display: none;">
+                <div class="error-icon">⚠️</div>
+                <h1 class="slds-text-heading_medium slds-m-bottom_small">Signature Error</h1>
+                <p id="error-message" class="slds-text-body_regular">We could not load this signature request.</p>
+            </div>
+
+            <div id="lwc-container"></div>
+        </div>
+
+        <script>
+            // Get Token from URL Query Parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const secureToken = urlParams.get('token');
+
+            if (!secureToken) {
+                showError("Invalid or missing security token. Please check your email link.");
+            } else {
+                // Call Apex to validate before loading the LWC
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.DocGenSignatureController.validateToken}',
+                    secureToken,
+                    function(result, event) {
+                        if (event.status && result.isValid) {
+                            // Valid token - Inject the LWC
+                            loadSignatureComponent(secureToken, result.signerName, result.documentUrl);
+                        } else {
+                            // Invalid or Cancelled/Signed token
+                            showError(result.errorMessage || "This signature request is no longer active.");
+                        }
+                    },
+                    {escape: false}
+                );
+            }
+
+            function showError(message) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error-container').style.display = 'block';
+                document.getElementById('error-message').textContent = message;
+            }
+
+            function loadSignatureComponent(token, signerName, documentUrl) {
+                $Lightning.use("c:DocGenSignOut", function() {
+                    $Lightning.createComponent("c:docGenSignaturePad",
+                        { 
+                            secureToken: token,
+                            documentUrl: documentUrl 
+                        },
+                        "lwc-container",
+                        function(cmp) {
+                            // Component is created, hide the loading spinner
+                            document.getElementById('loading').style.display = 'none';
+
+                            // Listen for the custom "signaturesave" event fired by the LWC
+                            document.getElementById('lwc-container').addEventListener('signaturesave', function(e) {
+                                // We received the Base64 image from the LWC!
+                                saveToSalesforce(e.detail.token, e.detail.base64Image);
+                            });
+                        }
+                    );
+                });
+            }
+
+            function saveToSalesforce(token, base64Image) {
+                // Return to loading state while merging XML
+                document.getElementById('lwc-container').style.display = 'none';
+                document.getElementById('loading').style.display = 'block';
+
+                Visualforce.remoting.Manager.invokeAction(
+                    '{!$RemoteAction.DocGenSignatureController.saveSignature}',
+                    token,
+                    base64Image,
+                    function(result, event) {
+                        document.getElementById('loading').style.display = 'none';
+
+                        if (event.status && result === 'Success') {
+                            // Inject success message directly to DOM
+                            let container = document.getElementById('lwc-container');
+                            container.style.display = 'block';
+                            container.innerHTML = `
+                                <div class="slds-box slds-theme_default slds-text-align_center slds-p-around_large">
+                                    <h2 class="slds-text-heading_large slds-text-color_success slds-m-bottom_small">✓ Signed Successfully</h2>
+                                    <p class="slds-text-body_regular">Thank you. The document has been securely sealed and a PDF is being generated.</p>
+                                    <p class="slds-text-body_small slds-m-top_medium slds-text-color_weak">You may now close this window.</p>
+                                </div>
+                            `;
+                        } else {
+                            showError(event.message || "An error occurred while merging the signature into the document.");
+                        }
+                    },
+                    {escape: false, buffer: false} // Don't buffer large Base64 strings
+                );
+            }
+        </script>
+    </body>
+    </html>
+</apex:page>

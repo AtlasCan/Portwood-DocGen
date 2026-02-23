@@ -8,6 +8,7 @@ public with sharing class DocGenController {
             SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c, Document_Title_Format__c
             FROM DocGen_Template__c 
             WHERE Id = :templateId 
+            WITH USER_MODE
             LIMIT 1
         ];
         
@@ -56,6 +57,7 @@ public with sharing class DocGenController {
             SELECT Id, Name, Description__c, Type__c 
             FROM DocGen_Template__c 
             WHERE Base_Object_API__c = :objectApiName
+            WITH USER_MODE
         ];
     }
     
@@ -65,6 +67,7 @@ public with sharing class DocGenController {
             SELECT Id, Name, Description__c, Type__c, Base_Object_API__c, Category__c, Query_Config__c, Test_Record_Id__c, Output_Format__c, Document_Title_Format__c,
                    (SELECT ContentDocumentId FROM ContentDocumentLinks ORDER BY ContentDocument.CreatedDate DESC LIMIT 1)
             FROM DocGen_Template__c 
+            WITH USER_MODE
             ORDER BY Category__c ASC, Name ASC
         ];
     }
@@ -98,6 +101,7 @@ public with sharing class DocGenController {
                 List<DocGen_Template_Version__c> activeVersions = [
                     SELECT Id FROM DocGen_Template_Version__c 
                     WHERE Template__c = :templateId AND Is_Active__c = true
+                    WITH USER_MODE
                 ];
                 for (DocGen_Template_Version__c av : activeVersions) {
                     av.Is_Active__c = false;
@@ -109,6 +113,7 @@ public with sharing class DocGenController {
                     SELECT ContentDocument.LatestPublishedVersionId 
                     FROM ContentDocumentLink 
                     WHERE LinkedEntityId = :templateId 
+                    WITH USER_MODE
                     ORDER BY ContentDocument.CreatedDate DESC 
                     LIMIT 1
                 ];
@@ -154,6 +159,7 @@ public with sharing class DocGenController {
                    Category__c, Description__c, Type__c, Base_Object_API__c, Is_Active__c
             FROM DocGen_Template_Version__c 
             WHERE Template__c = :templateId 
+            WITH USER_MODE
             ORDER BY CreatedDate DESC
         ];
     }
@@ -165,6 +171,7 @@ public with sharing class DocGenController {
                 SELECT Template__c, Query_Config__c, Content_Version_Id__c, Category__c, Description__c, Type__c, Base_Object_API__c
                 FROM DocGen_Template_Version__c 
                 WHERE Id = :versionId 
+                WITH USER_MODE
                 LIMIT 1
             ];
             
@@ -172,6 +179,7 @@ public with sharing class DocGenController {
             List<DocGen_Template_Version__c> others = [
                 SELECT Id FROM DocGen_Template_Version__c 
                 WHERE Template__c = :version.Template__c AND Is_Active__c = true
+                WITH USER_MODE
             ];
             for (DocGen_Template_Version__c v : others) {
                 v.Is_Active__c = false;
@@ -209,7 +217,7 @@ public with sharing class DocGenController {
             cv.IsMajorVersion = false;
             insert cv;
             
-            return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id].ContentDocumentId;
+            return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH USER_MODE].ContentDocumentId;
         } catch (Exception e) {
             throw new AuraHandledException('Error saving temp HTML: ' + e.getMessage());
         }
@@ -400,7 +408,7 @@ public with sharing class DocGenController {
         String key = '%' + searchTerm + '%';
         List<Map<String, String>> results = new List<Map<String, String>>();
         
-        for (User u : [SELECT Id, Name FROM User WHERE Name LIKE :key AND IsActive = TRUE LIMIT 10]) {
+        for (User u : [SELECT Id, Name FROM User WHERE Name LIKE :key AND IsActive = TRUE WITH USER_MODE LIMIT 10]) {
              Map<String, String> row = new Map<String, String>();
              row.put('Id', u.Id);
              row.put('Name', u.Name);
@@ -409,7 +417,7 @@ public with sharing class DocGenController {
              results.add(row);
         }
         
-        for (Group g : [SELECT Id, Name FROM Group WHERE Name LIKE :key AND Type = 'Regular' LIMIT 10]) {
+        for (Group g : [SELECT Id, Name FROM Group WHERE Name LIKE :key AND Type = 'Regular' WITH USER_MODE LIMIT 10]) {
              Map<String, String> row = new Map<String, String>();
              row.put('Id', g.Id);
              row.put('Name', g.Name);

@@ -17,11 +17,23 @@
         <members>DocGenSharingTests</members>
         <members>DocGenTemplateManager</members>
         <members>DocGenTests</members>
+        <members>DocGenSetupController</members>
+        <members>DocGenSignatureController</members>
+        <members>DocGenSignatureSenderController</members>
+        <members>DocGenSignatureService</members>
+        <members>DocGenSignatureSubmitter</members>
+        <members>DocGenSignatureValidator</members>
         <name>ApexClass</name>
+    </types>
+    <types>
+        <members>DocGenRenditionTrigger</members>
+        <name>ApexTrigger</name>
     </types>
     <types>
         <members>DocGenPDFEngine</members>
         <members>DocGenSessionProvider</members>
+        <members>DocGenSign</members>
+        <members>DocGenVerify</members>
         <name>ApexPage</name>
     </types>
     <types>
@@ -29,6 +41,10 @@
         <members>DocGen_Saved_Query__c</members>
         <members>DocGen_Template_Version__c</members>
         <members>DocGen_Template__c</members>
+        <members>DocGen_Signature_Request__c</members>
+        <members>DocGen_Signature_Audit__c</members>
+        <members>DocGen_Settings__c</members>
+        <members>DocGen_Rendition_Event__e</members>
         <name>CustomObject</name>
     </types>
     <types>
@@ -37,6 +53,7 @@
         <members>DocGen_Template_Manager</members>
         <members>DocGen_Template_Version__c</members>
         <members>DocGen_Template__c</members>
+        <members>DocGen_Settings</members>
         <name>CustomTab</name>
     </types>
     <types>
@@ -48,11 +65,16 @@
         <members>docGenSharing</members>
         <members>docGenTitleEditor</members>
         <members>docGenWelcome</members>
+        <members>docGenSetupWizard</members>
+        <members>docGenSignaturePad</members>
+        <members>docGenSignatureSender</members>
+        <members>docGenAuthenticator</members>
         <name>LightningComponentBundle</name>
     </types>
     <types>
         <members>DocGen_Admin</members>
         <members>DocGen_User</members>
+        <members>DocGen_Guest_Signature</members>
         <name>PermissionSet</name>
     </types>
     <types>
@@ -75,5 +97,9 @@
         <members>DocGen_Loopback</members>
         <name>NamedCredential</name>
     </types>
-    <version>65.0</version>
+    <types>
+        <members>DocGen_Signature_Submission</members>
+        <name>Flow</name>
+    </types>
+    <version>66.0</version>
 </Package>

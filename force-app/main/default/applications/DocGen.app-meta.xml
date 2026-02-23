@@ -11,7 +11,10 @@
     <tabs>DocGen_Template_Manager</tabs>
     <tabs>DocGen_Template__c</tabs>
     <tabs>DocGen_Bulk_Gen</tabs>
+    <tabs>DocGen_Setup</tabs>
     <tabs>DocGen_Template_Version__c</tabs>
     <tabs>DocGen_Job__c</tabs>
+    <tabs>DocGen_Signature_Request__c</tabs>
+    <tabs>DocGen_Signature_Audit__c</tabs>
     <uiType>Lightning</uiType>
 </CustomApplication>

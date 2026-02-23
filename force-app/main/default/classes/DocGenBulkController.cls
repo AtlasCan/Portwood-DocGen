@@ -2,7 +2,7 @@ public with sharing class DocGenBulkController {
 
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getBulkTemplates() {
-        return [SELECT Id, Name, Base_Object_API__c, Description__c FROM DocGen_Template__c ORDER BY Name];
+        return [SELECT Id, Name, Base_Object_API__c, Description__c FROM DocGen_Template__c WITH USER_MODE ORDER BY Name];
     }
 
     @AuraEnabled
@@ -39,7 +39,7 @@ public with sharing class DocGenBulkController {
 
     @AuraEnabled(cacheable=true)
     public static DocGen_Job__c getJobStatus(Id jobId) {
-        return [SELECT Id, Name, Status__c, Success_Count__c, Error_Count__c, Total_Records__c FROM DocGen_Job__c WHERE Id = :jobId];
+        return [SELECT Id, Name, Status__c, Success_Count__c, Error_Count__c, Total_Records__c FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE];
     }
 
     // --- Saved Queries ---
@@ -49,6 +49,7 @@ public with sharing class DocGenBulkController {
             SELECT Id, Name, Description__c, Query_Condition__c 
             FROM DocGen_Saved_Query__c 
             WHERE DocGen_Template__c = :templateId 
+            WITH USER_MODE
             ORDER BY CreatedDate DESC
         ];
     }
