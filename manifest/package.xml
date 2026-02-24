@@ -8,8 +8,11 @@
         <members>DocGenBatch</members>
         <members>DocGenBulkController</members>
         <members>DocGenBulkFlowAction</members>
+        <members>DocGenBulkFlowActionTest</members>
         <members>DocGenBulkTests</members>
+        <members>DocGenController</members>
         <members>DocGenDataRetriever</members>
+        <members>DocGenException</members>
         <members>DocGenFlowAction</members>
         <members>DocGenService</members>
         <members>DocGenRenditionQueueable</members>
@@ -24,6 +27,8 @@
         <members>DocGenSignatureService</members>
         <members>DocGenSignatureSubmitter</members>
         <members>DocGenSignatureValidator</members>
+        <members>DocGenAuthenticatorController</members>
+        <members>LoopbackTestQueueable</members>
         <name>ApexClass</name>
     </types>
     <types>
@@ -40,7 +45,6 @@
     </types>
     <types>
         <members>DocGenPDFEngine</members>
-        <members>DocGenSessionProvider</members>
         <members>DocGenSign</members>
         <members>DocGenVerify</members>
         <name>ApexPage</name>
@@ -62,7 +66,7 @@
         <members>DocGen_Template_Manager</members>
         <members>DocGen_Template_Version__c</members>
         <members>DocGen_Template__c</members>
-        <members>DocGen_Settings</members>
+        <members>DocGen_Setup</members>
         <name>CustomTab</name>
     </types>
     <types>
