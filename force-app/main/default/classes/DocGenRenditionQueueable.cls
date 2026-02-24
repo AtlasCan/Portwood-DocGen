@@ -1,142 +1,128 @@
 public with sharing class DocGenRenditionQueueable implements Queueable, Database.AllowsCallouts {
     
-    private List<Id> cvIds;
+    private Map<Id, Id> cvIdToRecordId;
     private Integer retryCount;
     
-    public DocGenRenditionQueueable(Id cvId) {
-        this(new List<Id>{cvId}, 0);
-    }
-
-    public DocGenRenditionQueueable(List<Id> cvIds) {
-        this(cvIds, 0);
+    public DocGenRenditionQueueable(Map<Id, Id> cvIdToRecordId) {
+        this(cvIdToRecordId, 0);
     }
     
-    public DocGenRenditionQueueable(List<Id> cvIds, Integer retryCount) {
-        this.cvIds = cvIds;
+    public DocGenRenditionQueueable(Map<Id, Id> cvIdToRecordId, Integer retryCount) {
+        this.cvIdToRecordId = cvIdToRecordId;
         this.retryCount = retryCount;
     }
     
     public void execute(QueueableContext context) {
-        List<Id> failedIds = new List<Id>();
-        List<ContentVersion> cvsToInsert = new List<ContentVersion>();
+        Map<Id, Id> failedCvs = new Map<Id, Id>();
+        List<ContentVersion> pdfsToInsert = new List<ContentVersion>();
+        Map<Integer, Id> indexToRecordId = new Map<Integer, Id>();
         List<Id> successSourceIds = new List<Id>();
         
-        for (Id cvId : cvIds) {
+        Integer index = 0;
+        for (Id cvId : cvIdToRecordId.keySet()) {
             try {
                 ContentVersion pdfCv = DocGenRenditionService.capturePdfRendition(cvId);
                 if (pdfCv != null) {
-                    cvsToInsert.add(pdfCv);
+                    pdfsToInsert.add(pdfCv);
+                    indexToRecordId.put(index, cvIdToRecordId.get(cvId));
                     successSourceIds.add(cvId);
-                    System.debug('DocGen Rendition Collected for CV: ' + cvId);
+                    index++;
+                    System.debug('DocGen: Rendition collected for CV: ' + cvId);
                 }
             } catch (DocGenRenditionService.RenditionException e) {
                 if (e.getMessage().contains('Rendition not ready')) {
-                    failedIds.add(cvId);
+                    failedCvs.put(cvId, cvIdToRecordId.get(cvId));
                 } else {
-                    System.debug('DocGen Rendition Failure for ' + cvId + ': ' + e.getMessage());
+                    DocGenRenditionService.logRenditionError(cvId, e.getMessage());
+                    System.debug('DocGen: Rendition failure for ' + cvId + ': ' + e.getMessage());
                 }
             } catch (Exception e) {
-                System.debug('DocGen Rendition Unexpected Error for ' + cvId + ': ' + e.getMessage());
+                DocGenRenditionService.logRenditionError(cvId, e.getMessage());
+                System.debug('DocGen: Rendition unexpected error for ' + cvId + ': ' + e.getMessage());
             }
         }
 
-        // Bulk insert collected renditions
-        if (!cvsToInsert.isEmpty()) {
+        if (!pdfsToInsert.isEmpty()) {
             try {
-                insert cvsToInsert;
-                System.debug('DocGen: Bulk inserted ' + cvsToInsert.size() + ' renditions.');
+                insert pdfsToInsert;
+                System.debug('DocGen: Inserted ' + pdfsToInsert.size() + ' PDFs.');
                 
-                // --- CONTENT DOCUMENT LINK INHERITANCE ---
+                // --- DIRECT LINKAGE ---
                 List<ContentDocumentLink> cdlsToInsert = new List<ContentDocumentLink>();
-                Map<Id, Id> newCvIdToDocId = new Map<Id, Id>();
-                for(ContentVersion insertedCv : [SELECT Id, ContentDocumentId FROM ContentVersion WHERE Id IN :cvsToInsert WITH SYSTEM_MODE]) {
-                    newCvIdToDocId.put(insertedCv.Id, insertedCv.ContentDocumentId);
+                
+                Set<Id> pdfCvIds = new Set<Id>();
+                for(ContentVersion cv : pdfsToInsert) pdfCvIds.add(cv.Id);
+                
+                Map<Id, Id> cvIdToDocId = new Map<Id, Id>();
+                for(ContentVersion cv : [SELECT Id, ContentDocumentId FROM ContentVersion WHERE Id IN :pdfCvIds WITH SYSTEM_MODE]) {
+                    cvIdToDocId.put(cv.Id, cv.ContentDocumentId);
                 }
 
-                for(Integer i=0; i < cvsToInsert.size(); i++) {
-                    Id oldCvId = successSourceIds[i];
-                    Id newDocId = newCvIdToDocId.get(cvsToInsert[i].Id);
+                for(Integer i=0; i < pdfsToInsert.size(); i++) {
+                    Id recordId = indexToRecordId.get(i);
+                    Id docId = cvIdToDocId.get(pdfsToInsert[i].Id);
                     
-                    Id oldDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :oldCvId WITH SYSTEM_MODE LIMIT 1].ContentDocumentId;
-                    List<ContentDocumentLink> oldLinks = [SELECT LinkedEntityId, ShareType, Visibility FROM ContentDocumentLink WHERE ContentDocumentId = :oldDocId AND LinkedEntityId != :UserInfo.getUserId() WITH SYSTEM_MODE];
-                    
-                    for(ContentDocumentLink oldLink : oldLinks) {
+                    if (recordId != null && docId != null) {
                         cdlsToInsert.add(new ContentDocumentLink(
-                            ContentDocumentId = newDocId,
-                            LinkedEntityId = oldLink.LinkedEntityId,
-                            ShareType = oldLink.ShareType,
-                            Visibility = oldLink.Visibility
+                            ContentDocumentId = docId,
+                            LinkedEntityId = recordId,
+                            ShareType = 'V',
+                            Visibility = 'AllUsers'
                         ));
                     }
                 }
-                if (!cdlsToInsert.isEmpty()) {
-                    insert cdlsToInsert;
-                }
-                // --- END LINK INHERITANCE ---
-
-                // --- SIGNATURE HASH REPLACEMENT LOGIC ---
-                Map<String, String> pdfHashByPendingCvId = new Map<String, String>();
-                for (Integer i = 0; i < cvsToInsert.size(); i++) {
-                    ContentVersion pdfCv = cvsToInsert[i];
-                    String newPdfHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', pdfCv.VersionData));
-                    pdfHashByPendingCvId.put('PENDING_RENDITION:' + successSourceIds[i], newPdfHash);
-                }
                 
-                List<DocGen_Signature_Audit__c> auditsToUpdate = [
-                    SELECT Id, Document_Hash_SHA256__c 
-                    FROM DocGen_Signature_Audit__c 
-                    WHERE Document_Hash_SHA256__c IN :pdfHashByPendingCvId.keySet() 
-                    WITH SYSTEM_MODE
-                ];
-                for (DocGen_Signature_Audit__c audit : auditsToUpdate) {
-                    audit.Document_Hash_SHA256__c = pdfHashByPendingCvId.get(audit.Document_Hash_SHA256__c);
+                if (!cdlsToInsert.isEmpty()) {
+                    Database.insert(cdlsToInsert, false);
+                    System.debug('DocGen: Linked ' + cdlsToInsert.size() + ' PDFs to records.');
                 }
-                if (!auditsToUpdate.isEmpty()) {
-                    update auditsToUpdate;
-                }
-                // --- END SIGNATURE HASH LOGIC ---
 
-                // CLEANUP: Delete the temporary source DOCX/PPTX files
-                // We do this in the same async context but with partial success allowed
+                updateAuditHashes(successSourceIds, pdfsToInsert);
+
+                // CLEANUP: Delete the source DOCX
                 cleanupSourceFiles(successSourceIds);
+                
             } catch (Exception e) {
-                System.debug('DocGen Rendition Insert Error: ' + e.getMessage());
-                // If the insert failed due to a lock, add all back to failedIds for a clean retry later
-                failedIds.addAll(successSourceIds);
+                System.debug('DocGen: Finalization error: ' + e.getMessage());
+                for(Id sid : successSourceIds) failedCvs.put(sid, cvIdToRecordId.get(sid));
             }
         }
 
-        // Handle retries in a separate transaction (wait 1 minute for locks to clear)
-        if (!failedIds.isEmpty() && retryCount < 3) {
+        // Handle retries
+        if (!failedCvs.isEmpty() && retryCount < 10) {
             if (!Test.isRunningTest()) {
-                System.enqueueJob(new DocGenRenditionQueueable(failedIds, retryCount + 1));
+                System.enqueueJob(new DocGenRenditionQueueable(failedCvs, retryCount + 1));
             }
         }
     }
 
-    /**
-     * Deletes the source ContentDocument records of successfully captured PDFs.
-     * Uses partial success (allOrNone=false) so cleanup errors don't kill the transaction.
-     */
+    private void updateAuditHashes(List<Id> sourceCvIds, List<ContentVersion> pdfCvs) {
+        Map<String, String> pdfHashByPendingCvId = new Map<String, String>();
+        for (Integer i = 0; i < sourceCvIds.size(); i++) {
+            String newPdfHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', pdfCvs[i].VersionData));
+            pdfHashByPendingCvId.put('PENDING_RENDITION:' + sourceCvIds[i], newPdfHash);
+        }
+        
+        List<DocGen_Signature_Audit__c> audits = [
+            SELECT Id, Document_Hash_SHA256__c 
+            FROM DocGen_Signature_Audit__c 
+            WHERE Document_Hash_SHA256__c IN :pdfHashByPendingCvId.keySet() 
+            WITH SYSTEM_MODE
+        ];
+        for (DocGen_Signature_Audit__c a : audits) {
+            a.Document_Hash_SHA256__c = pdfHashByPendingCvId.get(a.Document_Hash_SHA256__c);
+        }
+        if (!audits.isEmpty()) update audits;
+    }
+
     private void cleanupSourceFiles(List<Id> sourceCvIds) {
-        if (sourceCvIds.isEmpty()) return;
         try {
             List<ContentVersion> sources = [SELECT ContentDocumentId FROM ContentVersion WHERE Id IN :sourceCvIds WITH SYSTEM_MODE];
-            Set<Id> docIds = new Set<Id>();
-            for (ContentVersion cv : sources) {
-                docIds.add(cv.ContentDocumentId);
-            }
-            if (!docIds.isEmpty()) {
-                List<ContentDocument> toDelete = new List<ContentDocument>();
-                for (Id docId : docIds) {
-                    toDelete.add(new ContentDocument(Id = docId));
-                }
-                // Partial success: if a document is locked, skip it; it will be a stray but won't crash the job
-                Database.delete(toDelete, false);
-                System.debug('DocGen Cleanup: Attempted deletion of ' + toDelete.size() + ' source documents.');
-            }
+            List<ContentDocument> docsToDelete = new List<ContentDocument>();
+            for (ContentVersion cv : sources) docsToDelete.add(new ContentDocument(Id = cv.ContentDocumentId));
+            if (!docsToDelete.isEmpty()) Database.delete(docsToDelete, false);
         } catch (Exception e) {
-            System.debug('DocGen Cleanup Error: ' + e.getMessage());
+            System.debug('DocGen: Cleanup error: ' + e.getMessage());
         }
     }
 }

@@ -7,18 +7,22 @@
                 <p>Your signature has been securely submitted.</p>
             </div>
         </template>
+
+        <template if:true={isProcessing}>
+            <div class="slds-is-relative slds-p-around_large slds-text-align_center">
+                <lightning-spinner alternative-text="Generating PDF..." size="medium" variant="brand"></lightning-spinner>
+                <h2 class="slds-text-heading_small slds-m-top_large">Generating PDF...</h2>
+                <p class="slds-text-body_small">Please wait while we finalize your document.</p>
+            </div>
+        </template>
         
-        <template if:false={isLocked}>
+        <template if:true={showPad}>
             <div class="header slds-m-bottom_medium">
                 <h2 class="slds-text-heading_small">Please Sign Below</h2>
                 <p class="slds-text-body_small slds-text-color_weak">Use your mouse or finger to sign inside the box.</p>
             </div>
             
-            <template if:true={documentUrl}>
-                <div class="slds-m-bottom_medium slds-text-align_center">
-                    <lightning-button label="Download Document" icon-name="utility:download" variant="neutral" onclick={handleDownloadDoc}></lightning-button>
-                </div>
-            </template>
+
 
             <div class="canvas-wrapper slds-m-bottom_medium">
                 <canvas 

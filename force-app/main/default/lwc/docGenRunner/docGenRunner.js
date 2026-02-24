@@ -15,12 +15,13 @@ export default class DocGenRunner extends LightningElement {
     @track templateOptions = [];
     @track selectedTemplateId;
     @track outputMode = 'download';
-    @track templateOutputFormat = 'PDF'; // Default to PDF
+    @track templateOutputFormat = 'Document'; 
     
     isLoading = false;
     error;
     librariesLoaded = false;
     _librariesPromise;
+    _templateData = []; // Store raw template metadata
 
     get engineUrl() {
         return '/apex/DocGenPDFEngine';
@@ -37,6 +38,7 @@ export default class DocGenRunner extends LightningElement {
     @wire(getTemplatesForObject, { objectApiName: '$objectApiName' })
     wiredTemplates({ error, data }) {
         if (data) {
+            this._templateData = data;
             this.templateOptions = data.map(t => ({ label: t.Name, value: t.Id }));
             this.error = undefined;
         } else if (error) {
@@ -70,15 +72,14 @@ export default class DocGenRunner extends LightningElement {
         });
     }
 
-    async handleTemplateChange(event) {
+    handleTemplateChange(event) {
         this.selectedTemplateId = event.detail.value;
         this.error = null;
         
-        // Peek at the template format to update the labels immediately
-        const selected = this.templateOptions.find(o => o.value === this.selectedTemplateId);
+        // Update the UI labels immediately based on selected template
+        const selected = this._templateData.find(t => t.Id === this.selectedTemplateId);
         if (selected) {
-            // We'll get the real format during generation, but for now we keep it simple
-            // or we could fetch it here. For now, we'll let generateDocument handle the update.
+            this.templateOutputFormat = selected.Output_Format__c || 'Document';
         }
     }
 
@@ -95,6 +96,8 @@ export default class DocGenRunner extends LightningElement {
         this.error = null;
         
         try {
+            console.log('DocGen: Starting generation process...');
+            
             // 0. Ensure Libraries are loaded
             if (this._librariesPromise) {
                 await this._librariesPromise;
@@ -107,16 +110,22 @@ export default class DocGenRunner extends LightningElement {
             }
 
             // 1. Get Data and Template Content
+            console.log('DocGen: Fetching template and record data...');
             const result = await generateDocumentData({ 
                 templateId: this.selectedTemplateId, 
                 recordId: this.recordId 
             });
             
+            if (!result || !result.templateFile) {
+                throw new Error('Template file content is empty or could not be retrieved.');
+            }
+
             const templateData = result.templateFile; 
             const templateType = result.templateType;
-            this.templateOutputFormat = result.outputFormat || 'PDF';
+            this.templateOutputFormat = result.outputFormat || 'Document';
 
             // 2. Local DOCX Generation (PizZip + docxtemplater)
+            console.log('DocGen: Processing record data and initializing docxtemplater...');
             let recordData = this.flattenData(JSON.parse(JSON.stringify(result.data)));
             
             const binaryString = atob(templateData);
@@ -148,6 +157,7 @@ export default class DocGenRunner extends LightningElement {
                 }
             });
 
+            console.log('DocGen: Rendering template...');
             doc.render(recordData);
             
             const baseName = recordData.Name || recordData.QuoteNumber || recordData.CaseNumber || recordData.Subject || 'Document';
@@ -155,7 +165,7 @@ export default class DocGenRunner extends LightningElement {
             const isPDF = this.templateOutputFormat === 'PDF' && !isPPT;
 
             if (isPPT) {
-                // PowerPoint Logic
+                console.log('DocGen: PowerPoint detected. Generating PPTX...');
                 const outBlob = doc.getZip().generate({ type: 'blob' });
                 if (this.outputMode === 'save') {
                     await this.saveToSalesforce(baseName, outBlob, 'pptx');
@@ -165,7 +175,7 @@ export default class DocGenRunner extends LightningElement {
                     this.isLoading = false;
                 }
             } else if (!isPDF) {
-                // native Word Logics
+                console.log('DocGen: Native format detected. Generating DOCX...');
                 const outBlob = doc.getZip().generate({ type: 'blob' });
                 if (this.outputMode === 'save') {
                     await this.saveToSalesforce(baseName, outBlob, 'docx');
@@ -176,6 +186,7 @@ export default class DocGenRunner extends LightningElement {
                 }
             } else {
                 // Word DOCX -> Send to PDF Engine (For PDF Output)
+                console.log('DocGen: PDF output requested. Sending to PDF Engine...');
                 this.showToast('Info', 'Generating PDF...', 'info');
                 const docxBuffer = doc.getZip().generate({ type: 'arraybuffer' });
                 const iframe = this.template.querySelector('iframe');
@@ -186,13 +197,26 @@ export default class DocGenRunner extends LightningElement {
                     type: 'generate',
                     blob: docxBuffer,
                     fileName: baseName,
-                    mode: this.outputMode // Pass mode: 'download' or 'save'
+                    mode: this.outputMode 
                 }, '*');
             }
 
         } catch (e) {
             console.error('DocGen Error Detailed:', e);
-            let msg = e.message || 'Unknown error during generation';
+            let msg = 'Unknown error during generation';
+            
+            if (e.message) {
+                msg = e.message;
+            } else if (typeof e === 'string') {
+                msg = e;
+            } else {
+                try {
+                    msg = JSON.stringify(e);
+                } catch (jsonErr) {
+                    msg = 'Critical failure (could not stringify error)';
+                }
+            }
+
             if (e.properties && e.properties.errors instanceof Array) {
                 msg += ': ' + e.properties.errors.map(err => err.properties.explanation).join(', ');
             }
@@ -211,6 +235,7 @@ export default class DocGenRunner extends LightningElement {
     
     handleMessage = async (event) => {
         if (event.data.type === 'docgen_success') {
+            console.log('DocGen: PDF Engine success received.');
             if (this.outputMode === 'save' && event.data.blob) {
                 await this.saveToSalesforce(event.data.fileName, event.data.blob, 'pdf');
             } else {
@@ -218,6 +243,7 @@ export default class DocGenRunner extends LightningElement {
                 this.isLoading = false;
             }
         } else if (event.data.type === 'docgen_error') {
+            console.error('DocGen: PDF Engine reported error:', event.data.message);
             this.error = 'PDF Engine Error: ' + event.data.message;
             this.isLoading = false;
         }
@@ -225,9 +251,12 @@ export default class DocGenRunner extends LightningElement {
 
     async saveToSalesforce(fileName, blob, extension) {
         try {
+            console.log(`DocGen: Saving ${extension} to record...`);
             this.showToast('Info', 'Saving to Record...', 'info');
-            // Convert ArrayBuffer/Blob to Base64
+            
             const base64 = await this.blobToBase64(blob);
+            if (!base64) throw new Error('Failed to convert file to binary data.');
+
             await saveGeneratedDocument({
                 recordId: this.recordId,
                 fileName: fileName,
@@ -236,7 +265,9 @@ export default class DocGenRunner extends LightningElement {
             });
             this.showToast('Success', `${extension.toUpperCase()} saved to record.`, 'success');
         } catch (e) {
-            this.error = 'Save Error: ' + (e.body ? e.body.message : e.message);
+            console.error('DocGen: Save error:', e);
+            this.error = 'Save Error: ' + (e.body ? e.body.message : (e.message || e));
+            this.showToast('Error', 'Save failed. Check error message.', 'error');
         } finally {
             this.isLoading = false;
         }
@@ -244,17 +275,31 @@ export default class DocGenRunner extends LightningElement {
 
     blobToBase64(blob) {
         return new Promise((resolve, reject) => {
+            if (!blob) {
+                reject(new Error('Input blob is null or undefined.'));
+                return;
+            }
             const reader = new FileReader();
             reader.onloadend = () => {
                 const base64String = reader.result.split(',')[1];
                 resolve(base64String);
             };
-            reader.onerror = reject;
-            // Handle both Blobs and ArrayBuffers
+            reader.onerror = (e) => {
+                console.error('FileReader error:', e);
+                reject(new Error('Error reading file data.'));
+            };
+
             if (blob instanceof ArrayBuffer) {
                 reader.readAsDataURL(new Blob([blob]));
-            } else {
+            } else if (blob instanceof Blob) {
                 reader.readAsDataURL(blob);
+            } else {
+                // Try treating it as a buffer if it's an TypedArray
+                try {
+                    reader.readAsDataURL(new Blob([blob]));
+                } catch (err) {
+                    reject(new Error('Input is not a valid Blob or ArrayBuffer.'));
+                }
             }
         });
     }

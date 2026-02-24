@@ -1,12 +1,26 @@
-import { LightningElement, api } from 'lwc';
+import { LightningElement, api, track } from 'lwc';
+import { FlowNavigationNextEvent } from 'lightning/flowSupport';
+import fetchDocumentData from '@salesforce/apex/DocGenSignatureController.fetchDocumentData';
 
 export default class DocGenSignaturePad extends LightningElement {
-    @api secureToken; // Passed from the public Site Controller
+    @api token; 
+    @api secureToken; 
+    @api recordId;
     @api documentUrl;
-    @api signatureData; // Output to Flow
+    @api signatureData; 
+    @api templateBase64;
+    @api mergeDataJson;
+    @api base64Pdf;
+    @api pdfFileName;
+    
+    // Flow Actions
+    @api availableActions = [];
 
     // State Flags
-    isLocked = false;
+    @track isLocked = false;
+    @track isProcessing = false;
+    isDrawing = false;
+    isCanvasEmpty = true;
     isDrawing = false;
     isCanvasEmpty = true;
     
@@ -16,94 +30,96 @@ export default class DocGenSignaturePad extends LightningElement {
     lastX = 0;
     lastY = 0;
 
+    get showPad() {
+        return !this.isLocked && !this.isProcessing;
+    }
+
+    connectedCallback() {
+        this.initData();
+    }
+
+    async initData() {
+        const activeToken = this.token || this.secureToken;
+        if (activeToken) {
+            try {
+                const res = await fetchDocumentData({ token: activeToken });
+                if (res.isValid) {
+                    this.templateBase64 = res.templateBase64;
+                    this.recordId = res.recordId;
+                    this.mergeDataJson = res.mergeDataJson;
+                }
+            } catch (error) {
+                console.error('DocGen: Error initializing data:', error);
+            }
+        }
+    }
+
     renderedCallback() {
-        if (!this.ctx && !this.isLocked) {
-            this.initCanvas();
+        if (!this.ctx && this.showPad) {
+            setTimeout(() => {
+                this.initCanvas();
+            }, 100);
         }
     }
 
     initCanvas() {
         const canvas = this.template.querySelector('.signature-pad');
         if (canvas) {
-            // Set actual internal dimensions to match the DOM size for accurate mapping
             const wrapper = this.template.querySelector('.canvas-wrapper');
             canvas.width = wrapper.offsetWidth;
-            canvas.height = 300; // Match the CSS height
+            canvas.height = 300; 
 
             this.ctx = canvas.getContext('2d');
-            
-            // Set brush style
-            this.ctx.strokeStyle = '#000000'; // Black ink
+            this.ctx.strokeStyle = '#000000';
             this.ctx.lineJoin = 'round';
             this.ctx.lineCap = 'round';
             this.ctx.lineWidth = 3; 
         }
     }
 
-    // --- Mouse Events ---
+    // --- Drawing Events ---
     handleMousedown(e) {
         this.ctx.beginPath();
         this.isDrawing = true;
         this.updateCoordinates(e.clientX, e.clientY);
     }
-
     handleMousemove(e) {
         if (!this.isDrawing) return;
         this.draw(e.clientX, e.clientY);
     }
-
-    handleMouseup() {
-        this.isDrawing = false;
-    }
-
-    // --- Touch Events (Mobile Support) ---
+    handleMouseup() { this.isDrawing = false; }
     handleTouchstart(e) {
-        e.preventDefault(); // Prevent scrolling
+        e.preventDefault();
         if (e.touches.length > 0) {
             this.ctx.beginPath();
             this.isDrawing = true;
             this.updateCoordinates(e.touches[0].clientX, e.touches[0].clientY);
         }
     }
-
     handleTouchmove(e) {
-        e.preventDefault(); // Prevent scrolling
-        if (!this.isDrawing) return;
-        if (e.touches.length > 0) {
-            this.draw(e.touches[0].clientX, e.touches[0].clientY);
-        }
-    }
-
-    handleTouchend(e) {
         e.preventDefault();
-        this.isDrawing = false;
+        if (!this.isDrawing) return;
+        if (e.touches.length > 0) this.draw(e.touches[0].clientX, e.touches[0].clientY);
     }
+    handleTouchend(e) { e.preventDefault(); this.isDrawing = false; }
 
-    // --- Drawing Engine ---
     updateCoordinates(clientX, clientY) {
         const canvas = this.template.querySelector('.signature-pad');
+        if (!canvas) return;
         this.canvasRect = canvas.getBoundingClientRect();
-        
-        // Calculate exact point inside canvas
         this.lastX = clientX - this.canvasRect.left;
         this.lastY = clientY - this.canvasRect.top;
     }
 
     draw(clientX, clientY) {
-        const canvas = this.template.querySelector('.signature-pad');
         const currentX = clientX - this.canvasRect.left;
         const currentY = clientY - this.canvasRect.top;
-
         this.ctx.moveTo(this.lastX, this.lastY);
         this.ctx.lineTo(currentX, currentY);
         this.ctx.stroke();
-
         this.lastX = currentX;
         this.lastY = currentY;
-        
-        if (this.isCanvasEmpty) {
-            this.isCanvasEmpty = false;
-        }
+        if (this.isCanvasEmpty) this.isCanvasEmpty = false;
     }
 
     clearSignature() {
@@ -112,34 +128,37 @@ export default class DocGenSignaturePad extends LightningElement {
         this.isCanvasEmpty = true;
     }
 
-    handleDownloadDoc() {
-        if (this.documentUrl) {
-            window.open(this.documentUrl, '_blank');
+    async saveSignature() {
+        if (this.isCanvasEmpty) return;
+
+        this.isProcessing = true;
+        const activeToken = this.token || this.secureToken;
+
+        try {
+            console.log('DocGen: Capturing signature for backend Flow rendition');
+            // 1. Get Signature Image
+            const canvas = this.template.querySelector('.signature-pad');
+            const dataUrl = canvas.toDataURL('image/png');
+            this.signatureData = dataUrl.split(',')[1]; 
+
+            this.isLocked = true;
+            this.dispatchEvent(new CustomEvent('signaturesuccess', { detail: { token: activeToken } }));
+
+            // 2. AUTO-ADVANCE FLOW
+            if (this.availableActions && this.availableActions.find(action => action === 'NEXT')) {
+                console.log('DocGen: Navigating to NEXT screen...');
+                const navigateNextEvent = new FlowNavigationNextEvent();
+                this.dispatchEvent(navigateNextEvent);
+            }
+
+        } catch (error) {
+            console.error('DocGen: Error capturing signature:', error);
+            const errorMsg = error.body ? error.body.message : (error.message || JSON.stringify(error));
+            alert('Error capturing signature: ' + errorMsg);
+        } finally {
+            this.isProcessing = false;
         }
     }
 
-    saveSignature() {
-        if (this.isCanvasEmpty) return;
 
-        // Extract Base64 PNG data from the canvas
-        const canvas = this.template.querySelector('.signature-pad');
-        const dataUrl = canvas.toDataURL('image/png');
-        
-        // The dataUrl comes encoded as "data:image/png;base64,iVBORw0KGgo..."
-        // We only want the raw base64 string
-        const base64Data = dataUrl.split(',')[1];
-
-        // Expose to Flow
-        this.signatureData = base64Data;
-
-        // Ensure we dispatch this to a parent component (or an Apex call later)
-        this.dispatchEvent(new CustomEvent('signaturesave', {
-            detail: {
-                token: this.secureToken,
-                base64Image: base64Data
-            }
-        }));
-
-        this.isLocked = true;
-    }
 }

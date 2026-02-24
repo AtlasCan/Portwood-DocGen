@@ -9,10 +9,23 @@
     </targets>
     <targetConfigs>
         <targetConfig targets="lightning__FlowScreen">
-            <property name="secureToken" type="String" label="Secure Token" role="inputOnly" />
-            <property name="documentUrl" type="String" label="Document Preview URL" role="inputOnly" />
-            <property name="signatureData" type="String" label="Signature Data (Base64)"
+            <property name="token" type="String" label="Token" role="inputOnly" />
+            <property
+                name="secureToken" type="String" label="Secure Token (Legacy)"
+                role="inputOnly" />
+            <property name="recordId" type="String" label="Record ID"
+                role="inputOnly" />
+            <property name="documentUrl" type="String" label="Document URL"
+                role="inputOnly" />
+            <property name="templateBase64" type="String" label="Template Base64"
+                role="inputOnly" />
+            <property name="mergeDataJson" type="String"
+                label="Merge Data (JSON)" role="inputOnly" />
+            <property name="signatureData"
+                type="String" label="Signature Data (Base64)"
                 role="outputOnly" />
+            <property name="base64Pdf" type="String" label="Base64 PDF" role="outputOnly" />
+            <property name="pdfFileName" type="String" label="PDF File Name" role="outputOnly" />
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

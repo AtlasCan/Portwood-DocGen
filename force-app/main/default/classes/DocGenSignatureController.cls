@@ -7,6 +7,37 @@ public without sharing class DocGenSignatureController {
         @AuraEnabled public String signerName;
         @AuraEnabled public String documentTitle;
         @AuraEnabled public String documentUrl;
+        @AuraEnabled public String templateBase64;
+        @AuraEnabled public String recordId;
+        @AuraEnabled public String mergeDataJson;
+    }
+
+    /**
+     * Fetches the actual document content for client-side rendering.
+     */
+    @AuraEnabled
+    public static SignatureInitResponse fetchDocumentData(String token) {
+        SignatureInitResponse res = validateToken(token);
+        if (!res.isValid) return res;
+
+        List<DocGen_Signature_Request__c> requests = [
+            SELECT Source_Document_Id__c, Related_Record_Id__c
+            FROM DocGen_Signature_Request__c
+            WHERE Secure_Token__c = :token
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
+
+        if (!requests.isEmpty()) {
+            DocGen_Signature_Request__c req = requests[0];
+            res.recordId = req.Related_Record_Id__c;
+            
+            List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :req.Source_Document_Id__c WITH SYSTEM_MODE LIMIT 1];
+            if (!cvs.isEmpty()) {
+                res.templateBase64 = EncodingUtil.base64Encode(cvs[0].VersionData);
+            }
+        }
+        return res;
     }
 
     /**
@@ -92,4 +123,96 @@ public without sharing class DocGenSignatureController {
         return res;
     }
 
+    /**
+     * Stamps the signature and returns the NEW docx base64.
+     * This allows the browser to perform the final PDF rendering.
+     */
+    @AuraEnabled
+    public static Map<String, String> stampAndReturnSource(String token, String base64Image) {
+        List<DocGen_Signature_Request__c> requests = [
+            SELECT Id, Status__c, Signer_Name__c, Source_Document_Id__c, Related_Record_Id__c
+            FROM DocGen_Signature_Request__c
+            WHERE Secure_Token__c = :token
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
+
+        if (requests.isEmpty() || requests[0].Status__c == 'Signed' || requests[0].Status__c == 'Cancelled') {
+            throw new AuraHandledException('Invalid request or document already signed.');
+        }
+
+        DocGen_Signature_Request__c req = requests[0];
+        
+        try {
+            // 1. Stamp on server (returns Blob, NO record insert)
+            Blob stampedBlob = DocGenSignatureService.stampSignatureToBlob(req.Source_Document_Id__c, base64Image, req.Id);
+            
+            // 2. Fetch Original Metadata for filename
+            ContentVersion sourceDoc = [SELECT Title FROM ContentVersion WHERE Id = :req.Source_Document_Id__c WITH SYSTEM_MODE LIMIT 1];
+            
+            // 3. Mark as signed (Update Request Status)
+            req.Status__c = 'Signed';
+            update req;
+
+            // 4. Create Audit Trail (Initial State)
+            DocGen_Signature_Audit__c audit = new DocGen_Signature_Audit__c();
+            audit.Signature_Request__c = req.Id;
+            audit.Signed_Date__c = System.now();
+            audit.Document_Hash_SHA256__c = 'PENDING_CLIENT_PDF'; // Will be updated by finishSignatureUpload
+            audit.IP_Address__c = 'Captured via Client-Side Hybrid Flow';
+            audit.User_Agent__c = 'Browser-Based Renderer';
+            insert audit;
+
+            return new Map<String, String>{
+                'base64' => EncodingUtil.base64Encode(stampedBlob),
+                'title' => sourceDoc.Title + ' - Signed'
+            };
+        } catch (Exception e) {
+            throw new AuraHandledException('Stamping failed: ' + e.getMessage());
+        }
+    }
+
+    /**
+     * Finalizes the signature by uploading the browser-generated PDF and updating the audit trail.
+     */
+    @AuraEnabled
+    public static void finishSignatureUpload(String token, String base64Pdf, String fileName) {
+        List<DocGen_Signature_Request__c> requests = [
+            SELECT Id, Related_Record_Id__c
+            FROM DocGen_Signature_Request__c
+            WHERE Secure_Token__c = :token
+            WITH SYSTEM_MODE
+            LIMIT 1
+        ];
+
+        if (requests.isEmpty()) throw new AuraHandledException('Request not found.');
+        DocGen_Signature_Request__c req = requests[0];
+
+        try {
+            // 1. Save PDF
+            Id contentDocId = DocGenController.saveGeneratedDocument(
+                req.Related_Record_Id__c, 
+                fileName, 
+                base64Pdf, 
+                'pdf'
+            );
+
+            // 2. Update Audit Trail with PDF Hash
+            List<DocGen_Signature_Audit__c> audits = [
+                SELECT Id FROM DocGen_Signature_Audit__c 
+                WHERE Signature_Request__c = :req.Id
+                WITH SYSTEM_MODE
+                ORDER BY CreatedDate DESC
+                LIMIT 1
+            ];
+
+            if (!audits.isEmpty()) {
+                String pdfHash = EncodingUtil.convertToHex(Crypto.generateDigest('SHA-256', EncodingUtil.base64Decode(base64Pdf)));
+                audits[0].Document_Hash_SHA256__c = pdfHash;
+                update audits;
+            }
+        } catch (Exception e) {
+            throw new AuraHandledException('Finalization failed: ' + e.getMessage());
+        }
+    }
 }

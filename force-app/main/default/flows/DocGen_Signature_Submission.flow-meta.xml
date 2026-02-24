@@ -1,19 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Flow xmlns="http://soap.sforce.com/2006/04/metadata">
-    <apiVersion>66.0</apiVersion>
     <actionCalls>
-        <name>Submit_Signature_Action</name>
-        <label>Submit Signature Action</label>
-        <locationX>314</locationX>
-        <locationY>458</locationY>
-        <actionName>DocGenSignatureSubmitter</actionName>
+        <name>Finalize_Signature_Action</name>
+        <label>Finalize Signature Action</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <actionName>DocGenSignatureFinalizer</actionName>
         <actionType>apex</actionType>
         <connector>
             <targetReference>Success_Screen</targetReference>
         </connector>
         <flowTransactionModel>Automatic</flowTransactionModel>
         <inputParameters>
-            <name>signatureData</name>
+            <name>base64Image</name>
             <value>
                 <elementReference>Signature_Pad.signatureData</elementReference>
             </value>
@@ -21,17 +20,17 @@
         <inputParameters>
             <name>token</name>
             <value>
-                <elementReference>secureToken</elementReference>
+                <elementReference>token</elementReference>
             </value>
         </inputParameters>
-        <nameSegment>DocGenSignatureSubmitter</nameSegment>
+        <nameSegment>DocGenSignatureFinalizer</nameSegment>
         <storeOutputAutomatically>true</storeOutputAutomatically>
     </actionCalls>
     <actionCalls>
         <name>Validate_Token_Action</name>
         <label>Validate Token Action</label>
-        <locationX>314</locationX>
-        <locationY>134</locationY>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
         <actionName>DocGenSignatureValidator</actionName>
         <actionType>apex</actionType>
         <connector>
@@ -41,17 +40,19 @@
         <inputParameters>
             <name>token</name>
             <value>
-                <elementReference>secureToken</elementReference>
+                <elementReference>token</elementReference>
             </value>
         </inputParameters>
         <nameSegment>DocGenSignatureValidator</nameSegment>
         <storeOutputAutomatically>true</storeOutputAutomatically>
     </actionCalls>
+    <apiVersion>66.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
     <decisions>
         <name>Check_Validation</name>
         <label>Check Validation</label>
-        <locationX>314</locationX>
-        <locationY>242</locationY>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
         <defaultConnector>
             <targetReference>Error_Screen</targetReference>
         </defaultConnector>
@@ -74,6 +75,7 @@
     </decisions>
     <environments>Default</environments>
     <interviewLabel>DocGen Signature Submission {!$Flow.CurrentDateTime}</interviewLabel>
+    <isAdditionalPermissionRequiredToRun>true</isAdditionalPermissionRequiredToRun>
     <label>DocGen Signature Submission</label>
     <processMetadataValues>
         <name>BuilderType</name>
@@ -98,8 +100,8 @@
     <screens>
         <name>Error_Screen</name>
         <label>Error Screen</label>
-        <locationX>578</locationX>
-        <locationY>350</locationY>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
         <allowBack>false</allowBack>
         <allowFinish>true</allowFinish>
         <allowPause>false</allowPause>
@@ -107,6 +109,14 @@
             <name>Error_Msg</name>
             <fieldText>&lt;p style=&quot;text-align: center;&quot;&gt;&lt;strong style=&quot;font-size: 18px; color: rgb(231, 76, 60);&quot;&gt;Cannot Proceed&lt;/strong&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;{!Validate_Token_Action.errorMessage}&lt;/p&gt;</fieldText>
             <fieldType>DisplayText</fieldType>
+            <styleProperties>
+                <verticalAlignment>
+                    <stringValue>top</stringValue>
+                </verticalAlignment>
+                <width>
+                    <stringValue>12</stringValue>
+                </width>
+            </styleProperties>
         </fields>
         <showFooter>true</showFooter>
         <showHeader>true</showHeader>
@@ -114,13 +124,13 @@
     <screens>
         <name>Signature_Screen</name>
         <label>Signature Screen</label>
-        <locationX>50</locationX>
-        <locationY>350</locationY>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
         <allowBack>false</allowBack>
         <allowFinish>true</allowFinish>
         <allowPause>false</allowPause>
         <connector>
-            <targetReference>Submit_Signature_Action</targetReference>
+            <targetReference>Finalize_Signature_Action</targetReference>
         </connector>
         <fields>
             <name>Signature_Pad</name>
@@ -133,14 +143,22 @@
                 </value>
             </inputParameters>
             <inputParameters>
-                <name>secureToken</name>
+                <name>token</name>
                 <value>
-                    <elementReference>secureToken</elementReference>
+                    <elementReference>token</elementReference>
                 </value>
             </inputParameters>
             <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
             <isRequired>true</isRequired>
             <storeOutputAutomatically>true</storeOutputAutomatically>
+            <styleProperties>
+                <verticalAlignment>
+                    <stringValue>top</stringValue>
+                </verticalAlignment>
+                <width>
+                    <stringValue>12</stringValue>
+                </width>
+            </styleProperties>
         </fields>
         <showFooter>true</showFooter>
         <showHeader>true</showHeader>
@@ -148,8 +166,8 @@
     <screens>
         <name>Success_Screen</name>
         <label>Success Screen</label>
-        <locationX>314</locationX>
-        <locationY>566</locationY>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
         <allowBack>false</allowBack>
         <allowFinish>true</allowFinish>
         <allowPause>false</allowPause>
@@ -157,12 +175,20 @@
             <name>Success_Msg</name>
             <fieldText>&lt;p style=&quot;text-align: center;&quot;&gt;&lt;strong style=&quot;font-size: 18px; color: rgb(0, 163, 63);&quot;&gt;Signature Successful!&lt;/strong&gt;&lt;/p&gt;&lt;p style=&quot;text-align: center;&quot;&gt;Your document has been signed and processed securely.&lt;/p&gt;</fieldText>
             <fieldType>DisplayText</fieldType>
+            <styleProperties>
+                <verticalAlignment>
+                    <stringValue>top</stringValue>
+                </verticalAlignment>
+                <width>
+                    <stringValue>12</stringValue>
+                </width>
+            </styleProperties>
         </fields>
         <showFooter>true</showFooter>
         <showHeader>true</showHeader>
     </screens>
     <start>
-        <locationX>188</locationX>
+        <locationX>0</locationX>
         <locationY>0</locationY>
         <connector>
             <targetReference>Validate_Token_Action</targetReference>
@@ -170,7 +196,7 @@
     </start>
     <status>Active</status>
     <variables>
-        <name>secureToken</name>
+        <name>token</name>
         <dataType>String</dataType>
         <isCollection>false</isCollection>
         <isInput>true</isInput>

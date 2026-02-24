@@ -2,30 +2,33 @@ public with sharing class DocGenRenditionService {
     
     public class RenditionException extends Exception {}
 
-    private static List<Id> cvIdsCollector = new List<Id>();
+    private static Map<Id, Id> pendingRenditions = new Map<Id, Id>();
 
     /**
-     * Adds a ContentVersion ID to the collection for later rendition capture.
+     * Adds a ContentVersion ID and its Related Record ID to the collection for later rendition capture.
      */
-    public static void addPendingRendition(Id cvId) {
-        cvIdsCollector.add(cvId);
+    public static void addPendingRendition(Id cvId, Id recordId) {
+        pendingRenditions.put(cvId, recordId);
     }
 
     /**
-     * Enqueues a single background job for all collected ContentVersion IDs.
+     * Enqueues a background job for all collected renditions.
      */
     public static void enqueueRenditions() {
-        if (cvIdsCollector.isEmpty()) return;
+        if (pendingRenditions.isEmpty()) return;
         
         List<DocGen_Rendition_Event__e> events = new List<DocGen_Rendition_Event__e>();
-        for (Id cvId : cvIdsCollector) {
-            events.add(new DocGen_Rendition_Event__e(Source_CV_Id__c = (String)cvId));
+        for (Id cvId : pendingRenditions.keySet()) {
+            events.add(new DocGen_Rendition_Event__e(
+                Source_CV_Id__c = (String)cvId,
+                Related_Record_Id__c = (String)pendingRenditions.get(cvId)
+            ));
         }
         
         if (!events.isEmpty()) {
             EventBus.publish(events);
         }
-        cvIdsCollector.clear();
+        pendingRenditions.clear();
     }
 
     /**
@@ -36,14 +39,14 @@ public with sharing class DocGenRenditionService {
         ContentVersion cv = [SELECT ContentDocumentId, Title, PathOnClient FROM ContentVersion WHERE Id = :cvId WITH SYSTEM_MODE LIMIT 1];
         String fileId = cv.ContentDocumentId;
         
-        // Use a secure Named Credential instead of the Visualforce Session Hack
-        // This is the AppExchange-approved architecture for REST API Loopbacks.
-        String endpoint = 'callout:DocGen_Loopback/services/data/v65.0/connect/files/' + fileId + '/rendition?type=PDF';
+        // Use v63.0 for better compatibility
+        String endpoint = 'callout:DocGen_Loopback/services/data/v63.0/connect/files/' + fileId + '/rendition?type=PDF';
+        
+        System.debug('DocGen: Requesting PDF rendition from ' + endpoint);
         
         HttpRequest req = new HttpRequest();
         req.setEndpoint(endpoint);
         req.setMethod('GET');
-        // The Authorization Bearer header is automatically injected by the Named Credential
         
         Http h = new Http();
         HttpResponse res = h.send(req);
@@ -61,6 +64,31 @@ public with sharing class DocGenRenditionService {
             throw new RenditionException('Rendition not ready yet (Status: ' + res.getStatusCode() + '). Retrying...');
         } else {
             throw new RenditionException('Failed to capture rendition: ' + res.getStatusCode() + ' ' + res.getStatus() + ' ' + res.getBody());
+        }
+    }
+
+    /**
+     * Logs an error message to the Signature Audit record associated with the source document.
+     * This ensures visibility into "silent" background failures.
+     */
+    public static void logRenditionError(Id sourceCvId, String errorMessage) {
+        try {
+            List<DocGen_Signature_Audit__c> audits = [
+                SELECT Id, Error_Message__c 
+                FROM DocGen_Signature_Audit__c 
+                WHERE Document_Hash_SHA256__c = :('PENDING_RENDITION:' + sourceCvId)
+                WITH SYSTEM_MODE
+                LIMIT 1
+            ];
+            
+            if (!audits.isEmpty()) {
+                audits[0].Error_Message__c = '[' + System.now() + '] ' + errorMessage;
+                update audits;
+            } else {
+                System.debug('DocGen: Could not find audit record for CV ' + sourceCvId + ' to log error: ' + errorMessage);
+            }
+        } catch (Exception e) {
+            System.debug('DocGen: Critical error logging rendition failure: ' + e.getMessage());
         }
     }
 }

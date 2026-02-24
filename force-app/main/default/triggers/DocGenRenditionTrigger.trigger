@@ -1,11 +1,12 @@
 trigger DocGenRenditionTrigger on DocGen_Rendition_Event__e (after insert) {
-    List<Id> cvIds = new List<Id>();
+    Map<Id, Id> cvIdToRecordId = new Map<Id, Id>();
     for (DocGen_Rendition_Event__e event : Trigger.new) {
-        cvIds.add((Id)event.Source_CV_Id__c);
+        if (event.Source_CV_Id__c != null) {
+            cvIdToRecordId.put((Id)event.Source_CV_Id__c, (Id)event.Related_Record_Id__c);
+        }
     }
     
-    if (!cvIds.isEmpty()) {
-        // Since we are in the "Automated Process" context, we have full callout and NC access.
-        System.enqueueJob(new DocGenRenditionQueueable(cvIds));
+    if (!cvIdToRecordId.isEmpty()) {
+        System.enqueueJob(new DocGenRenditionQueueable(cvIdToRecordId));
     }
 }

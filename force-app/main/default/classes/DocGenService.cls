@@ -296,7 +296,7 @@ public with sharing class DocGenService {
         // If the requested format is PDF, add to the collector for delayed background capture
         if (format == 'PDF') {
             System.debug('DocGen: Collecting Rendition Capture for ' + cv.Id);
-            DocGenRenditionService.addPendingRendition(cv.Id);
+            DocGenRenditionService.addPendingRendition(cv.Id, recordId);
         }
         return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cv.Id WITH USER_MODE].ContentDocumentId;
     }
