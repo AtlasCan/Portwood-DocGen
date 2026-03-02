@@ -1,8 +1,8 @@
 {
   "packageDirectories": [
     {
-      "versionName": "v0.7.0 - Bulk PDF Fix",
-      "versionNumber": "0.7.0.NEXT",
+      "versionName": "v0.8.0 - Fix Uninstall Blockers",
+      "versionNumber": "0.8.0.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Document Generation",
@@ -26,6 +26,7 @@
     "Document Generation@0.5.0-2": "04tdL000000OjnBQAS",
     "Document Generation@0.5.0-3": "04tdL000000Ooi1QAC",
     "Document Generation@0.6.0-1": "04tdL000000Ooq5QAC",
-    "Document Generation@0.7.0-1": "04tdL000000OowXQAS"
+    "Document Generation@0.7.0-1": "04tdL000000OowXQAS",
+    "Document Generation@0.8.0-1": "04tdL000000OpCfQAK"
   }
 }

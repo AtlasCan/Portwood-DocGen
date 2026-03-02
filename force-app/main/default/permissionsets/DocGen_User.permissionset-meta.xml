@@ -49,10 +49,6 @@
         <enabled>true</enabled>
     </classAccesses>
     <description>Standard User access to Document Generation features.</description>
-    <externalCredentialPrincipalAccesses>
-        <enabled>true</enabled>
-        <externalCredentialPrincipal>DocGen_Loopback_Auth-Admin</externalCredentialPrincipal>
-    </externalCredentialPrincipalAccesses>
     <fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Job__c.Error_Count__c</field>

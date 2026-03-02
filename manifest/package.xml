@@ -34,14 +34,6 @@
         <name>ApexClass</name>
     </types>
     <types>
-        <members>DocGen_Auth_Provider</members>
-        <name>AuthProvider</name>
-    </types>
-    <types>
-        <members>DocGen_Loopback_Auth</members>
-        <name>ExternalCredential</name>
-    </types>
-    <types>
         <members>DocGenRenditionTrigger</members>
         <name>ApexTrigger</name>
     </types>
@@ -108,10 +100,6 @@
         <members>html2pdf</members>
         <members>jszip</members>
         <name>StaticResource</name>
-    </types>
-    <types>
-        <members>DocGen_Loopback</members>
-        <name>NamedCredential</name>
     </types>
     <version>66.0</version>
 </Package>
