@@ -3,6 +3,20 @@ private class DocGenBulkTests {
 
     @TestSetup
     static void setup() {
+        // Assign DocGen_Admin permission set for custom object/field access in 2GP context
+        PermissionSet ps = [SELECT Id FROM PermissionSet WHERE Name = 'DocGen_Admin' LIMIT 1];
+        List<PermissionSetAssignment> existing = [
+            SELECT Id FROM PermissionSetAssignment
+            WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :ps.Id
+            LIMIT 1
+        ];
+        if (existing.isEmpty()) {
+            insert new PermissionSetAssignment(
+                AssigneeId = UserInfo.getUserId(),
+                PermissionSetId = ps.Id
+            );
+        }
+
         DocGen_Template__c t = new DocGen_Template__c(
             Name = 'Test Template',
             Base_Object_API__c = 'Account'

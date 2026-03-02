@@ -3,6 +3,20 @@ private class DocGenMiscTests {
 
     @testSetup
     static void setup() {
+        // Assign DocGen_Admin permission set for custom object/field access in 2GP context
+        PermissionSet ps = [SELECT Id FROM PermissionSet WHERE Name = 'DocGen_Admin' LIMIT 1];
+        List<PermissionSetAssignment> existing = [
+            SELECT Id FROM PermissionSetAssignment
+            WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :ps.Id
+            LIMIT 1
+        ];
+        if (existing.isEmpty()) {
+            insert new PermissionSetAssignment(
+                AssigneeId = UserInfo.getUserId(),
+                PermissionSetId = ps.Id
+            );
+        }
+
         Account acc = new Account(Name = 'Misc Test Account', AccountSource = 'Web', Website = 'https://test.com');
         insert acc;
 
