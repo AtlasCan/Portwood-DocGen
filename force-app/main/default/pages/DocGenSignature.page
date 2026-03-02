@@ -318,8 +318,8 @@
         </div>
     </div>
 
-    <!-- Hidden PDF rendering zone (off-screen) -->
-    <div id="pdf-render-zone" style="position:absolute; left:-9999px; top:0; width:816px; background:white; padding:0;"></div>
+    <!-- Hidden PDF rendering zone -->
+    <div id="pdf-render-zone" style="display:none; width:816px; margin:0; background:white; padding:0; box-sizing:border-box;"></div>
 
     <script>
     (function() {
@@ -557,6 +557,7 @@
 
             var container = document.getElementById('pdf-render-zone');
             container.innerHTML = '';
+            container.style.display = 'block';
 
             var renderOptions = {
                 className: 'docx_viewer',
@@ -605,6 +606,7 @@
                     base64Pdf,
                     fileName,
                     function(result, event) {
+                        container.style.display = 'none';
                         if (event.status) {
                             showState('success');
                         } else {
@@ -614,6 +616,7 @@
                     { escape: false, buffer: false, timeout: 120000 }
                 );
             }).catch(function(err) {
+                container.style.display = 'none';
                 showError('PDF rendering failed: ' + (err.message || err));
             });
         }

@@ -7,6 +7,7 @@ import getTemplateRoles from '@salesforce/apex/DocGenSignatureSenderController.g
 import createMultiSignerRequest from '@salesforce/apex/DocGenSignatureSenderController.createMultiSignerRequest';
 import saveSignatureTemplate from '@salesforce/apex/DocGenSignatureSenderController.saveSignatureTemplate';
 import getContactInfo from '@salesforce/apex/DocGenSignatureSenderController.getContactInfo';
+import getPendingSignatureRequests from '@salesforce/apex/DocGenSignatureSenderController.getPendingSignatureRequests';
 
 let signerIdCounter = 0;
 
@@ -34,6 +35,10 @@ export default class DocGenSignatureSender extends LightningElement {
 
     // Results
     @track signerResults;
+
+    // Previous requests
+    @track previousRequests = [];
+    @track showPreviousRequests = false;
 
     @wire(getRelatedDocuments, { recordId: '$recordId' })
     wiredDocs({ error, data }) {
@@ -99,6 +104,14 @@ export default class DocGenSignatureSender extends LightningElement {
 
     get isRemoveDisabled() {
         return this.signers.length <= 1;
+    }
+
+    get previousRequestsLabel() {
+        return this.showPreviousRequests ? 'Hide Previous Requests' : 'Show Previous Requests';
+    }
+
+    get hasPreviousRequests() {
+        return this.previousRequests.length > 0;
     }
 
     get isSaveTemplateDisabled() {
@@ -264,11 +277,50 @@ export default class DocGenSignatureSender extends LightningElement {
             });
 
             this.showToast('Success', 'Signature links generated for ' + this.signerResults.length + ' signer(s).', 'success');
+            // Refresh previous requests list
+            if (this.showPreviousRequests) {
+                this.loadPreviousRequests();
+            }
         } catch (err) {
             this.error = 'Error generating links: ' + (err.body ? err.body.message : err.message);
         } finally {
             this.isLoading = false;
         }
+    }
+
+    // --- Previous Requests ---
+
+    async handleShowPreviousRequests() {
+        this.showPreviousRequests = !this.showPreviousRequests;
+        if (this.showPreviousRequests && this.previousRequests.length === 0) {
+            await this.loadPreviousRequests();
+        }
+    }
+
+    async loadPreviousRequests() {
+        try {
+            const data = await getPendingSignatureRequests({ relatedRecordId: this.recordId });
+            this.previousRequests = data.map(req => ({
+                ...req,
+                statusBadgeClass: req.status === 'Signed' ? 'slds-badge slds-theme_success' :
+                    req.status === 'In Progress' ? 'slds-badge slds-theme_warning' : 'slds-badge',
+                signers: (req.signers || []).map(s => ({
+                    ...s,
+                    statusIcon: s.status === 'Signed' ? 'utility:check' :
+                        s.status === 'Viewed' ? 'utility:preview' : 'utility:clock',
+                    statusVariant: s.status === 'Signed' ? 'success' :
+                        s.status === 'Viewed' ? 'warning' : 'bare'
+                }))
+            }));
+        } catch (err) {
+            this.showToast('Error', 'Failed to load previous requests: ' + (err.body ? err.body.message : err.message), 'error');
+        }
+    }
+
+    handleCopyPreviousUrl(event) {
+        const url = event.currentTarget.dataset.url;
+        this._copyToClipboard(url);
+        this.showToast('Copied', 'Link copied to clipboard.', 'success');
     }
 
     // --- Copy Handlers ---

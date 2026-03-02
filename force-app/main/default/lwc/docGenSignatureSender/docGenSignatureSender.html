@@ -169,6 +169,74 @@
                 class="slds-m-top_small">
             </lightning-button>
         </template>
+
+        <!-- Previous Requests Toggle -->
+        <div class="slds-m-top_large">
+            <lightning-button
+                variant="neutral"
+                label={previousRequestsLabel}
+                icon-name="utility:clock"
+                onclick={handleShowPreviousRequests}>
+            </lightning-button>
+        </div>
+
+        <!-- Previous Requests List -->
+        <template if:true={showPreviousRequests}>
+            <div class="slds-m-top_medium">
+                <h3 class="slds-text-heading_small slds-m-bottom_x-small">Previous Signature Requests</h3>
+                <template if:true={hasPreviousRequests}>
+                    <template for:each={previousRequests} for:item="req">
+                        <div key={req.id} class="slds-box slds-m-bottom_small">
+                            <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_x-small">
+                                <div class="slds-col slds-grow">
+                                    <p class="slds-text-body_regular">
+                                        <strong>{req.name}</strong>
+                                        <span class={req.statusBadgeClass}>{req.status}</span>
+                                    </p>
+                                    <p class="slds-text-body_small slds-text-color_weak">
+                                        {req.documentTitle}
+                                    </p>
+                                </div>
+                            </div>
+                            <template for:each={req.signers} for:item="signer">
+                                <div key={signer.signerUrl} class="slds-box slds-theme_shade slds-m-bottom_xx-small slds-p-around_x-small">
+                                    <div class="slds-grid slds-grid_vertical-align-center">
+                                        <div class="slds-col slds-no-flex slds-m-right_x-small">
+                                            <lightning-icon
+                                                icon-name={signer.statusIcon}
+                                                variant={signer.statusVariant}
+                                                size="x-small">
+                                            </lightning-icon>
+                                        </div>
+                                        <div class="slds-col slds-grow">
+                                            <p class="slds-text-body_small">
+                                                <strong>{signer.signerName}</strong>
+                                                <template if:true={signer.roleName}>
+                                                    <span class="slds-badge slds-m-left_xx-small">{signer.roleName}</span>
+                                                </template>
+                                                <span class="slds-text-color_weak slds-m-left_x-small">{signer.status}</span>
+                                            </p>
+                                        </div>
+                                        <div class="slds-col slds-no-flex">
+                                            <lightning-button-icon
+                                                icon-name="utility:copy"
+                                                alternative-text="Copy link"
+                                                data-url={signer.signerUrl}
+                                                onclick={handleCopyPreviousUrl}
+                                                size="small">
+                                            </lightning-button-icon>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </template>
+                <template if:false={hasPreviousRequests}>
+                    <p class="slds-text-body_regular slds-text-color_weak">No previous signature requests found for this record.</p>
+                </template>
+            </div>
+        </template>
     </div>
 
     <!-- Save Template Modal -->

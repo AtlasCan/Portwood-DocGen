@@ -199,6 +199,56 @@ public with sharing class DocGenSignatureSenderController {
         return result;
     }
 
+    /**
+     * Returns existing signature requests for a record, with signer details and URLs.
+     */
+    @AuraEnabled
+    public static List<Map<String, Object>> getPendingSignatureRequests(String relatedRecordId) {
+        String siteUrl = getSiteBaseUrl();
+        List<Map<String, Object>> results = new List<Map<String, Object>>();
+
+        List<DocGen_Signature_Request__c> requests = [
+            SELECT Id, Name, Status__c, Source_Document_Id__c, CreatedDate,
+                   (SELECT Id, Signer_Name__c, Signer_Email__c, Role_Name__c,
+                           Status__c, Secure_Token__c, Sort_Order__c
+                    FROM Signers__r ORDER BY Sort_Order__c ASC)
+            FROM DocGen_Signature_Request__c
+            WHERE Related_Record_Id__c = :relatedRecordId
+            WITH USER_MODE
+            ORDER BY CreatedDate DESC
+            LIMIT 20
+        ];
+
+        for (DocGen_Signature_Request__c req : requests) {
+            Map<String, Object> reqMap = new Map<String, Object>();
+            reqMap.put('id', req.Id);
+            reqMap.put('name', req.Name);
+            reqMap.put('status', req.Status__c);
+            reqMap.put('createdDate', req.CreatedDate);
+
+            // Get document title
+            if (req.Source_Document_Id__c != null) {
+                List<ContentVersion> cvs = [SELECT Title FROM ContentVersion WHERE Id = :req.Source_Document_Id__c WITH SYSTEM_MODE LIMIT 1];
+                reqMap.put('documentTitle', !cvs.isEmpty() ? cvs[0].Title : 'Unknown');
+            }
+
+            List<Map<String, Object>> signerList = new List<Map<String, Object>>();
+            for (DocGen_Signer__c signer : req.Signers__r) {
+                Map<String, Object> signerMap = new Map<String, Object>();
+                signerMap.put('signerName', signer.Signer_Name__c);
+                signerMap.put('signerEmail', signer.Signer_Email__c);
+                signerMap.put('roleName', signer.Role_Name__c);
+                signerMap.put('status', signer.Status__c);
+                signerMap.put('signerUrl', siteUrl + '/apex/DocGenSignature?token=' + signer.Secure_Token__c);
+                signerList.add(signerMap);
+            }
+            reqMap.put('signers', signerList);
+            results.add(reqMap);
+        }
+
+        return results;
+    }
+
     private static String getSiteBaseUrl() {
         DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
         String siteUrl = settings.Experience_Site_Url__c;
