@@ -2,7 +2,7 @@
 
 **A free, native, production-ready document engine for Salesforce.**
 
-[![Version](https://img.shields.io/badge/version-0.8.0-blue.svg)](#quick-install)
+[![Version](https://img.shields.io/badge/version-0.9.0-blue.svg)](#quick-install)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 
@@ -20,22 +20,27 @@ This project gives you a professional-grade document engine -- template manageme
 
 ## Quick Install
 
-**Subscriber Package Version ID**: `04tdL000000OpEHQA0`
+**Subscriber Package Version ID**: `04tdL000000OpPZQA0`
 
 **CLI:**
 ```bash
-sf package install --package 04tdL000000OpEHQA0 --wait 10 --installation-key-bypass
+sf package install --package 04tdL000000OpPZQA0 --wait 10 --installation-key-bypass
 ```
 
 **Browser:**
-- [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000OpEHQA0)
-- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000OpEHQA0)
+- [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000OpPZQA0)
+- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000OpPZQA0)
 
 > Select **Install for Admins Only** during installation, then assign permission sets to your users afterward.
 
 ---
 
-## What's New in v0.8.0
+## What's New in v0.9.0
+
+- **One-Click Credential Provisioning** -- New "Provision Credentials" button in the setup wizard automatically deploys Auth Provider, External Credential, and Named Credential metadata via the SOAP Metadata API. Admins enter their Consumer Key/Secret and click one button instead of manually configuring 15+ settings across 3 Setup screens.
+- **Streamlined Setup Wizard** -- Setup wizard reduced from 4 steps to 3. Steps 2 and 3 (Auth Provider + Named Credential) are now a single automated "Provision & Authenticate" step.
+
+### v0.8.0
 
 - **Fix Package Uninstall Blockers** -- AuthProvider, ExternalCredential, NamedCredential, CustomSite, and Flow metadata moved out of the 2GP package into `unpackaged/` for post-install setup. These metadata types created cross-references that prevented clean package uninstall.
 - **External Client App Terminology** -- Setup wizard Step 1 updated from Connected App to External Client App to match current Salesforce terminology.
@@ -121,7 +126,7 @@ Two rendering paths ensure PDF output works in every context:
 **Server-Side (Bulk & Flow):**
 - Named Credential loopback calls Salesforce's Connect REST API for PDF rendition
 - Built-in retry mechanism handles `202 Accepted` latency
-- Wizard-driven setup on the DocGen Setup tab walks you through Connected App, Auth Provider, and Named Credential creation in 4 steps
+- Wizard-driven setup on the DocGen Setup tab walks you through External Client App creation and one-click credential provisioning in 3 steps
 - Platform Event or direct Queueable enqueue depending on the calling context
 
 ### Native Electronic Signatures
@@ -249,11 +254,10 @@ Go to **Setup > Permission Sets**, open the appropriate set, and click **Manage 
 ### 4. Configure the PDF Engine (Required for PDF Output)
 
 1. Navigate to the **DocGen Setup** tab in the DocGen app
-2. Follow the 4-step wizard:
+2. Follow the 3-step wizard:
    - **Step 1:** Create an External Client App named "DocGen Loopback" with OAuth scopes `api` and `refresh_token`
-   - **Step 2:** Create an Auth Provider using the Consumer Key/Secret from Step 1
-   - **Step 3:** Create a Named Credential (`DocGen_Loopback`) with the External Credential, then authenticate as a named principal
-   - **Step 4:** Configure your Salesforce Site URL for public signature links
+   - **Step 2:** Paste your Consumer Key/Secret and click **Provision Credentials** -- the Auth Provider, External Credential, and Named Credential are created automatically. Then click **Authenticate** to authorize the named principal.
+   - **Step 3:** Configure your Salesforce Site URL for public signature links
 3. Assign the `DocGen Admin` and `DocGen User` permission sets to the Named Credential's External Credential principal
 
 ### 5. Configure Electronic Signatures (Optional)
@@ -281,7 +285,7 @@ force-app/main/default/
   classes/              26 Apex classes (services, controllers, batch, queueable, tests)
   lwc/                  12 Lightning Web Components
   objects/              9 custom objects + 1 platform event + 1 custom setting
-  pages/                4 Visualforce pages (PDF engine, signature portal, verification)
+  pages/                5 Visualforce pages (PDF engine, provision, signature portal, verification)
   permissionsets/       3 permission sets (Admin, User, Guest Signature)
   staticresources/      DocGenEngine bundle (docx-preview, jszip, html2pdf), filesaver, sample templates
   triggers/             Platform event trigger for async PDF rendition

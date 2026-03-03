@@ -39,6 +39,7 @@
     </types>
     <types>
         <members>DocGenPDFEngine</members>
+        <members>DocGenProvision</members>
         <members>DocGenSign</members>
         <members>DocGenSignature</members>
         <members>DocGenVerify</members>

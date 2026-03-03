@@ -1,12 +1,12 @@
 {
   "packageDirectories": [
     {
-      "versionName": "v0.8.0 - Fix Uninstall Blockers",
-      "versionNumber": "0.8.0.NEXT",
+      "versionName": "v0.9.0 - One-Click Provision",
+      "versionNumber": "0.9.0.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Document Generation",
-      "versionDescription": "Fix bulk generation PDF chaining: all records now receive PDFs. Uses Transaction Finalizer for retry depth, single queueable enqueue from batch finish()."
+      "versionDescription": "Free, native document generation for Salesforce. Create DOCX, PPTX, and PDF documents from any record using merge tags, child loops, rich text with embedded images, and multi-signer electronic signatures. Includes bulk generation, Flow integration, and one-click credential provisioning."
     }
   ],
   "name": "Document Generation",
@@ -27,6 +27,8 @@
     "Document Generation@0.5.0-3": "04tdL000000Ooi1QAC",
     "Document Generation@0.6.0-1": "04tdL000000Ooq5QAC",
     "Document Generation@0.7.0-1": "04tdL000000OowXQAS",
-    "Document Generation@0.8.0-1": "04tdL000000OpCfQAK"
+    "Document Generation@0.8.0-1": "04tdL000000OpCfQAK",
+    "Document Generation@0.8.0-2": "04tdL000000OpEHQA0",
+    "Document Generation@0.9.0-1": "04tdL000000OpPZQA0"
   }
 }

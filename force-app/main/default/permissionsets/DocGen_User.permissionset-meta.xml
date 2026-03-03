@@ -335,6 +335,10 @@
         <apexPage>DocGenPDFEngine</apexPage>
         <enabled>true</enabled>
     </pageAccesses>
+    <pageAccesses>
+        <apexPage>DocGenProvision</apexPage>
+        <enabled>true</enabled>
+    </pageAccesses>
     <tabSettings>
         <tab>DocGen_Bulk_Gen</tab>
         <visibility>Visible</visibility>

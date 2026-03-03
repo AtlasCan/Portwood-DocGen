@@ -6,7 +6,7 @@
                     <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
                 </div>
             </template>
-            
+
             <template if:true={isLoaded}>
                 <!-- Introduction Banner -->
                 <div class="slds-notify slds-notify_alert slds-theme_info slds-var-m-bottom_large" role="alert">
@@ -17,12 +17,11 @@
                 <!-- Progress Bar -->
                 <lightning-progress-indicator current-step={currentStep} type="path" variant="base" class="slds-var-m-bottom_large">
                     <lightning-progress-step label="1. External Client App" value="1" onclick={handleStepClick}></lightning-progress-step>
-                    <lightning-progress-step label="2. Auth Provider" value="2" onclick={handleStepClick}></lightning-progress-step>
-                    <lightning-progress-step label="3. Named Credential" value="3" onclick={handleStepClick}></lightning-progress-step>
-                    <lightning-progress-step label="4. Salesforce Site" value="4" onclick={handleStepClick}></lightning-progress-step>
+                    <lightning-progress-step label="2. Provision & Authenticate" value="2" onclick={handleStepClick}></lightning-progress-step>
+                    <lightning-progress-step label="3. Salesforce Site" value="3" onclick={handleStepClick}></lightning-progress-step>
                 </lightning-progress-indicator>
 
-                <!-- Step 1 -->
+                <!-- Step 1: External Client App (manual) -->
                 <template if:true={isStep1}>
                     <div class="slds-box slds-theme_default">
                         <h2 class="slds-text-heading_medium slds-var-m-bottom_small">Step 1: Create the External Client App</h2>
@@ -42,48 +41,93 @@
                     </div>
                 </template>
 
-                <!-- Step 2 -->
+                <!-- Step 2: Provision & Authenticate (automated) -->
                 <template if:true={isStep2}>
                     <div class="slds-box slds-theme_default">
-                        <h2 class="slds-text-heading_medium slds-var-m-bottom_small">Step 2: Create the Auth Provider</h2>
-                        <ol class="slds-list_ordered slds-var-m-left_medium slds-var-m-bottom_medium slds-text-body_regular">
-                            <li>Go to <strong>Setup > Auth. Providers</strong> and click <strong>New</strong>.</li>
-                            <li>Select Provider Type: <strong>Salesforce</strong>.</li>
-                            <li>Name it exactly: <strong>DocGen Auth Provider</strong>. The URL Suffix must be: <strong>DocGen_Auth_Provider</strong>.</li>
-                            <li>Paste the <strong>Consumer Key</strong> and <strong>Consumer Secret</strong> you copied in Step 1.</li>
-                            <li>Set Default Scopes to: <strong>api refresh_token</strong>.</li>
-                            <li>Leave everything else default and click <strong>Save</strong>.</li>
-                        </ol>
-                        <lightning-button label="Back" onclick={prevStep} class="slds-var-m-right_small"></lightning-button>
-                        <lightning-button variant="brand" label="Next Step" onclick={nextStep}></lightning-button>
+                        <h2 class="slds-text-heading_medium slds-var-m-bottom_small">Step 2: Provision OAuth Credentials</h2>
+                        <p class="slds-text-body_regular slds-var-m-bottom_medium">Enter the Consumer Key and Secret from your External Client App. This will automatically create the Auth Provider, External Credential, and Named Credential.</p>
+
+                        <div class="slds-form-element slds-var-m-bottom_small">
+                            <lightning-input
+                                type="text"
+                                label="Consumer Key"
+                                value={consumerKey}
+                                onchange={handleConsumerKeyChange}
+                                required
+                                disabled={isProvisioning}>
+                            </lightning-input>
+                        </div>
+                        <div class="slds-form-element slds-var-m-bottom_medium">
+                            <lightning-input
+                                type="password"
+                                label="Consumer Secret"
+                                value={consumerSecret}
+                                onchange={handleConsumerSecretChange}
+                                required
+                                disabled={isProvisioning}>
+                            </lightning-input>
+                        </div>
+
+                        <!-- Provision Button -->
+                        <template if:false={provisionSucceeded}>
+                            <lightning-button
+                                variant="brand"
+                                label="Provision Credentials"
+                                onclick={handleProvision}
+                                disabled={isProvisionDisabled}
+                                class="slds-var-m-bottom_medium">
+                            </lightning-button>
+                        </template>
+
+                        <!-- Provisioning Spinner -->
+                        <template if:true={isProvisioning}>
+                            <div class="slds-is-relative slds-var-m-vertical_medium" style="height: 60px;">
+                                <lightning-spinner alternative-text="Deploying credentials..." size="small"></lightning-spinner>
+                            </div>
+                            <p class="slds-text-body_small slds-text-color_weak slds-align_absolute-center">Deploying Auth Provider, External Credential, and Named Credential...</p>
+                        </template>
+
+                        <!-- Error Banner -->
+                        <template if:true={provisionError}>
+                            <div class="slds-notify slds-notify_alert slds-theme_error slds-var-m-vertical_medium" role="alert">
+                                <h2>Provision failed: {provisionError}</h2>
+                            </div>
+                        </template>
+
+                        <!-- Success Banner + Authenticate Instructions -->
+                        <template if:true={provisionSucceeded}>
+                            <div class="slds-notify slds-notify_alert slds-theme_success slds-var-m-vertical_medium" role="alert">
+                                <h2>Credentials provisioned successfully!</h2>
+                            </div>
+
+                            <div class="slds-box slds-theme_shade slds-var-m-bottom_medium">
+                                <h3 class="slds-text-heading_small slds-var-m-bottom_small">Now Authenticate the Connection:</h3>
+                                <ol class="slds-list_ordered slds-var-m-left_medium slds-text-body_regular">
+                                    <li>Go to <strong>Setup > Named Credentials</strong> and select the <strong>External Credentials</strong> tab.</li>
+                                    <li>Click <strong>DocGen Loopback Auth.</strong> to open it.</li>
+                                    <li>In the <strong>Principals</strong> section, click the dropdown arrow next to <strong>Admin</strong> and select <strong>Authenticate</strong>.</li>
+                                    <li>Follow the prompts and click <strong>Allow</strong> to establish the connection.</li>
+                                    <li>Go to <strong>Setup > Permission Sets</strong>, open <strong>DocGen Admin</strong>, click <strong>External Credential Principal Access</strong>, click Edit, and add <strong>DocGen Loopback Auth. - Admin</strong>. Repeat for <strong>DocGen User</strong>.</li>
+                                </ol>
+                            </div>
+                        </template>
+
+                        <div class="slds-var-m-top_medium">
+                            <lightning-button label="Back" onclick={prevStep} class="slds-var-m-right_small"></lightning-button>
+                            <template if:true={provisionSucceeded}>
+                                <lightning-button variant="brand" label="Next Step" onclick={nextStep}></lightning-button>
+                            </template>
+                        </div>
                     </div>
+
+                    <!-- Hidden iframe for VF page metadata deploy -->
+                    <iframe src={provisionPageUrl} class="slds-hide" title="Provision Engine"></iframe>
                 </template>
 
-                <!-- Step 3 -->
+                <!-- Step 3: Salesforce Site -->
                 <template if:true={isStep3}>
                     <div class="slds-box slds-theme_default">
-                        <h2 class="slds-text-heading_medium slds-var-m-bottom_small">Step 3: Create the Named Credential</h2>
-                        <ol class="slds-list_ordered slds-var-m-left_medium slds-var-m-bottom_medium slds-text-body_regular">
-                            <li>Go to <strong>Setup > Named Credentials</strong>. Select the <strong>External Credentials</strong> tab and click <strong>New</strong>.</li>
-                            <li>Name it: <strong>DocGen Loopback Auth</strong>. Set Auth Protocol to <strong>OAuth 2.0</strong> and Authentication Flow to <strong>Browser Flow</strong>.</li>
-                            <li>Select the <strong>DocGen Auth Provider</strong> you just created and save.</li>
-                            <li>On the External Credential record, scroll to <strong>Principals</strong> and click New. Name: <strong>Admin</strong>, sequence: 1. Save it.</li>
-                            <li><strong>CRITICAL:</strong> Click the dropdown arrow next to the new Admin principal and select <strong>Authenticate</strong>. Follow the prompts to click "Allow" and establish the connection.</li>
-                            <li>Go back to the <strong>Named Credentials</strong> tab and click <strong>New</strong>.</li>
-                            <li>Name it exactly: <strong>DocGen_Loopback</strong>. The URL must be: <strong>{orgUrl}</strong></li>
-                            <li>Select your External Credential, enable <strong>Generate Authorization Header</strong>, and Save.</li>
-                            <li><strong>IMPORTANT:</strong> Go to <strong>Setup > Permission Sets</strong> and open <strong>DocGen Admin</strong>.</li>
-                            <li>Click <strong>External Credential Principal Access</strong>, click Edit, and add your new <strong>DocGen Loopback Auth - Admin</strong> principal. Repeat this for the <strong>DocGen User</strong> permission set.</li>
-                        </ol>
-                        <lightning-button label="Back" onclick={prevStep} class="slds-var-m-right_small"></lightning-button>
-                        <lightning-button variant="brand" label="Next Step" onclick={nextStep}></lightning-button>
-                    </div>
-                </template>
-
-                <!-- Step 4 -->
-                <template if:true={isStep4}>
-                    <div class="slds-box slds-theme_default">
-                        <h2 class="slds-text-heading_medium slds-var-m-bottom_small">Step 4: Salesforce Site Configuration</h2>
+                        <h2 class="slds-text-heading_medium slds-var-m-bottom_small">Step 3: Salesforce Site Configuration</h2>
                         <ol class="slds-list_ordered slds-var-m-left_medium slds-var-m-bottom_medium slds-text-body_regular">
                             <li>Go to <strong>Setup &gt; Sites</strong> (search "Sites" in Quick Find).</li>
                             <li>If you don't have a Sites domain registered, register one (e.g., <strong>docgen</strong>).</li>
