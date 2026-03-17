@@ -3,6 +3,10 @@ private class DocGenSignatureTests {
 
     @testSetup
     static void setup() {
+        // Assign DocGen Admin permission set for FLS access
+        PermissionSet ps = [SELECT Id FROM PermissionSet WHERE Name = 'DocGen_Admin' LIMIT 1];
+        insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = ps.Id);
+
         Account acc = new Account(Name = 'Signature Test Account', Website = 'https://test.com');
         insert acc;
 
@@ -21,7 +25,7 @@ private class DocGenSignatureTests {
             Signer_Email__c = 'legacy@test.com',
             Source_Document_Id__c = '068000000000001AAA',
             Related_Record_Id__c = acc.Id,
-            Secure_Token__c = 'LEGACY_TEST_TOKEN_12345',
+            Secure_Token__c = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2',
             Status__c = 'Sent'
         );
         insert req;
@@ -31,7 +35,7 @@ private class DocGenSignatureTests {
             Signer_Name__c = 'Multi Signer One',
             Signer_Email__c = 'multisigner@test.com',
             Role_Name__c = 'Buyer',
-            Secure_Token__c = 'SIGNER_TEST_TOKEN_67890',
+            Secure_Token__c = 'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5',
             Status__c = 'Pending',
             Sort_Order__c = 1
         );
@@ -44,12 +48,12 @@ private class DocGenSignatureTests {
 
     private static DocGen_Signer__c getTestSigner() {
         return [SELECT Id, Secure_Token__c, Status__c, Signature_Request__c
-                FROM DocGen_Signer__c WHERE Secure_Token__c = 'SIGNER_TEST_TOKEN_67890' LIMIT 1];
+                FROM DocGen_Signer__c WHERE Secure_Token__c = 'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5' LIMIT 1];
     }
 
     private static DocGen_Signature_Request__c getTestRequest() {
         return [SELECT Id, Secure_Token__c, Status__c, Source_Document_Id__c
-                FROM DocGen_Signature_Request__c WHERE Secure_Token__c = 'LEGACY_TEST_TOKEN_12345' LIMIT 1];
+                FROM DocGen_Signature_Request__c WHERE Secure_Token__c = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2' LIMIT 1];
     }
 
     private static Account getTestAccount() {
@@ -107,7 +111,7 @@ private class DocGenSignatureTests {
     @isTest
     static void testValidateToken_InvalidToken() {
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('NONEXISTENT_TOKEN_XYZ');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('0000000000000000000000000000000000000000000000000000000000000000');
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -118,7 +122,7 @@ private class DocGenSignatureTests {
     static void testValidateToken_ValidSignerToken() {
         createTestFile();
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('SIGNER_TEST_TOKEN_67890');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
         Test.stopTest();
 
         System.assertEquals(true, res.isValid, 'Valid signer token should return valid');
@@ -137,7 +141,7 @@ private class DocGenSignatureTests {
         update signer;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('SIGNER_TEST_TOKEN_67890');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -151,7 +155,7 @@ private class DocGenSignatureTests {
         update req;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('SIGNER_TEST_TOKEN_67890');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -161,7 +165,7 @@ private class DocGenSignatureTests {
     @isTest
     static void testValidateToken_LegacyToken() {
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('LEGACY_TEST_TOKEN_12345');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2');
         Test.stopTest();
 
         System.assertEquals(true, res.isValid);
@@ -177,7 +181,7 @@ private class DocGenSignatureTests {
         update req;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('LEGACY_TEST_TOKEN_12345');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2');
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -191,7 +195,7 @@ private class DocGenSignatureTests {
         update req;
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('LEGACY_TEST_TOKEN_12345');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2');
         Test.stopTest();
 
         System.assertEquals(false, res.isValid);
@@ -201,11 +205,11 @@ private class DocGenSignatureTests {
     @isTest
     static void testValidateToken_ViewedThenValidateAgain() {
         createTestFile();
-        DocGenSignatureController.validateToken('SIGNER_TEST_TOKEN_67890');
+        DocGenSignatureController.validateToken('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
         System.assertEquals('Viewed', getTestSigner().Status__c);
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('SIGNER_TEST_TOKEN_67890');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
         Test.stopTest();
 
         System.assertEquals(true, res.isValid, 'Viewed signer should still be valid');
@@ -213,11 +217,11 @@ private class DocGenSignatureTests {
 
     @isTest
     static void testValidateToken_LegacyViewedThenValidateAgain() {
-        DocGenSignatureController.validateToken('LEGACY_TEST_TOKEN_12345');
+        DocGenSignatureController.validateToken('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2');
         System.assertEquals('Viewed', getTestRequest().Status__c);
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('LEGACY_TEST_TOKEN_12345');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.validateToken('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2');
         Test.stopTest();
 
         System.assertEquals(true, res.isValid, 'Viewed legacy request should still be valid');
@@ -232,7 +236,7 @@ private class DocGenSignatureTests {
         createTestFile();
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData('SIGNER_TEST_TOKEN_67890');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5');
         Test.stopTest();
 
         System.assertEquals(true, res.isValid);
@@ -245,7 +249,7 @@ private class DocGenSignatureTests {
         createTestFile();
 
         Test.startTest();
-        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData('LEGACY_TEST_TOKEN_12345');
+        DocGenSignatureController.SignatureInitResponse res = DocGenSignatureController.fetchDocumentData('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2');
         Test.stopTest();
 
         System.assertEquals(true, res.isValid);
@@ -271,7 +275,7 @@ private class DocGenSignatureTests {
 
         Test.startTest();
         DocGenSignatureController.SaveSignatureResult result =
-            DocGenSignatureController.saveSignature('SIGNER_TEST_TOKEN_67890', fakeBase64);
+            DocGenSignatureController.saveSignature('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5', fakeBase64);
         Test.stopTest();
 
         System.assertNotEquals(null, result);
@@ -292,7 +296,7 @@ private class DocGenSignatureTests {
 
         Test.startTest();
         try {
-            DocGenSignatureController.saveSignature('SIGNER_TEST_TOKEN_67890', fakeBase64);
+            DocGenSignatureController.saveSignature('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5', fakeBase64);
         } catch (AuraHandledException e) {
             caught = true;
         }
@@ -308,7 +312,7 @@ private class DocGenSignatureTests {
 
         Test.startTest();
         try {
-            DocGenSignatureController.saveSignature('INVALID_TOKEN_ABC', fakeBase64);
+            DocGenSignatureController.saveSignature('0000000000000000000000000000000000000000000000000000000000000001', fakeBase64);
         } catch (AuraHandledException e) {
             caught = true;
         }
@@ -322,7 +326,7 @@ private class DocGenSignatureTests {
         String fakeBase64 = EncodingUtil.base64Encode(Blob.valueOf('signature-data'));
 
         Test.startTest();
-        DocGenSignatureController.saveSignature('SIGNER_TEST_TOKEN_67890', fakeBase64);
+        DocGenSignatureController.saveSignature('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5', fakeBase64);
         Test.stopTest();
 
         System.assertEquals('In Progress', getTestRequest().Status__c);
@@ -342,7 +346,7 @@ private class DocGenSignatureTests {
         // Signer token — file is not real DOCX so stamping fails
         Boolean caught1 = false;
         try {
-            DocGenSignatureController.stampAndReturnSource('SIGNER_TEST_TOKEN_67890', fakeBase64);
+            DocGenSignatureController.stampAndReturnSource('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5', fakeBase64);
         } catch (AuraHandledException e) {
             caught1 = true;
         }
@@ -351,7 +355,7 @@ private class DocGenSignatureTests {
         // Legacy token — same error path
         Boolean caught2 = false;
         try {
-            DocGenSignatureController.stampAndReturnSource('LEGACY_TEST_TOKEN_12345', fakeBase64);
+            DocGenSignatureController.stampAndReturnSource('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2', fakeBase64);
         } catch (AuraHandledException e) {
             caught2 = true;
         }
@@ -381,14 +385,14 @@ private class DocGenSignatureTests {
 
         // Multi-signer path
         try {
-            DocGenSignatureController.finishSignatureUpload('SIGNER_TEST_TOKEN_67890', fakeBase64Pdf, 'TestSigned.pdf');
+            DocGenSignatureController.finishSignatureUpload('f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5', fakeBase64Pdf, 'TestSigned.pdf');
         } catch (Exception e) {
             // Acceptable — code path exercised
         }
 
         // Legacy path
         try {
-            DocGenSignatureController.finishSignatureUpload('LEGACY_TEST_TOKEN_12345', fakeBase64Pdf, 'TestSigned.pdf');
+            DocGenSignatureController.finishSignatureUpload('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2', fakeBase64Pdf, 'TestSigned.pdf');
         } catch (Exception e) {
             // Acceptable
         }
@@ -655,16 +659,16 @@ private class DocGenSignatureTests {
     static void testSignatureValidator() {
         createTestFile();
         DocGenSignatureValidator.FlowInput validInput = new DocGenSignatureValidator.FlowInput();
-        validInput.token = 'SIGNER_TEST_TOKEN_67890';
+        validInput.token = 'f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5';
 
         DocGenSignatureValidator.FlowInput invalidInput = new DocGenSignatureValidator.FlowInput();
-        invalidInput.token = 'TOTALLY_INVALID_TOKEN';
+        invalidInput.token = '0000000000000000000000000000000000000000000000000000000000000002';
 
         DocGenSignatureValidator.FlowInput blankInput = new DocGenSignatureValidator.FlowInput();
         blankInput.token = '';
 
         DocGenSignatureValidator.FlowInput legacyInput = new DocGenSignatureValidator.FlowInput();
-        legacyInput.token = 'LEGACY_TEST_TOKEN_12345';
+        legacyInput.token = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
 
         Test.startTest();
         List<DocGenSignatureValidator.FlowOutput> outputs =
@@ -701,7 +705,7 @@ private class DocGenSignatureTests {
     @isTest
     static void testSignatureSubmitter_InvalidToken() {
         DocGenSignatureSubmitter.FlowInput input = new DocGenSignatureSubmitter.FlowInput();
-        input.token = 'NONEXISTENT_TOKEN';
+        input.token = '0000000000000000000000000000000000000000000000000000000000000003';
         input.signatureData = EncodingUtil.base64Encode(Blob.valueOf('fake-sig'));
 
         Test.startTest();
@@ -715,7 +719,7 @@ private class DocGenSignatureTests {
     @isTest
     static void testSignatureSubmitter_ValidToken_ErrorPath() {
         DocGenSignatureSubmitter.FlowInput input = new DocGenSignatureSubmitter.FlowInput();
-        input.token = 'LEGACY_TEST_TOKEN_12345';
+        input.token = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
         input.signatureData = EncodingUtil.base64Encode(Blob.valueOf('fake-sig'));
 
         Test.startTest();
@@ -749,13 +753,13 @@ private class DocGenSignatureTests {
 
         // Invalid token — should handle gracefully
         DocGenSignatureFinalizer.FinalizeRequest req1 = new DocGenSignatureFinalizer.FinalizeRequest();
-        req1.token = 'NONEXISTENT_TOKEN_FINAL';
+        req1.token = '0000000000000000000000000000000000000000000000000000000000000004';
         req1.base64Image = EncodingUtil.base64Encode(Blob.valueOf('fake-sig'));
         DocGenSignatureFinalizer.finalizeSignature(new List<DocGenSignatureFinalizer.FinalizeRequest>{ req1 });
 
         // Valid legacy token — error path (not real DOCX)
         DocGenSignatureFinalizer.FinalizeRequest req2 = new DocGenSignatureFinalizer.FinalizeRequest();
-        req2.token = 'LEGACY_TEST_TOKEN_12345';
+        req2.token = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
         req2.base64Image = EncodingUtil.base64Encode(Blob.valueOf('fake-sig'));
         DocGenSignatureFinalizer.finalizeSignature(new List<DocGenSignatureFinalizer.FinalizeRequest>{ req2 });
 
@@ -1050,11 +1054,16 @@ private class DocGenSignatureTests {
         String fakeBase64Sig = EncodingUtil.base64Encode(Blob.valueOf('sig'));
 
         Test.startTest();
-        DocGenSignatureService.handleSignatureSubmission('TOTALLY_INVALID_TOKEN_XYZ', fakeBase64Sig);
+        Boolean caught = false;
+        try {
+            DocGenSignatureService.handleSignatureSubmission('TOTALLY_INVALID_TOKEN_XYZ', fakeBase64Sig);
+        } catch (DocGenSignatureService.SignatureException e) {
+            caught = true;
+            System.assert(e.getMessage().contains('Invalid security token format'));
+        }
         Test.stopTest();
 
-        // No exception — method returns silently for invalid tokens
-        System.assert(true, 'Should handle invalid token gracefully');
+        System.assert(caught, 'Should throw SignatureException for invalid token format');
     }
 
     @isTest

@@ -3,6 +3,10 @@ private class DocGenMiscTests {
 
     @testSetup
     static void setup() {
+        // Assign DocGen Admin permission set for FLS access
+        PermissionSet ps = [SELECT Id FROM PermissionSet WHERE Name = 'DocGen_Admin' LIMIT 1];
+        insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = ps.Id);
+
         Account acc = new Account(Name = 'Misc Test Account', AccountSource = 'Web', Website = 'https://test.com');
         insert acc;
 
