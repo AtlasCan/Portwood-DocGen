@@ -108,17 +108,19 @@ public with sharing class DocGenController {
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getTemplatesForObject(String objectApiName) {
         return [
-            SELECT Id, Name, Description__c, Type__c 
-            FROM DocGen_Template__c 
+            SELECT Id, Name, Description__c, Type__c, Output_Format__c, Is_Default__c
+            FROM DocGen_Template__c
             WHERE Base_Object_API__c = :objectApiName
             WITH SYSTEM_MODE
+            ORDER BY Is_Default__c DESC, Name ASC
         ];
     }
     
     @AuraEnabled(cacheable=true)
     public static List<DocGen_Template__c> getAllTemplates() {
         return [
-            SELECT Id, Name, Description__c, Type__c, Base_Object_API__c, Category__c, Query_Config__c, Test_Record_Id__c, Output_Format__c, Document_Title_Format__c,
+            SELECT Id, Name, Description__c, Type__c, Base_Object_API__c, Category__c, Query_Config__c,
+                   Test_Record_Id__c, Output_Format__c, Document_Title_Format__c, Is_Default__c,
                    (SELECT ContentDocumentId FROM ContentDocumentLinks ORDER BY ContentDocument.CreatedDate DESC LIMIT 1)
             FROM DocGen_Template__c
             WITH SYSTEM_MODE
@@ -145,8 +147,13 @@ public with sharing class DocGenController {
             if (fields.containsKey('Output_Format__c')) {
                 template.Output_Format__c = (String) fields.get('Output_Format__c');
             }
-            update template;
-            
+            // Update Default flag if provided
+            if (fields.containsKey('Is_Default__c')) {
+                template.Is_Default__c = (Boolean) fields.get('Is_Default__c');
+            }
+            SObjectAccessDecision tplDecision = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
+            update tplDecision.getRecords();
+
             // 2. Create Version if requested
             if (createVersion == true) {
                 // Deactivate current active versions
@@ -158,7 +165,8 @@ public with sharing class DocGenController {
                 for (DocGen_Template_Version__c av : activeVersions) {
                     av.Is_Active__c = false;
                 }
-                update activeVersions;
+                SObjectAccessDecision avDecision = Security.stripInaccessible(AccessType.UPDATABLE, activeVersions);
+                update avDecision.getRecords();
 
                 // Get latest ContentVersionId
                 List<ContentDocumentLink> links = [
@@ -187,7 +195,8 @@ public with sharing class DocGenController {
                 version.Type__c = (String) fields.get('Type__c');
                 version.Base_Object_API__c = (String) fields.get('Base_Object_API__c');
                 
-                insert version;
+                SObjectAccessDecision verDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template_Version__c>{ version });
+                insert verDecision.getRecords();
             }
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'DocGen: Error saving template: ' + e.getMessage());
@@ -238,11 +247,13 @@ public with sharing class DocGenController {
             for (DocGen_Template_Version__c v : others) {
                 v.Is_Active__c = false;
             }
-            update others;
+            SObjectAccessDecision othersDecision = Security.stripInaccessible(AccessType.UPDATABLE, others);
+            update othersDecision.getRecords();
 
             // 2. Activate this one
             version.Is_Active__c = true;
-            update version;
+            SObjectAccessDecision verDecision = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template_Version__c>{ version });
+            update verDecision.getRecords();
 
             // 3. Update Template Record Headline
             DocGen_Template__c template = new DocGen_Template__c(Id = version.Template__c);
@@ -250,33 +261,71 @@ public with sharing class DocGenController {
             template.Category__c = version.Category__c;
             template.Description__c = version.Description__c;
             template.Type__c = version.Type__c;
-            // Base Object usually constant but update it anyway
             template.Base_Object_API__c = version.Base_Object_API__c;
 
-            update template;
+            SObjectAccessDecision tplDecision = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
+            update tplDecision.getRecords();
             
         } catch (Exception e) {
             throw new DocGenException('Error activating version: ' + e.getMessage());
         }
     }
 
+    /**
+     * Generates a PDF document server-side and returns it as base64 for download.
+     */
     @AuraEnabled
-    public static String saveTempHtml(String htmlContent, String fileName) {
+    public static Map<String, Object> generatePdfDocument(Id templateId, Id recordId) {
         try {
-            ContentVersion cv = new ContentVersion();
-            cv.Title = fileName;
-            cv.PathOnClient = fileName + '.html';
-            cv.VersionData = Blob.valueOf(htmlContent);
-            cv.Description = 'Temp DocGen HTML for PDF Rendering';
-            cv.IsMajorVersion = false;
-            SObjectAccessDecision htmlDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
-            insert htmlDecision.getRecords();
-            Id htmlCvId = htmlDecision.getRecords()[0].Id;
-
-            return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :htmlCvId WITH USER_MODE].ContentDocumentId;
+            Map<String, Object> result = DocGenService.processDocumentAsPdf(templateId, recordId);
+            Blob pdfBlob = (Blob) result.get('blob');
+            return new Map<String, Object>{
+                'base64' => EncodingUtil.base64Encode(pdfBlob),
+                'title' => result.get('title')
+            };
         } catch (Exception e) {
-            System.debug(LoggingLevel.ERROR, 'DocGen: Error saving temp HTML: ' + e.getMessage());
-            throw new AuraHandledException('Error preparing document for PDF rendering.');
+            System.debug(LoggingLevel.ERROR, 'DocGen: Error generating PDF: ' + e.getMessage());
+            throw new AuraHandledException('Error generating PDF document. Please check the template configuration.');
+        }
+    }
+
+    /**
+     * Generates a PDF document server-side and saves it to the record.
+     * Returns the ContentDocumentId.
+     */
+    @AuraEnabled
+    public static Id generateAndSavePdfDocument(Id templateId, Id recordId) {
+        try {
+            Map<String, Object> result = DocGenService.processDocumentAsPdf(templateId, recordId);
+            Blob pdfBlob = (Blob) result.get('blob');
+            String title = (String) result.get('title');
+            if (title == null) title = 'Generated_Document';
+
+            ContentVersion cv = new ContentVersion();
+            cv.Title = title;
+            cv.PathOnClient = title + '.pdf';
+            cv.VersionData = pdfBlob;
+            cv.IsMajorVersion = true;
+            SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
+            insert cvDecision.getRecords();
+            Id cvId = cvDecision.getRecords()[0].Id;
+
+            Id contentDocId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :cvId WITH USER_MODE].ContentDocumentId;
+
+            ContentDocumentLink cdl = new ContentDocumentLink();
+            cdl.ContentDocumentId = contentDocId;
+            cdl.LinkedEntityId = recordId;
+            cdl.ShareType = 'V';
+            cdl.Visibility = 'AllUsers';
+            SObjectAccessDecision cdlDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentDocumentLink>{ cdl });
+            insert cdlDecision.getRecords();
+
+            return contentDocId;
+        } catch (System.NoAccessException e) {
+            throw new DocGenException('Insufficient access to save PDF: ' + e.getMessage());
+        } catch (Exception e) {
+            System.debug(LoggingLevel.ERROR, 'DocGen: Error saving PDF: ' + e.getMessage());
+            throw new AuraHandledException('Error saving PDF document to record.');
         }
     }
 
@@ -622,10 +671,10 @@ public with sharing class DocGenController {
                         result = result.replace(srcMatcher.group(2), dataUri);
                     }
                 } else {
-                    System.debug('DocGen: richTextImageFields returned ' + res.getStatusCode() + ' for ' + apiPath.left(200));
+                    System.debug(LoggingLevel.WARN, 'DocGen: richTextImageFields returned ' + res.getStatusCode() + ' for ' + apiPath.left(200));
                 }
             } catch (Exception e) {
-                System.debug('DocGen: Failed to resolve rich text image: ' + e.getMessage());
+                System.debug(LoggingLevel.WARN, 'DocGen: Failed to resolve rich text image: ' + e.getMessage());
             }
         }
         return result;

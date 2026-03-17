@@ -19,6 +19,7 @@
                     <lightning-progress-step label="1. External Client App" value="1" onclick={handleStepClick}></lightning-progress-step>
                     <lightning-progress-step label="2. Provision & Authenticate" value="2" onclick={handleStepClick}></lightning-progress-step>
                     <lightning-progress-step label="3. Salesforce Site" value="3" onclick={handleStepClick}></lightning-progress-step>
+                    <lightning-progress-step label="4. Email Branding" value="4" onclick={handleStepClick}></lightning-progress-step>
                 </lightning-progress-indicator>
 
                 <!-- Step 1: External Client App (manual) -->
@@ -169,12 +170,109 @@
                             <p class="slds-text-body_small slds-var-m-top_xx-small">Base URL only, no path. Example: https://docgen.my.salesforce-sites.com</p>
                         </div>
 
+                        <lightning-button label="Back" onclick={prevStep} class="slds-var-m-right_small"></lightning-button>
+                        <lightning-button variant="brand" label="Save & Continue" onclick={handleSaveSettings} class="slds-var-m-right_small"></lightning-button>
+                        <lightning-button label="Next Step" onclick={nextStep}></lightning-button>
+                    </div>
+                </template>
+
+                <!-- Step 4: Email Branding -->
+                <template if:true={isStep4}>
+                    <div class="slds-box slds-theme_default">
+                        <h2 class="slds-text-heading_medium slds-var-m-bottom_small">Step 4: Signature Email Branding</h2>
+                        <p class="slds-text-body_regular slds-var-m-bottom_medium">
+                            Customize the automated emails sent to signers when you create signature requests.
+                            When someone is sent for signature, they'll receive a branded email with a secure link to review and sign the document.
+                        </p>
+
+                        <div class="slds-grid slds-wrap slds-gutters">
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-var-p-bottom_small">
+                                <lightning-input
+                                    type="text"
+                                    label="Company / Organization Name"
+                                    value={companyName}
+                                    onchange={handleCompanyNameChange}
+                                    placeholder="Acme Corporation">
+                                </lightning-input>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-var-p-bottom_small">
+                                <lightning-input
+                                    type="url"
+                                    label="Logo Image URL"
+                                    value={emailLogoUrl}
+                                    onchange={handleLogoUrlChange}
+                                    placeholder="https://example.com/logo.png">
+                                </lightning-input>
+                                <p class="slds-text-body_small slds-var-m-top_xx-small">Recommended: 200x60px PNG with transparent background. Displayed at the top of emails.</p>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-var-p-bottom_small">
+                                <lightning-input
+                                    type="color"
+                                    label="Brand Color"
+                                    value={emailBrandColor}
+                                    onchange={handleBrandColorChange}>
+                                </lightning-input>
+                                <p class="slds-text-body_small slds-var-m-top_xx-small">Used for the email header bar and "Review &amp; Sign" button.</p>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-var-p-bottom_small">
+                                <lightning-input
+                                    type="text"
+                                    label="Email Subject Line"
+                                    value={emailSubject}
+                                    onchange={handleEmailSubjectChange}
+                                    placeholder="Action Required: Please Sign {DocumentTitle}">
+                                </lightning-input>
+                                <p class="slds-text-body_small slds-var-m-top_xx-small">Merge fields: &#123;SignerName&#125;, &#123;DocumentTitle&#125;, &#123;SenderName&#125;</p>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-var-p-bottom_small">
+                                <lightning-textarea
+                                    label="Email Footer Text"
+                                    value={emailFooterText}
+                                    onchange={handleFooterTextChange}
+                                    placeholder="© 2026 Acme Corp. All rights reserved."
+                                    max-length="1000">
+                                </lightning-textarea>
+                                <p class="slds-text-body_small slds-var-m-top_xx-small">Leave blank for default: "Powered by DocGen — Open-Source Document Generation for Salesforce"</p>
+                            </div>
+                        </div>
+
+                        <!-- Email Preview -->
+                        <div class="slds-box slds-theme_shade slds-var-m-top_medium slds-var-m-bottom_medium">
+                            <h3 class="slds-text-heading_small slds-var-m-bottom_small">Preview</h3>
+                            <p class="slds-text-body_small slds-var-m-bottom_small">Signers will receive an email like this when you send documents for signature:</p>
+                            <div style="background:#f4f4f4;padding:16px;border-radius:8px;text-align:center;">
+                                <div style="max-width:400px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.1);text-align:left;">
+                                    <div style="padding:16px;text-align:center;" class="slds-theme_info">
+                                        <template if:true={emailLogoUrl}>
+                                            <img src={emailLogoUrl} alt="Logo" style="max-height:36px;max-width:160px;" />
+                                        </template>
+                                        <template if:false={emailLogoUrl}>
+                                            <template if:true={companyName}>
+                                                <strong style="color:#fff;">{companyName}</strong>
+                                            </template>
+                                        </template>
+                                    </div>
+                                    <div style="padding:20px;font-size:13px;color:#555;">
+                                        <p><strong>Hi [Signer Name],</strong></p>
+                                        <p>You has sent you a document that requires your signature.</p>
+                                        <div style="background:#f8f9fa;padding:12px;border-radius:4px;margin:12px 0;">
+                                            <small style="color:#999;">Document</small><br/>
+                                            <strong>[Document Title]</strong>
+                                        </div>
+                                        <div style="text-align:center;margin:16px 0;">
+                                            <span style="display:inline-block;padding:10px 24px;border-radius:6px;color:#fff;font-weight:bold;font-size:14px;" class="slds-theme_info">Review &amp; Sign Document</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="slds-notify slds-notify_alert slds-theme_success slds-var-m-bottom_medium" role="alert">
-                            <h2>Configuration Complete! E-Signatures are ready for production.</h2>
+                            <h2>Setup Complete! Signature requests will now automatically send branded emails to signers.</h2>
                         </div>
 
                         <lightning-button label="Back" onclick={prevStep} class="slds-var-m-right_small"></lightning-button>
-                        <lightning-button variant="brand" label="Save Settings" onclick={handleSaveSettings}></lightning-button>
+                        <lightning-button variant="brand" label="Save Email Settings" onclick={handleSaveEmailBranding} disabled={isSavingBranding}></lightning-button>
                     </div>
                 </template>
             </template>

@@ -48,7 +48,9 @@ public with sharing class DocGenSignatureSenderController {
         req.Source_Document_Id__c = contentVersionId;
         req.Related_Record_Id__c = relatedRecordId;
         req.Status__c = 'Sent';
-        insert req;
+        SObjectAccessDecision reqDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Signature_Request__c>{ req });
+        insert reqDecision.getRecords();
+        req = (DocGen_Signature_Request__c) reqDecision.getRecords()[0];
 
         // Create individual signer records
         String siteUrl = getSiteBaseUrl();
@@ -89,7 +91,27 @@ public with sharing class DocGenSignatureSenderController {
             results.add(sr);
         }
 
-        insert signerRecords;
+        SObjectAccessDecision signerDecision = Security.stripInaccessible(AccessType.CREATABLE, signerRecords);
+        insert signerDecision.getRecords();
+
+        // Send branded signature request emails automatically
+        String documentTitle = getDocumentTitle(contentVersionId);
+        List<DocGenSignatureEmailService.SignerEmail> emailList = new List<DocGenSignatureEmailService.SignerEmail>();
+        for (SignerResult sr : results) {
+            Id cId = null;
+            // Find matching contactId from inputs
+            for (Map<String, Object> input : signerInputs) {
+                if (sr.signerEmail == (String) input.get('signerEmail') && String.isNotBlank((String) input.get('contactId'))) {
+                    cId = (Id) input.get('contactId');
+                    break;
+                }
+            }
+            emailList.add(new DocGenSignatureEmailService.SignerEmail(
+                sr.signerName, sr.signerEmail, sr.roleName, sr.signerUrl, cId
+            ));
+        }
+        DocGenSignatureEmailService.sendSignatureRequestEmails(emailList, documentTitle);
+
         return results;
     }
 
@@ -106,6 +128,7 @@ public with sharing class DocGenSignatureSenderController {
 
         Blob hash = Crypto.generateDigest('SHA-256', Blob.valueOf(String.valueOf(System.now().getTime()) + Math.random() + signerEmail));
         String token = EncodingUtil.convertToHex(hash);
+        String signatureUrl = getSiteBaseUrl() + '/apex/DocGenSignature?token=' + token;
 
         DocGen_Signature_Request__c req = new DocGen_Signature_Request__c();
         req.Signer_Name__c = signerName;
@@ -114,9 +137,19 @@ public with sharing class DocGenSignatureSenderController {
         req.Related_Record_Id__c = relatedRecordId;
         req.Secure_Token__c = token;
         req.Status__c = 'Sent';
-        insert req;
+        SObjectAccessDecision reqDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Signature_Request__c>{ req });
+        insert reqDecision.getRecords();
 
-        return getSiteBaseUrl() + '/apex/DocGenSignature?token=' + token;
+        // Send branded signature request email automatically
+        String documentTitle = getDocumentTitle(contentVersionId);
+        DocGenSignatureEmailService.sendSignatureRequestEmails(
+            new List<DocGenSignatureEmailService.SignerEmail>{
+                new DocGenSignatureEmailService.SignerEmail(signerName, signerEmail, null, signatureUrl, null)
+            },
+            documentTitle
+        );
+
+        return signatureUrl;
     }
 
     /**
@@ -167,7 +200,9 @@ public with sharing class DocGenSignatureSenderController {
     public static Id saveSignatureTemplate(String templateName, String rolesJson) {
         DocGen_Signature_Template__c tmpl = new DocGen_Signature_Template__c();
         tmpl.Name = templateName;
-        insert tmpl;
+        SObjectAccessDecision tmplDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Signature_Template__c>{ tmpl });
+        insert tmplDecision.getRecords();
+        tmpl = (DocGen_Signature_Template__c) tmplDecision.getRecords()[0];
 
         List<Object> roleInputs = (List<Object>) JSON.deserializeUntyped(rolesJson);
         List<DocGen_Signature_Template_Role__c> roles = new List<DocGen_Signature_Template_Role__c>();
@@ -181,7 +216,8 @@ public with sharing class DocGenSignatureSenderController {
             roles.add(role);
         }
 
-        insert roles;
+        SObjectAccessDecision rolesDecision = Security.stripInaccessible(AccessType.CREATABLE, roles);
+        insert rolesDecision.getRecords();
         return tmpl.Id;
     }
 
@@ -260,6 +296,11 @@ public with sharing class DocGenSignatureSenderController {
         }
 
         return results;
+    }
+
+    private static String getDocumentTitle(Id contentVersionId) {
+        List<ContentVersion> cvs = [SELECT Title FROM ContentVersion WHERE Id = :contentVersionId WITH USER_MODE LIMIT 1];
+        return !cvs.isEmpty() ? cvs[0].Title : 'Document';
     }
 
     private static String getSiteBaseUrl() {

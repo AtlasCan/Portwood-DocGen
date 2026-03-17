@@ -2,7 +2,6 @@ import { LightningElement, track, wire } from 'lwc';
 import { createRecord, updateRecord } from 'lightning/uiRecordApi';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
-import { loadScript } from 'lightning/platformResourceLoader';
 import { refreshApex } from '@salesforce/apex';
 
 // Apex
@@ -11,11 +10,11 @@ import deleteTemplate from '@salesforce/apex/DocGenController.deleteTemplate';
 import saveTemplate from '@salesforce/apex/DocGenController.saveTemplate';
 import getTemplateVersions from '@salesforce/apex/DocGenController.getTemplateVersions';
 import processAndReturnDocument from '@salesforce/apex/DocGenController.processAndReturnDocument';
+import generatePdfDocument from '@salesforce/apex/DocGenController.generatePdfDocument';
 import activateVersion from '@salesforce/apex/DocGenController.activateVersion';
 
 // Schema
 import DOCGEN_TEMPLATE_OBJECT from '@salesforce/schema/DocGen_Template__c';
-import ID_FIELD from '@salesforce/schema/DocGen_Template__c.Id';
 import NAME_FIELD from '@salesforce/schema/DocGen_Template__c.Name';
 import CATEGORY_FIELD from '@salesforce/schema/DocGen_Template__c.Category__c';
 import TYPE_FIELD from '@salesforce/schema/DocGen_Template__c.Type__c';
@@ -23,15 +22,13 @@ import BASE_OBJECT_FIELD from '@salesforce/schema/DocGen_Template__c.Base_Object
 import QUERY_CONFIG_FIELD from '@salesforce/schema/DocGen_Template__c.Query_Config__c';
 import DESC_FIELD from '@salesforce/schema/DocGen_Template__c.Description__c';
 
-// Static Resources
-import FILESAVER_JS from '@salesforce/resourceUrl/filesaver';
-
 const COLUMNS = [
     { label: 'Category', fieldName: 'Category__c', initialWidth: 150 },
     { label: 'Name', fieldName: 'Name' },
     { label: 'Type', fieldName: 'Type__c', initialWidth: 100 },
     { label: 'Output Format', fieldName: 'Output_Format__c', initialWidth: 120 },
     { label: 'Base Object', fieldName: 'Base_Object_API__c' },
+    { label: 'Default', fieldName: 'defaultLabel', initialWidth: 80, cellAttributes: { class: { fieldName: 'defaultClass' } } },
     { label: 'Description', fieldName: 'Description__c' },
     { type: 'action', typeAttributes: { rowActions: [
         { label: 'View', name: 'view' },
@@ -43,17 +40,17 @@ const COLUMNS = [
 
 const VERSION_COLUMNS = [
     { label: 'Ver', fieldName: 'VersionNumber', initialWidth: 70 },
-    { label: 'Active', fieldName: 'isActiveLabel', initialWidth: 70, cellAttributes: { 
-        class: { fieldName: 'activeClass' } 
+    { label: 'Active', fieldName: 'isActiveLabel', initialWidth: 70, cellAttributes: {
+        class: { fieldName: 'activeClass' }
     }},
-    { label: 'Created Date', fieldName: 'CreatedDate', type: 'date', typeAttributes: { 
-        year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+    { label: 'Created Date', fieldName: 'CreatedDate', type: 'date', typeAttributes: {
+        year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
     }},
     { label: 'Created By', fieldName: 'CreatedByName' },
-    { type: 'button', initialWidth: 100, typeAttributes: { 
-        label: 'Preview', name: 'preview', variant: 'neutral', iconName: 'utility:preview' 
+    { type: 'button', initialWidth: 100, typeAttributes: {
+        label: 'Preview', name: 'preview', variant: 'neutral', iconName: 'utility:preview'
     }},
-    { type: 'button', typeAttributes: { 
+    { type: 'button', typeAttributes: {
         label: 'Activate', name: 'restore', title: 'Restore and Activate this version', variant: 'brand',
         disabled: { fieldName: 'Is_Active__c' }
     }}
@@ -65,7 +62,6 @@ const VERSION_COLUMNS = [
     versionColumns = VERSION_COLUMNS;
     wiredTemplatesResult;
 
-    librariesLoaded = false;
     @track versions = [];
 
     // Form/Wizard State
@@ -95,11 +91,12 @@ const VERSION_COLUMNS = [
     editTemplateDesc;
     editTemplateQuery;
     editTemplateTestRecordId;
-    editTemplateTitleFormat; // New Field
+    editTemplateTitleFormat;
+    editTemplateIsDefault = false;
 
     @track currentFileId;
     @track uploadedFileName = '';
-    
+
     // Preview/Restore State
     @track isPreviewModalOpen = false;
     @track previewVersion = {};
@@ -117,7 +114,11 @@ const VERSION_COLUMNS = [
     wiredTemplates(result) {
         this.wiredTemplatesResult = result;
         if (result.data) {
-            this.templates = result.data;
+            this.templates = result.data.map(t => ({
+                ...t,
+                defaultLabel: t.Is_Default__c ? '★' : '',
+                defaultClass: t.Is_Default__c ? 'slds-text-color_success slds-text-title_bold' : ''
+            }));
         } else if (result.error) {
            this.showToast('Error', 'Error loading templates', 'error');
         }
@@ -136,7 +137,7 @@ const VERSION_COLUMNS = [
             (t.Id && t.Id.toLowerCase().includes(lowerKey))
         );
     }
-    
+
     handleRefresh() {
         return refreshApex(this.wiredTemplatesResult);
     }
@@ -146,26 +147,7 @@ const VERSION_COLUMNS = [
     }
 
     get showInstallSample() {
-        return false; // Disabled per cleanup
-    }
-
-    /*
-    handleInstallSample() {
-        // Removed per cleanup
-    }
-    */
-
-    renderedCallback() {
-        if (this.librariesLoaded) return;
-        this.librariesLoaded = true;
-
-        loadScript(this, FILESAVER_JS)
-            .then(() => {
-                this.librariesReady = true;
-            })
-            .catch(() => {
-                this.showToast('Error', 'Error loading download library', 'error');
-            });
+        return false;
     }
 
     // --- Wizard Logic ---
@@ -211,7 +193,7 @@ const VERSION_COLUMNS = [
     handleTypeChange(event) { this.newTemplateType = event.detail.value; }
     handleOutputFormatChange(event) { this.newTemplateOutputFormat = event.detail.value; }
     handleDescChange(event) { this.newTemplateDesc = event.detail.value; }
-    
+
     handleConfigChange(event) {
         this.newTemplateObject = event.detail.objectName;
         this.newTemplateQuery = event.detail.queryConfig;
@@ -235,11 +217,12 @@ const VERSION_COLUMNS = [
     handleEditTypeChange(event) { this.editTemplateType = event.detail.value; }
     handleEditOutputFormatChange(event) { this.editTemplateOutputFormat = event.detail.value; }
     handleEditDescChange(event) { this.editTemplateDesc = event.detail.value; }
-    
+    handleEditDefaultChange(event) { this.editTemplateIsDefault = event.target.checked; }
+
     handleManualQueryToggle(event) {
         this.isManualQuery = event.target.checked;
     }
-    
+
     handleQueryStringChange(event) {
         this.editTemplateQuery = event.target.value;
     }
@@ -248,9 +231,9 @@ const VERSION_COLUMNS = [
         this.editTemplateObject = event.detail.objectName;
         this.editTemplateQuery = event.detail.queryConfig;
     }
-    
-    handleEditTestRecordChange(event) { 
-        this.editTemplateTestRecordId = event.detail.recordId; 
+
+    handleEditTestRecordChange(event) {
+        this.editTemplateTestRecordId = event.detail.recordId;
     }
 
     handleTitleFormatChange(event) {
@@ -268,14 +251,14 @@ const VERSION_COLUMNS = [
             { label: 'PowerPoint', value: 'PowerPoint' }
         ];
     }
-    
+
     get outputFormatOptions() {
         return [
             { label: 'Native (.docx / .pptx)', value: 'Native' },
             { label: 'PDF', value: 'PDF' }
         ];
     }
-    
+
     get acceptedFormats() {
         return this.editTemplateType === 'PowerPoint' ? ['.pptx'] : ['.docx'];
     }
@@ -296,8 +279,7 @@ const VERSION_COLUMNS = [
             this.createdTemplateId = record.id;
             this.isCreating = false;
             this.showToast('Success', 'Template Record created. Please upload your document.', 'success');
-            
-            // Construct row object for edit modal
+
             const newRow = {
                 Id: record.id,
                 Name: this.newTemplateName,
@@ -313,12 +295,11 @@ const VERSION_COLUMNS = [
 
             this.resetForm();
             await refreshApex(this.wiredTemplatesResult);
-            
-            // Switch to List Tab and Open Modal
+
             this.activeMainTab = 'list';
-            this.activeEditTab = 'document'; // Explicitly go to document upload for new templates
-            this.openEditModal(newRow, 'document');  
-            
+            this.activeEditTab = 'document';
+            this.openEditModal(newRow, 'document');
+
         } catch (error) {
             this.showToast('Error creating record', error.body ? error.body.message : error.message, 'error');
         }
@@ -334,10 +315,9 @@ const VERSION_COLUMNS = [
 
     // --- Row Action ---
     async handleRowAction(event) {
-        // Row action handler
         const actionName = event.detail.action.name;
         const row = event.detail.row;
-        
+
         if (actionName === 'delete') {
             try {
                 await deleteTemplate({ templateId: row.Id });
@@ -349,7 +329,7 @@ const VERSION_COLUMNS = [
         } else if (actionName === 'edit') {
             this.openEditModal(row, 'details');
         } else if (actionName === 'view') {
-            this.openEditModal(row, 'tags'); 
+            this.openEditModal(row, 'tags');
         } else if (actionName === 'share') {
             this.sharingTemplateId = row.Id;
             this.isSharingModalOpen = true;
@@ -367,10 +347,10 @@ const VERSION_COLUMNS = [
             this.editTemplateOutputFormat = row.Output_Format__c || 'Native';
             this.editTemplateDesc = row.Description__c;
             this.editTemplateQuery = row.Query_Config__c;
-            this.editTemplateTestRecordId = row.Test_Record_Id__c; 
-            this.editTemplateTitleFormat = row.Document_Title_Format__c; 
-            
-            // Extract ContentDocumentId safely
+            this.editTemplateTestRecordId = row.Test_Record_Id__c;
+            this.editTemplateTitleFormat = row.Document_Title_Format__c;
+            this.editTemplateIsDefault = row.Is_Default__c || false;
+
             let cdLinks = [];
             if (row.ContentDocumentLinks) {
                 if (Array.isArray(row.ContentDocumentLinks)) {
@@ -385,14 +365,13 @@ const VERSION_COLUMNS = [
             } else {
                 this.currentFileId = null;
             }
-            
-            // Default to "Document & History" if no file exists to prompt upload
+
             if (!this.currentFileId) {
                 this.activeEditTab = 'document';
             } else {
                 this.activeEditTab = activeTab || 'details';
             }
-            
+
             this.loadVersions(row.Id);
             this.isCreating = false;
             this.isEditModalOpen = true;
@@ -433,7 +412,7 @@ const VERSION_COLUMNS = [
                         CreatedByName: v.CreatedBy ? v.CreatedBy.Name : '',
                         isActiveLabel: isActive ? '✓' : '',
                         activeClass: isActive ? 'slds-text-color_success slds-text-title_bold' : '',
-                        activateVariant: isActive ? 'neutral' : 'brand' // Brand (Blue) for Inactive, Neutral for Active
+                        activateVariant: isActive ? 'neutral' : 'brand'
                     };
                 });
             })
@@ -449,15 +428,14 @@ const VERSION_COLUMNS = [
             try {
                 this.isLoadingVersions = true;
                 await activateVersion({ versionId: row.Id });
-                
+
                 this.showToast('Success', 'Version activated.', 'success');
-                
-                // Update local state to match restored version
+
                 this.editTemplateQuery = row.Query_Config__c;
                 this.editTemplateCategory = row.Category__c;
                 this.editTemplateDesc = row.Description__c;
                 this.editTemplateType = row.Type__c;
-                
+
                 this.loadVersions(this.editTemplateId);
                 refreshApex(this.wiredTemplatesResult);
             } catch (error) {
@@ -492,7 +470,6 @@ const VERSION_COLUMNS = [
 
     // --- Save Logic ---
     async handleSaveOnly() {
-         // Validate
          if (!this.editTemplateName || !this.editTemplateType) {
             this.showToast('Error', 'Name and Type are required.', 'error');
             return;
@@ -508,7 +485,8 @@ const VERSION_COLUMNS = [
             Description__c: this.editTemplateDesc,
             Query_Config__c: this.editTemplateQuery,
             Test_Record_Id__c: this.editTemplateTestRecordId,
-            Document_Title_Format__c: this.editTemplateTitleFormat
+            Document_Title_Format__c: this.editTemplateTitleFormat,
+            Is_Default__c: this.editTemplateIsDefault
         };
 
         try {
@@ -521,7 +499,6 @@ const VERSION_COLUMNS = [
     }
 
     async handleSaveAndClose() {
-        // Validate
         if (!this.editTemplateName || !this.editTemplateType) {
             this.showToast('Error', 'Name and Type are required.', 'error');
             return;
@@ -537,13 +514,12 @@ const VERSION_COLUMNS = [
             Description__c: this.editTemplateDesc,
             Query_Config__c: this.editTemplateQuery,
             Test_Record_Id__c: this.editTemplateTestRecordId,
-            Document_Title_Format__c: this.editTemplateTitleFormat
+            Document_Title_Format__c: this.editTemplateTitleFormat,
+            Is_Default__c: this.editTemplateIsDefault
         };
-        
-        const createVersion = true; 
 
         try {
-            await saveTemplate({ fields: fields, createVersion: createVersion });
+            await saveTemplate({ fields: fields, createVersion: true });
             this.showToast('Success', 'Template and Version saved.', 'success');
             this.closeEditModal();
             return refreshApex(this.wiredTemplatesResult);
@@ -571,60 +547,42 @@ const VERSION_COLUMNS = [
         // Save first
         await this.handleSaveOnly();
 
-        if (!this.librariesReady) {
-            this.showToast('Error', 'Download library not loaded yet. Please wait.', 'error');
-            return;
-        }
-
         this.isLoadingVersions = true;
 
         try {
-            // Server-side document processing
-            const result = await processAndReturnDocument({
-                templateId: this.editTemplateId,
-                recordId: this.editTemplateTestRecordId
-            });
-
-            if (!result || !result.base64) {
-                throw new Error('Document generation returned empty result.');
-            }
-
-            const base64Data = result.base64;
-            const docTitle = result.title || 'Sample_Document';
-            const templateType = this.editTemplateType;
-            const isPPT = ['PowerPoint', 'PPT', 'PPTX'].includes(templateType);
-            const baseName = 'Sample_' + docTitle;
-
-            // Decode base64 to binary
-            const binaryString = atob(base64Data);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
+            const isPPT = ['PowerPoint', 'PPT', 'PPTX'].includes(this.editTemplateType);
 
             if (isPPT || this.editTemplateOutputFormat === 'Native') {
-                const out = new Blob([bytes], { type: 'application/octet-stream' });
-                window.saveAs(out, baseName + (isPPT ? '.pptx' : '.docx'));
-                this.showToast('Success', 'Sample Document Downloaded', 'success');
-            } else {
-                // PDF
-                this.showToast('Info', 'Generating PDF Sample...', 'info');
-                const iframe = this.template.querySelector('iframe');
-                if (!iframe) {
-                    this.showToast('Error', 'PDF Engine not found in DOM.', 'error');
-                    return;
+                // Native DOCX/PPTX download
+                const result = await processAndReturnDocument({
+                    templateId: this.editTemplateId,
+                    recordId: this.editTemplateTestRecordId
+                });
+
+                if (!result || !result.base64) {
+                    throw new Error('Document generation returned empty result.');
                 }
 
-                // Use '*' for targetOrigin because VF pages load on a different
-                // domain (*.vf.force.com) than the LWC host in Lightning with
-                // enhanced domains. The VF page validates the sender origin.
-                iframe.contentWindow.postMessage({
-                    type: 'generate',
-                    blob: bytes.buffer,
-                    fileName: baseName
-                }, '*');
-            }
+                const docTitle = 'Sample_' + (result.title || 'Document');
+                const ext = isPPT ? '.pptx' : '.docx';
+                this.downloadBase64(result.base64, docTitle + ext, 'application/octet-stream');
+                this.showToast('Success', 'Sample Document Downloaded', 'success');
+            } else {
+                // PDF via server-side rendering
+                this.showToast('Info', 'Generating PDF Sample...', 'info');
+                const result = await generatePdfDocument({
+                    templateId: this.editTemplateId,
+                    recordId: this.editTemplateTestRecordId
+                });
 
+                if (!result || !result.base64) {
+                    throw new Error('PDF generation returned empty result.');
+                }
+
+                const docTitle = 'Sample_' + (result.title || 'Document');
+                this.downloadBase64(result.base64, docTitle + '.pdf', 'application/pdf');
+                this.showToast('Success', 'PDF Sample Generated', 'success');
+            }
         } catch (error) {
             let msg = 'Unknown error';
             if (error.body && error.body.message) {
@@ -636,6 +594,26 @@ const VERSION_COLUMNS = [
         } finally {
             this.isLoadingVersions = false;
         }
+    }
+
+    /**
+     * Downloads a base64-encoded file via an anchor element.
+     */
+    downloadBase64(base64Data, fileName, mimeType) {
+        const binaryString = atob(base64Data);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     // --- File Upload ---
@@ -656,25 +634,7 @@ const VERSION_COLUMNS = [
                 attributes: {
                     url: `/sfc/servlet.shepherd/document/download/${this.currentFileId}`
                 }
-            }, false); 
-        }
-    }
-
-    // --- Messaging ---
-    connectedCallback() {
-        window.addEventListener('message', this.handlePdfMessage);
-    }
-    
-    disconnectedCallback() {
-        window.removeEventListener('message', this.handlePdfMessage);
-    }
-
-    handlePdfMessage = (event) => {
-        if (!event.data || !event.data.type) return;
-        if (event.data.type === 'docgen_success') {
-            this.showToast('Success', 'PDF Sample Generated', 'success');
-        } else if (event.data.type === 'docgen_error') {
-            this.showToast('Error', 'PDF Engine: ' + event.data.message, 'error');
+            }, false);
         }
     }
 

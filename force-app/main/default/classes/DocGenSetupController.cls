@@ -19,7 +19,24 @@ public with sharing class DocGenSetupController {
         }
         DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
         settings.Experience_Site_Url__c = experienceSiteUrl;
-        upsert settings;
+        SObjectAccessDecision sd = Security.stripInaccessible(AccessType.UPSERTABLE, new List<DocGen_Settings__c>{ settings });
+        upsert sd.getRecords();
+    }
+
+    @AuraEnabled
+    public static void saveEmailBrandingSettings(String companyName, String logoUrl, String brandColor, String emailSubject, String footerText) {
+        if (!FeatureManagement.checkPermission('DocGen_Admin_Access') &&
+            !Schema.sObjectType.DocGen_Settings__c.isUpdateable()) {
+            throw new AuraHandledException('Insufficient privileges to modify DocGen settings.');
+        }
+        DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
+        settings.Company_Name__c = companyName;
+        settings.Signature_Email_Logo_Url__c = logoUrl;
+        settings.Signature_Email_Brand_Color__c = brandColor;
+        settings.Signature_Email_Subject__c = emailSubject;
+        settings.Signature_Email_Footer_Text__c = footerText;
+        SObjectAccessDecision sd = Security.stripInaccessible(AccessType.UPSERTABLE, new List<DocGen_Settings__c>{ settings });
+        upsert sd.getRecords();
     }
 
     @AuraEnabled
@@ -67,7 +84,7 @@ public with sharing class DocGenSetupController {
             '        <members>DocGen_Loopback</members>\n' +
             '        <name>NamedCredential</name>\n' +
             '    </types>\n' +
-            '    <version>65.0</version>\n' +
+            '    <version>66.0</version>\n' +
             '</Package>';
     }
 

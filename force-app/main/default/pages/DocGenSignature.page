@@ -7,11 +7,6 @@
     <title>Document Signature</title>
     <apex:slds />
 
-    <!-- PDF Engine Libraries -->
-    <script src="{!URLFOR($Resource.DocGenEngine, 'jszip.min.js')}"></script>
-    <script src="{!URLFOR($Resource.DocGenEngine, 'docx-preview.js')}"></script>
-    <script src="{!URLFOR($Resource.DocGenEngine, 'html2pdf.js')}"></script>
-
     <style>
         * { box-sizing: border-box; }
         body {
@@ -117,6 +112,45 @@
             text-decoration: none;
         }
         .preview-link:hover { text-decoration: underline; }
+
+        /* Document Preview Panel */
+        .doc-preview-panel {
+            border: 1px solid #dddbda;
+            border-radius: 8px;
+            margin-bottom: 1.25rem;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #ffffff;
+        }
+        .doc-preview-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #0176d3;
+            border-bottom: 1px solid #dddbda;
+            background: #f8fafc;
+            border-radius: 8px 8px 0 0;
+        }
+        .doc-preview-toggle:hover { background: #eef4fb; }
+        .doc-preview-toggle .chevron { transition: transform 0.2s; }
+        .doc-preview-toggle.collapsed .chevron { transform: rotate(-90deg); }
+        .doc-preview-toggle.collapsed + .doc-preview-content { display: none; }
+        .doc-preview-content {
+            padding: 1rem;
+            font-size: 0.8125rem;
+            line-height: 1.4;
+        }
+        .doc-preview-content img { max-width: 100%; }
+        .doc-preview-loading {
+            text-align: center;
+            padding: 1rem;
+            color: #706e6b;
+            font-size: 0.8125rem;
+        }
 
         /* Error State */
         .error-card {
@@ -238,14 +272,6 @@
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* Hidden PDF render zone */
-        .docx-wrapper { padding: 0 !important; margin: 0 !important; background: transparent !important; }
-        section.docx-render { margin: 0 !important; padding: 0 !important; }
-        p, li, span, div { orphans: 3 !important; widows: 3 !important; }
-        p { page-break-inside: avoid !important; }
-        table, tr, td, th { page-break-inside: avoid !important; }
-        h1, h2, h3, h4 { page-break-after: avoid !important; }
     </style>
 </head>
 <body>
@@ -276,7 +302,18 @@
                     <span id="role-badge" class="role-badge" style="display:none"></span>
                 </p>
                 <p id="progress-info" class="progress-info" style="display:none"></p>
-                <a id="doc-preview-link" href="#" target="_blank" class="preview-link" style="display:none">Preview Document</a>
+                <a id="doc-preview-link" href="#" target="_blank" class="preview-link" style="display:none">Download Original Document</a>
+
+                <!-- Inline Document Preview (eIDAS/EU compliance - signer must view before signing) -->
+                <div id="doc-preview-panel" class="doc-preview-panel">
+                    <div id="doc-preview-toggle" class="doc-preview-toggle">
+                        <span>&#128196; Review Document Before Signing</span>
+                        <span class="chevron">&#9660;</span>
+                    </div>
+                    <div id="doc-preview-content" class="doc-preview-content">
+                        <div class="doc-preview-loading">Loading document preview...</div>
+                    </div>
+                </div>
 
                 <p class="instructions">Use your mouse or finger to sign inside the box below.</p>
                 <div class="canvas-wrapper">
@@ -297,7 +334,7 @@
                     <div class="spinner"></div>
                 </div>
                 <h2>Processing Signature</h2>
-                <p id="processing-status">Stamping signature onto document...</p>
+                <p id="processing-status">Stamping signature and generating PDF...</p>
             </div>
         </div>
 
@@ -319,9 +356,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Hidden PDF rendering zone -->
-    <div id="pdf-render-zone" style="display:none; width:816px; margin:0; background:white; padding:0; box-sizing:border-box;"></div>
 
     <script>
     (function() {
@@ -370,23 +404,19 @@
         var isCanvasEmpty = true;
 
         // ===== INIT SIGNATURE PAD =====
-        // Track multi-signer state
         var isMultiSigner = false;
         var totalSigners = 1;
 
         function initSignaturePad(validationResult) {
-            // Populate document info
             document.getElementById('doc-title').textContent = validationResult.documentTitle || 'Confidential Document';
             document.getElementById('signer-name').textContent = validationResult.signerName || '';
 
-            // Show role badge if present
             if (validationResult.roleName) {
                 var badge = document.getElementById('role-badge');
                 badge.textContent = validationResult.roleName;
                 badge.style.display = 'inline-block';
             }
 
-            // Show progress if multi-signer
             totalSigners = validationResult.totalSigners || 1;
             var signedCount = validationResult.signedCount || 0;
             isMultiSigner = totalSigners > 1;
@@ -405,7 +435,15 @@
 
             showState('signature');
 
-            // Canvas setup (ported from docGenSignaturePad.js)
+            // Load inline document preview (eIDAS/EU compliance)
+            loadDocumentPreview();
+
+            // Toggle expand/collapse for preview panel
+            document.getElementById('doc-preview-toggle').addEventListener('click', function() {
+                this.classList.toggle('collapsed');
+            });
+
+            // Canvas setup
             var canvas = document.getElementById('signature-canvas');
             var wrapper = canvas.parentElement;
             canvas.width = wrapper.offsetWidth;
@@ -487,6 +525,24 @@
             }
         }
 
+        // ===== DOCUMENT PREVIEW (EU/eIDAS compliance) =====
+        function loadDocumentPreview() {
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.DocGenSignatureController.fetchDocumentData}',
+                token,
+                function(result, event) {
+                    var contentEl = document.getElementById('doc-preview-content');
+                    if (event.status && result && result.templateBase64) {
+                        // templateBase64 contains the rendered HTML from DocGenHtmlRenderer
+                        contentEl.innerHTML = result.templateBase64;
+                    } else {
+                        contentEl.innerHTML = '<p style="color:#706e6b;text-align:center;">Document preview unavailable. Please use the download link above to review the document before signing.</p>';
+                    }
+                },
+                { escape: false, buffer: false, timeout: 60000 }
+            );
+        }
+
         // ===== STEP 2: SUBMIT SIGNATURE =====
         function handleSubmit() {
             if (isCanvasEmpty) return;
@@ -524,9 +580,9 @@
                             return;
                         }
                         if (result.isComplete) {
-                            // Last signer — stamp all signatures and generate PDF
-                            updateStatus('All signatures collected. Generating final document...');
-                            callStampAndReturn(base64Image);
+                            // Last signer — stamp all signatures and generate PDF server-side
+                            updateStatus('All signatures collected. Generating final PDF...');
+                            callStampAndSave(base64Image);
                         } else {
                             // Not the last signer — show waiting state
                             var msg = 'Your signature has been recorded. Waiting for ' +
@@ -539,132 +595,27 @@
                     { escape: false, buffer: false, timeout: 120000 }
                 );
             } else {
-                // Legacy single-signer: stamp immediately
-                updateStatus('Stamping signature onto document...');
-                callStampAndReturn(base64Image);
+                // Legacy single-signer: stamp and generate PDF server-side
+                updateStatus('Stamping signature and generating PDF...');
+                callStampAndSave(base64Image);
             }
         }
 
-        function callStampAndReturn(base64Image) {
+        function callStampAndSave(base64Image) {
             Visualforce.remoting.Manager.invokeAction(
                 '{!$RemoteAction.DocGenSignatureController.stampAndReturnSource}',
                 token,
                 base64Image,
                 function(result, event) {
                     if (!event.status) {
-                        showError('Stamping failed: ' + (event.message || 'Unknown error'));
+                        showError('Processing failed: ' + (event.message || 'Unknown error'));
                         return;
                     }
-                    renderPdfAndUpload(result.base64, result.title);
+                    // PDF was generated and saved server-side
+                    showState('success');
                 },
                 { escape: false, buffer: false, timeout: 120000 }
             );
-        }
-
-        // ===== STEP 3: RENDER DOCX TO PDF (ported from DocGenPDFEngine.page) =====
-        function renderPdfAndUpload(stampedDocxBase64, fileName) {
-            updateStatus('Rendering document...');
-
-            var binaryString = atob(stampedDocxBase64);
-            var bytes = new Uint8Array(binaryString.length);
-            for (var i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            var blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-
-            var container = document.getElementById('pdf-render-zone');
-            container.innerHTML = '';
-            container.style.display = 'block';
-
-            var renderOptions = {
-                className: 'docx_viewer',
-                inWrapper: false,
-                ignoreWidth: true,
-                ignoreHeight: true,
-                experimental: true,
-                renderHeaders: true,
-                renderFooters: true
-            };
-
-            docx.renderAsync(blob, container, null, renderOptions).then(function() {
-                updateStatus('Loading images...');
-                return waitForImages(container);
-            }).then(function() {
-                return waitForPaint();
-            }).then(function() {
-                updateStatus('Converting to PDF...');
-
-                var opt = {
-                    margin: 0,
-                    filename: fileName + '.pdf',
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: {
-                        scale: 2,
-                        useCORS: true,
-                        allowTaint: true,
-                        letterRendering: true,
-                        logging: false,
-                        backgroundColor: '#ffffff'
-                    },
-                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-                    pagebreak: { mode: ['css', 'legacy'] }
-                };
-
-                return html2pdf().from(container).set(opt).output('arraybuffer');
-            }).then(function(arrayBuffer) {
-                var base64Pdf = arrayBufferToBase64(arrayBuffer);
-
-                updateStatus('Uploading signed document...');
-
-                // STEP 4: Upload PDF
-                Visualforce.remoting.Manager.invokeAction(
-                    '{!$RemoteAction.DocGenSignatureController.finishSignatureUpload}',
-                    token,
-                    base64Pdf,
-                    fileName,
-                    function(result, event) {
-                        container.style.display = 'none';
-                        if (event.status) {
-                            showState('success');
-                        } else {
-                            showError('Upload failed: ' + (event.message || 'Unknown error'));
-                        }
-                    },
-                    { escape: false, buffer: false, timeout: 120000 }
-                );
-            }).catch(function(err) {
-                container.style.display = 'none';
-                showError('PDF rendering failed: ' + (err.message || err));
-            });
-        }
-
-        // ===== UTILITY FUNCTIONS (from DocGenPDFEngine.page) =====
-        function waitForImages(container) {
-            var images = container.querySelectorAll('img');
-            var promises = Array.from(images).map(function(img) {
-                if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
-                return new Promise(function(resolve) {
-                    img.onload = resolve;
-                    img.onerror = resolve;
-                    setTimeout(resolve, 5000);
-                });
-            });
-            return Promise.all(promises);
-        }
-
-        function waitForPaint() {
-            return new Promise(function(resolve) {
-                requestAnimationFrame(function() { requestAnimationFrame(resolve); });
-            });
-        }
-
-        function arrayBufferToBase64(buffer) {
-            var binary = '';
-            var bytes = new Uint8Array(buffer);
-            for (var i = 0; i < bytes.byteLength; i++) {
-                binary += String.fromCharCode(bytes[i]);
-            }
-            return btoa(binary);
         }
     })();
     </script>

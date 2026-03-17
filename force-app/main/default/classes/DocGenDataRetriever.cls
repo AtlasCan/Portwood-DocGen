@@ -109,8 +109,6 @@ public with sharing class DocGenDataRetriever {
         
         String query = 'SELECT ' + cleanSelect + ' FROM ' + String.escapeSingleQuotes(baseObject) + ' WHERE Id = :recordId LIMIT 1';
         
-        System.debug(LoggingLevel.INFO, 'DocGen Query: ' + query);
-
         try {
             List<SObject> results = Database.query(query, AccessLevel.USER_MODE);
             if (results.isEmpty()) {

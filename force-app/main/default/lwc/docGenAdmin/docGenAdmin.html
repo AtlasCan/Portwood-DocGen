@@ -193,6 +193,7 @@
                                     <lightning-combobox label="Type" value={editTemplateType} options={typeOptions} onchange={handleEditTypeChange} required></lightning-combobox>
                                     <lightning-combobox label="Output Format" value={editTemplateOutputFormat} options={outputFormatOptions} onchange={handleEditOutputFormatChange} class="slds-var-m-top_small" required></lightning-combobox>
                                     <lightning-input label="Base Object API Name" value={editTemplateObject} readonly class="slds-var-m-top_small"></lightning-input>
+                                    <lightning-input type="toggle" label="Default Template for this Object" checked={editTemplateIsDefault} onchange={handleEditDefaultChange} class="slds-var-m-top_small" message-toggle-active="Yes" message-toggle-inactive="No"></lightning-input>
                                     
                                     <c-doc-gen-title-editor
                                         value={editTemplateTitleFormat}
@@ -440,6 +441,4 @@
         <div class="slds-backdrop slds-backdrop_open"></div>
     </template>
 
-    <!-- Hidden PDF Engine: Position absolute/fixed off-screen so access to DOM/Window dimensions works -->
-    <iframe src="/apex/DocGenPDFEngine" style="position:fixed; top:-20000px; left:-20000px; width:1280px; height:1000px; border:none; visibility:hidden;"></iframe>
 </template>

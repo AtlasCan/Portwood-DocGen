@@ -10,3 +10,8 @@ package.xml
 
 # LWC Jest
 **/__tests__/**
+
+# IDE and dev artifacts
+.vscode/
+.idea/
+scripts/

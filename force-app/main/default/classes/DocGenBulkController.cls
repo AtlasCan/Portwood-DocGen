@@ -56,7 +56,9 @@ public with sharing class DocGenBulkController {
                 Query_Condition__c = condition,
                 Status__c = 'Queued'
             );
-            insert job;
+            SObjectAccessDecision jobDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Job__c>{ job });
+            insert jobDecision.getRecords();
+            job = (DocGen_Job__c) jobDecision.getRecords()[0];
 
             // 2. Run Batch
             // Batch Size 1: each record needs its own transaction so callouts
@@ -98,7 +100,8 @@ public with sharing class DocGenBulkController {
                 Description__c = description,
                 Query_Condition__c = condition
             );
-            insert sq;
+            SObjectAccessDecision sqDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Saved_Query__c>{ sq });
+            insert sqDecision.getRecords();
         } catch (Exception e) {
             System.debug(LoggingLevel.ERROR, 'DocGen: Error saving query: ' + e.getMessage());
             throw new AuraHandledException('Error saving query.');

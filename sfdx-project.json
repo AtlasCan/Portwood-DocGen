@@ -1,8 +1,8 @@
 {
   "packageDirectories": [
     {
-      "versionName": "v0.9.1 - PKCE Fix & Wizard UX",
-      "versionNumber": "0.9.1.NEXT",
+      "versionName": "v1.0.0 - Server-Side PDF, Zero JS Dependencies",
+      "versionNumber": "1.0.0.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Document Generation",
@@ -12,7 +12,7 @@
   "name": "Document Generation",
   "namespace": "",
   "sfdcLoginUrl": "https://login.salesforce.com",
-  "sourceApiVersion": "65.0",
+  "sourceApiVersion": "66.0",
   "packageAliases": {
     "Document Generation": "0HodL0000002DkLSAU",
     "Document Generation@0.1.0-1": "04tdL000000NnT3QAK",

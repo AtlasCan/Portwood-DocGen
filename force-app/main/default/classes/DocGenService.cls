@@ -5,10 +5,33 @@ public with sharing class DocGenService {
     private static Integer imageCounter = 0;
 
     /**
-     * Processes a template with record data and returns the result as a Map containing
-     * the document Blob, title, output format, and template type. Does NOT save to record.
+     * Intermediate merge result containing processed XML, images, and passthrough ZIP entries.
      */
-    public static Map<String, Object> processDocument(Id templateId, Id recordId) {
+    private class MergeResult {
+        String documentXml;                                   // Processed word/document.xml
+        Map<String, String> processedXmlEntries;              // All processed XML entries (name → xml)
+        Map<String, Blob> passthroughEntries;                 // Non-XML ZIP entries passed through as-is
+        String contentTypesXml;                               // [Content_Types].xml
+        String relsXml;                                       // word/_rels/document.xml.rels
+        String relsPath;                                      // Path to rels file
+        String mediaPath;                                     // Path prefix for media files
+        Map<String, String> imageBase64ByRelId;               // relId → base64 image data for HTML rendering
+        String templateType;
+        String outputFormat;
+        String docTitle;
+
+        MergeResult() {
+            processedXmlEntries = new Map<String, String>();
+            passthroughEntries = new Map<String, Blob>();
+            imageBase64ByRelId = new Map<String, String>();
+        }
+    }
+
+    /**
+     * Core merge logic: processes template tags in DOCX/PPTX XML and collects results.
+     * Returns structured intermediate data without assembling into a final format.
+     */
+    private static MergeResult mergeTemplate(Id templateId, Id recordId) {
         pendingImages = new List<Map<String, Object>>();
         imageCounter = 0;
 
@@ -35,18 +58,18 @@ public with sharing class DocGenService {
             throw new DocGenException('Invalid data format.');
         }
 
+        MergeResult mr = new MergeResult();
+        mr.templateType = templateType;
+        mr.outputFormat = outputFormat;
+
         Blob templateBlob = EncodingUtil.base64Decode(base64File);
         Compression.ZipReader reader = new Compression.ZipReader(templateBlob);
-        Compression.ZipWriter writer = new Compression.ZipWriter();
-
-        String contentTypesXml = null;
-        String relsXml = null;
 
         // Determine rels path based on template type
-        String relsPath = (templateType == 'PowerPoint')
+        mr.relsPath = (templateType == 'PowerPoint')
             ? 'ppt/_rels/presentation.xml.rels'
             : 'word/_rels/document.xml.rels';
-        String mediaPath = (templateType == 'PowerPoint') ? 'ppt/media/' : 'word/media/';
+        mr.mediaPath = (templateType == 'PowerPoint') ? 'ppt/media/' : 'word/media/';
 
         for (Compression.ZipEntry entry : reader.getEntries()) {
             String name = entry.getName();
@@ -64,71 +87,145 @@ public with sharing class DocGenService {
                 String xml = content.toString();
                 xml = mergeRunsInTags(xml);
                 xml = processXml(xml, recordDataMap);
-                writer.addEntry(name, Blob.valueOf(xml));
+                mr.processedXmlEntries.put(name, xml);
+                if (name == 'word/document.xml') {
+                    mr.documentXml = xml;
+                }
             } else if (name == '[Content_Types].xml') {
-                contentTypesXml = reader.extract(name).toString();
-            } else if (name == relsPath) {
-                relsXml = reader.extract(name).toString();
+                mr.contentTypesXml = reader.extract(name).toString();
+            } else if (name == mr.relsPath) {
+                mr.relsXml = reader.extract(name).toString();
             } else {
-                writer.addEntry(name, reader.extract(name));
+                mr.passthroughEntries.put(name, reader.extract(name));
             }
         }
 
-        // Inject collected images into the ZIP
+        // Process pending images: update content types, rels, and collect base64 for HTML
         if (!pendingImages.isEmpty()) {
-            if (contentTypesXml != null) {
-                if (!contentTypesXml.contains('Extension="png"')) {
-                    contentTypesXml = contentTypesXml.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
+            if (mr.contentTypesXml != null) {
+                if (!mr.contentTypesXml.contains('Extension="png"')) {
+                    mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="png" ContentType="image/png"/></Types>');
                 }
-                if (!contentTypesXml.contains('Extension="jpeg"') && !contentTypesXml.contains('Extension="jpg"')) {
-                    contentTypesXml = contentTypesXml.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
+                if (!mr.contentTypesXml.contains('Extension="jpeg"') && !mr.contentTypesXml.contains('Extension="jpg"')) {
+                    mr.contentTypesXml = mr.contentTypesXml.replace('</Types>', '<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
                 }
             }
-            if (relsXml != null) {
+            if (mr.relsXml != null) {
                 for (Map<String, Object> img : pendingImages) {
                     String relId = (String) img.get('relId');
                     String fName = (String) img.get('fileName');
                     String newRel = '<Relationship Id="' + relId + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' + fName + '"/>';
-                    relsXml = relsXml.replace('</Relationships>', newRel + '</Relationships>');
+                    mr.relsXml = mr.relsXml.replace('</Relationships>', newRel + '</Relationships>');
                 }
             }
+            // Collect image base64 for HTML rendering path
             for (Map<String, Object> img : pendingImages) {
-                String fName = (String) img.get('fileName');
-                Blob imageBlob = (Blob) img.get('blob');
-                writer.addEntry(mediaPath + fName, imageBlob);
+                String relId = (String) img.get('relId');
+                Blob imgBlob = (Blob) img.get('blob');
+                mr.imageBase64ByRelId.put(relId, EncodingUtil.base64Encode(imgBlob));
             }
         }
 
-        if (contentTypesXml != null) {
-            writer.addEntry('[Content_Types].xml', Blob.valueOf(contentTypesXml));
-        }
-        if (relsXml != null) {
-            writer.addEntry(relsPath, Blob.valueOf(relsXml));
+        // Generate document title
+        mr.docTitle = generateDocTitle((String) dataMap.get('titleFormat'), recordDataMap);
+        if (mr.docTitle == null) mr.docTitle = (String) resolveValue(recordDataMap, 'Name');
+
+        return mr;
+    }
+
+    /**
+     * Assembles a MergeResult into a DOCX/PPTX ZIP Blob.
+     */
+    private static Blob assembleZip(MergeResult mr) {
+        Compression.ZipWriter writer = new Compression.ZipWriter();
+
+        // Add processed XML entries
+        for (String name : mr.processedXmlEntries.keySet()) {
+            writer.addEntry(name, Blob.valueOf(mr.processedXmlEntries.get(name)));
         }
 
-        Blob resultBlob = writer.getArchive();
-        String docTitle = generateDocTitle((String) dataMap.get('titleFormat'), recordDataMap);
-        if (docTitle == null) docTitle = (String) resolveValue(recordDataMap, 'Name');
+        // Add passthrough entries
+        for (String name : mr.passthroughEntries.keySet()) {
+            writer.addEntry(name, mr.passthroughEntries.get(name));
+        }
+
+        // Add image blobs
+        for (Map<String, Object> img : pendingImages) {
+            String fName = (String) img.get('fileName');
+            Blob imageBlob = (Blob) img.get('blob');
+            writer.addEntry(mr.mediaPath + fName, imageBlob);
+        }
+
+        // Add content types and rels
+        if (mr.contentTypesXml != null) {
+            writer.addEntry('[Content_Types].xml', Blob.valueOf(mr.contentTypesXml));
+        }
+        if (mr.relsXml != null) {
+            writer.addEntry(mr.relsPath, Blob.valueOf(mr.relsXml));
+        }
+
+        return writer.getArchive();
+    }
+
+    /**
+     * Processes a template with record data and returns the result as a Map containing
+     * the document Blob, title, output format, and template type. Does NOT save to record.
+     */
+    public static Map<String, Object> processDocument(Id templateId, Id recordId) {
+        MergeResult mr = mergeTemplate(templateId, recordId);
+        Blob resultBlob = assembleZip(mr);
 
         return new Map<String, Object>{
             'blob' => resultBlob,
-            'title' => docTitle,
-            'outputFormat' => outputFormat,
-            'templateType' => templateType
+            'title' => mr.docTitle,
+            'outputFormat' => mr.outputFormat,
+            'templateType' => mr.templateType
+        };
+    }
+
+    /**
+     * Processes a template and returns the result as a PDF Blob using server-side
+     * HTML rendering via DocGenHtmlRenderer + Blob.toPdf().
+     * Only supported for Word templates.
+     */
+    public static Map<String, Object> processDocumentAsPdf(Id templateId, Id recordId) {
+        MergeResult mr = mergeTemplate(templateId, recordId);
+
+        if (mr.templateType == 'PowerPoint') {
+            throw new DocGenException('Server-side PDF generation is only supported for Word templates.');
+        }
+
+        // Convert processed DOCX XML to HTML
+        String html = DocGenHtmlRenderer.convertToHtml(mr.documentXml, mr.imageBase64ByRelId);
+
+        // Generate PDF using Blob.toPdf()
+        Blob pdfBlob = Blob.toPdf(html);
+
+        return new Map<String, Object>{
+            'blob' => pdfBlob,
+            'title' => mr.docTitle,
+            'outputFormat' => 'PDF',
+            'templateType' => mr.templateType
         };
     }
 
     /**
      * Processes a template and saves the result as a ContentVersion attached to the record.
+     * If the template's output format is PDF, generates PDF server-side.
      */
     public static Id generateDocument(Id templateId, Id recordId) {
-        Map<String, Object> result = processDocument(templateId, recordId);
-        Blob resultBlob = (Blob) result.get('blob');
-        String docTitle = (String) result.get('title');
-        String outputFormat = (String) result.get('outputFormat');
-        String templateType = (String) result.get('templateType');
+        MergeResult mr = mergeTemplate(templateId, recordId);
 
-        return saveFile(resultBlob, docTitle, recordId, outputFormat, templateType);
+        if (mr.outputFormat == 'PDF' && mr.templateType == 'Word') {
+            // Server-side PDF path
+            String html = DocGenHtmlRenderer.convertToHtml(mr.documentXml, mr.imageBase64ByRelId);
+            Blob pdfBlob = Blob.toPdf(html);
+            return savePdfFile(pdfBlob, mr.docTitle, recordId);
+        }
+
+        // Native DOCX/PPTX path
+        Blob resultBlob = assembleZip(mr);
+        return saveFile(resultBlob, mr.docTitle, recordId, mr.outputFormat, mr.templateType);
     }
 
     /**
@@ -245,10 +342,7 @@ public with sharing class DocGenService {
             if (tagContent.startsWith('#')) {
                 String key = tagContent.substring(1).trim();
                 Integer sectionEnd = findBalancedEnd(xml, tagClose + 1, key);
-                System.debug('DocGen processXml: Found section {#' + key + '}, sectionEnd=' + sectionEnd);
-
                 if (sectionEnd == -1) {
-                    System.debug('DocGen processXml: WARNING - no matching {/' + key + '} found! Tag output as literal.');
                     output += '{' + rawTag + '}';
                     cursor = tagClose + 1;
                 } else {
@@ -315,15 +409,12 @@ public with sharing class DocGenService {
                     // Process Data
                     Object val = resolveValue(data, key);
                     String sectionResult = '';
-                    System.debug('DocGen processXml: Section {#' + key + '} val type: ' + (val == null ? 'NULL' : (val instanceof Map<String, Object> ? 'Map' : (val instanceof List<Object> ? 'List' : 'Other'))));
-
                     if (val instanceof Boolean && (Boolean)val) {
                          sectionResult = processXml(innerXml, data);
                     } else if (val instanceof Map<String, Object>) {
                         Map<String, Object> mapVal = (Map<String, Object>) val;
                          if (mapVal.containsKey('records') && mapVal.get('records') instanceof List<Object>) {
                             List<Object> records = (List<Object>) mapVal.get('records');
-                            System.debug('DocGen processXml: Loop {#' + key + '} iterating ' + records.size() + ' records');
                             for (Object item : records) {
                                 if (item instanceof Map<String, Object>) sectionResult += processXml(innerXml, (Map<String, Object>) item);
                             }
@@ -332,14 +423,12 @@ public with sharing class DocGenService {
                         }
                     } else if (val instanceof List<Object>) {
                          List<Object> listVal = (List<Object>) val;
-                         System.debug('DocGen processXml: Loop {#' + key + '} iterating ' + listVal.size() + ' items (direct list)');
                          for (Object item : listVal) {
                               if (item instanceof Map<String, Object>) sectionResult += processXml(innerXml, (Map<String, Object>) item);
                          }
                     } else if (val != null) {
                          sectionResult = processXml(innerXml, data);
                     }
-                    System.debug('DocGen processXml: Section {#' + key + '} result length: ' + sectionResult.length());
                     output += sectionResult;
                 }
                 
@@ -368,10 +457,8 @@ public with sharing class DocGenService {
                 }
 
                 Object val = resolveValue(data, imageField);
-                System.debug('DocGen processXml: Image tag {%' + imageField + '} val null?: ' + (val == null) + ', val length: ' + (val != null ? String.valueOf(val).length() : 0));
                 if (val != null) {
                     String imageXml = buildImageXml(String.valueOf(val), imgWidthPx, imgHeightPx);
-                    System.debug('DocGen processXml: buildImageXml returned ' + (imageXml == null ? 'NULL' : 'XML length ' + imageXml.length()));
                     if (imageXml != null) {
                         output += imageXml;
                     }
@@ -461,7 +548,6 @@ public with sharing class DocGenService {
                         }
                     }
                     if (!found) {
-                        System.debug('DocGen Debug: Key "' + part + '" not found in Map. Keys: ' + currentMap.keySet());
                         return null;
                     }
                 }
@@ -469,9 +555,8 @@ public with sharing class DocGenService {
                  SObject sobj = (SObject) current;
                  try {
                      current = sobj.get(part);
-                 } catch(Exception e) { 
-                     System.debug('DocGen Debug: Error retrieving field "' + part + '" from SObject ' + sobj + ': ' + e.getMessage());
-                     return null; 
+                 } catch(Exception e) {
+                     return null;
                  }
             } else {
                 return null;
@@ -492,7 +577,6 @@ public with sharing class DocGenService {
 
     private static String buildImageXml(String fieldValue, Integer widthPx, Integer heightPx) {
         if (String.isBlank(fieldValue)) return null;
-        System.debug('DocGen buildImageXml: input length=' + fieldValue.length() + ', starts with: ' + fieldValue.left(100));
 
         Blob imageBlob = null;
         String ext = 'png';
@@ -500,9 +584,7 @@ public with sharing class DocGenService {
         try {
             // 1. Rich text HTML containing <img> tags
             if (fieldValue.containsIgnoreCase('<img')) {
-                System.debug('DocGen buildImageXml: detected <img>, calling extractImageFromHtml');
                 imageBlob = extractImageFromHtml(fieldValue);
-                System.debug('DocGen buildImageXml: extractImageFromHtml returned ' + (imageBlob == null ? 'NULL' : 'blob size ' + imageBlob.size()));
             }
             // 2. Base64 data URI
             else if (fieldValue.startsWith('data:image/')) {
@@ -740,17 +822,8 @@ public with sharing class DocGenService {
 
     private static Id saveFile(Blob fileBlob, String title, Id recordId, String format, String type) {
         ContentVersion cv = new ContentVersion();
-        String baseName = (title != null ? title : 'Generated_Document');
-        if (!baseName.startsWith('Generated_') && title == null) baseName = 'Generated_' + baseName; 
-        // Logic: specific requirements? 
-        // User wants "create a title". 
-        // If title provided via format, use it exactly.
-        // If not, revert to old behavior: 'Generated_' + recordName.
-        
-        // Revised Logic:
-        if (title != null) baseName = title;
-        else baseName = 'Generated_' + (recordId != null ? 'Document' : 'File'); // Fallback fallback
-        
+        String baseName = title != null ? title : 'Generated_Document';
+
         String ext = (type == 'PowerPoint') ? '.pptx' : '.docx';
         cv.Title = baseName;
         cv.PathOnClient = baseName + ext;
@@ -760,10 +833,23 @@ public with sharing class DocGenService {
         insert cvDecision.getRecords();
         Id savedCvId = cvDecision.getRecords()[0].Id;
 
-        // Background PDF Rendition: if requested format is PDF, queue for delayed capture
-        if (format == 'PDF') {
-            DocGenRenditionService.addPendingRendition(savedCvId, recordId);
-        }
+        return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH SYSTEM_MODE].ContentDocumentId;
+    }
+
+    /**
+     * Saves a PDF Blob as a ContentVersion attached to the record.
+     */
+    private static Id savePdfFile(Blob pdfBlob, String title, Id recordId) {
+        ContentVersion cv = new ContentVersion();
+        String baseName = title != null ? title : 'Generated_Document';
+        cv.Title = baseName;
+        cv.PathOnClient = baseName + '.pdf';
+        cv.VersionData = pdfBlob;
+        cv.FirstPublishLocationId = recordId;
+        SObjectAccessDecision cvDecision = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
+        insert cvDecision.getRecords();
+        Id savedCvId = cvDecision.getRecords()[0].Id;
+
         return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH SYSTEM_MODE].ContentDocumentId;
     }
     private static String generateDocTitle(String format, Map<String, Object> data) {
