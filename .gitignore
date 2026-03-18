@@ -50,7 +50,9 @@ $RECYCLE.BIN/
 # Git worktrees
 .worktrees/
 
-# Local session docs (not for commit)
+# Claude Local session docs (not for commit)
 docs/session-*.md
 docs/pr-*.md
 docs/plans/
+.claude/
+*/settings.local.json
