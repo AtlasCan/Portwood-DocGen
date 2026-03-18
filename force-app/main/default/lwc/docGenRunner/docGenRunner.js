@@ -244,7 +244,7 @@ export default class DocGenRunner extends LightningElement {
         this.showToast("Success", "Document saved to record.", "success");
       } else {
         const blob = new Blob([docxBytes], {
-          type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          type: "application/octet-stream"
         });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
