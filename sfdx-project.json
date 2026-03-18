@@ -1,8 +1,8 @@
 {
   "packageDirectories": [
     {
-      "versionName": "v1.0.0 - Server-Side PDF, Zero JS Dependencies",
-      "versionNumber": "1.0.0.NEXT",
+      "versionName": "v1.1.0 - Admin Guide, Security Hardening, Email Branding",
+      "versionNumber": "1.1.0.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Document Generation",
