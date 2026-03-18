@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npx prettier:*)",
+      "Bash(java --version)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''prettier'''',{}\\), indent=2\\)\\); print\\(''''lint-staged:'''', json.dumps\\(d.get\\(''''lint-staged'''',{}\\), indent=2\\)\\)\")",
+      "Bash(node:*)",
+      "Bash(/Users/stephenreitz/SalesforceDocGen/.worktrees/client-side-docgen/node_modules/prettier-plugin-apex/vendor/apex-ast-serializer/bin/apex-ast-serializer)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(''''version:'''', d.get\\(''''version''''\\)\\); print\\(''''peerDeps:'''', d.get\\(''''peerDependencies'''',{}\\)\\)\")",
+      "Bash(kill %1)",
+      "Bash(npm test:*)",
+      "Bash(npx eslint:*)",
+      "Bash(find /Users/stephenreitz/SalesforceDocGen/.worktrees/client-side-docgen/node_modules -path */apex* -name *.js)",
+      "Bash(find /Users/stephenreitz/SalesforceDocGen/.worktrees/client-side-docgen/node_modules -path *wire-service-jest* -name *.js)",
+      "Bash(grep -rn \"wire\\\\|adapter\" /Users/stephenreitz/SalesforceDocGen/.worktrees/client-side-docgen/node_modules/@lwc/jest-preset/src/*.js)",
+      "Bash(npx jest:*)",
+      "Bash(sf org:*)",
+      "Bash(sf project:*)",
+      "Bash(sf apex:*)",
+      "Bash(python3 -c \":*)",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "Bash(sf data:*)",
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "Bash(python3:*)"
+    ]
+  }
+}
