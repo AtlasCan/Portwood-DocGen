@@ -67,7 +67,17 @@ sf package install --package 04tdL000000RCt7QAG --wait 10 --installation-key-byp
 
 > Select **Install for Admins Only** during installation, then assign permission sets to your users.
 
----
+## Known Limitations
+While this engine handles complex document generation, it operates entirely within the Salesforce platform and is subject to standard Apex Governor Limits:
+
+Synchronous Limit: 6 MB
+Asynchronous Limit: 12 MB
+
+Large Documents & Images
+Because the "heavy lifting" of PDF rendering and image injection happens on-server, memory usage can climb quickly. If your documents require multiple images, please ensure they are optimized and low-resolution to avoid LimitException: Apex heap size too large.
+
+Is this right for you?
+If your use case consistently requires generating documents or processing image data larger than these limits, this tool may not be the right fit for your requirements in its current state.
 
 ## What's New in v1.1.0
 
