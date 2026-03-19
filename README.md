@@ -2,7 +2,7 @@
 
 **A free, native, production-ready document engine for Salesforce.**
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](#quick-install)
+[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](#quick-install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![API Version](https://img.shields.io/badge/API-v66.0-orange.svg)](#)
@@ -56,16 +56,16 @@ This project gives you a professional-grade document engine -- template manageme
 
 ## Quick Install
 
-**Package Version ID**: `04tdL000000RHkjQAG`
+**Package Version ID**: `04tdL000000RHrBQAW`
 
 **CLI:**
 ```bash
-sf package install --package 04tdL000000RHkjQAG --wait 10 --installation-key-bypass
+sf package install --package 04tdL000000RHrBQAW --wait 10 --installation-key-bypass
 ```
 
 **Browser:**
-- [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RHkjQAG)
-- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RHkjQAG)
+- [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RHrBQAW)
+- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RHrBQAW)
 
 > Select **Install for Admins Only** during installation, then assign permission sets to your users.
 

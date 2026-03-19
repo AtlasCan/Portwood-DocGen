@@ -1,8 +1,8 @@
 {
   "packageDirectories": [
     {
-      "versionName": "v1.2.0 - Unified PDF pipeline, page break fix, Spring 26 compatibility",
-      "versionNumber": "1.2.0.NEXT",
+      "versionName": "v1.2.1 - Page layouts, data model guide",
+      "versionNumber": "1.2.1.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Document Generation",
@@ -33,6 +33,7 @@
     "Document Generation@0.9.1-1": "04tdL000000Or6PQAS",
     "Document Generation@1.1.0-1": "04tdL000000RCt7QAG",
     "Document Generation@1.1.1-1": "04tdL000000RGLdQAO",
-    "Document Generation@1.2.0-4": "04tdL000000RHkjQAG"
+    "Document Generation@1.2.0-4": "04tdL000000RHkjQAG",
+    "Document Generation@1.2.1-1": "04tdL000000RHrBQAW"
   }
 }
