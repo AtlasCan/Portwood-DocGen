@@ -5,7 +5,6 @@
         <name>CustomApplication</name>
     </types>
     <types>
-        <members>DocGenAuthenticatorController</members>
         <members>DocGenBatch</members>
         <members>DocGenBulkController</members>
         <members>DocGenBulkFlowAction</members>
@@ -23,14 +22,6 @@
         <members>DocGenService</members>
         <members>DocGenSetupController</members>
         <members>DocGenSharingTests</members>
-        <members>DocGenSignatureController</members>
-        <members>DocGenSignatureFinalizer</members>
-        <members>DocGenSignatureSenderController</members>
-        <members>DocGenSignatureService</members>
-        <members>DocGenSignatureSubmitter</members>
-        <members>DocGenSignatureTests</members>
-        <members>DocGenSignatureValidator</members>
-        <members>DocGenSignatureEmailService</members>
         <members>DocGenPdfQueueable</members>
         <members>DocGenTemplateManager</members>
         <members>DocGenTests</members>
@@ -38,22 +29,15 @@
     </types>
     <types>
         <members>DocGenPdfRenderer</members>
-        <members>DocGenSign</members>
-        <members>DocGenSignature</members>
         <members>DocGenVerify</members>
         <name>ApexPage</name>
     </types>
     <types>
+        <members>DocGen_Font__c</members>
         <members>DocGen_Job__c</members>
         <members>DocGen_Saved_Query__c</members>
         <members>DocGen_Settings__c</members>
-        <members>DocGen_Signature_Audit__c</members>
-        <members>DocGen_Signature_Request__c</members>
-        <members>DocGen_Signature_Template_Role__c</members>
-        <members>DocGen_Signature_Template__c</members>
-        <members>DocGen_Signer__c</members>
         <members>DocGen_Template_Version__c</members>
-        <members>DocGen_Signature_PDF__e</members>
         <members>DocGen_Template__c</members>
         <name>CustomObject</name>
     </types>
@@ -62,8 +46,6 @@
         <members>DocGen_Bulk_Gen</members>
         <members>DocGen_Job__c</members>
         <members>DocGen_Setup</members>
-        <members>DocGen_Signature_Audit__c</members>
-        <members>DocGen_Signature_Request__c</members>
         <members>DocGen_Template_Manager</members>
         <members>DocGen_Template_Version__c</members>
         <members>DocGen_Template__c</members>
@@ -71,33 +53,20 @@
     </types>
     <types>
         <members>docGenAdmin</members>
-        <members>docGenAuthenticator</members>
         <members>docGenBulkRunner</members>
         <members>docGenFilterBuilder</members>
         <members>docGenQueryBuilder</members>
         <members>docGenRunner</members>
         <members>docGenSetupWizard</members>
         <members>docGenSharing</members>
-        <members>docGenSignaturePad</members>
-        <members>docGenSignatureSender</members>
         <members>docGenTitleEditor</members>
         <members>docGenAdminGuide</members>
         <name>LightningComponentBundle</name>
     </types>
     <types>
         <members>DocGen_Admin</members>
-        <members>DocGen_Guest_Signature</members>
         <members>DocGen_User</members>
         <name>PermissionSet</name>
-    </types>
-    <types>
-        <members>DocGenSignaturePdfTrigger</members>
-        <name>ApexTrigger</name>
-    </types>
-    <types>
-        <members>DocGenSignOut</members>
-        <members>DocGenVerifyApp</members>
-        <name>AuraDefinitionBundle</name>
     </types>
     <version>66.0</version>
 </Package>

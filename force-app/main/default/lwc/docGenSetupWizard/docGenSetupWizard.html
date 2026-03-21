@@ -1,184 +1,141 @@
 <template>
-    <lightning-card title="DocGen Secure E-Signature Setup" icon-name="custom:custom108">
+    <lightning-card title="DocGen Setup" icon-name="custom:custom108">
         <div class="slds-var-p-around_medium">
-            <template if:false={isLoaded}>
-                <div class="slds-is-relative" style="height: 100px;">
-                    <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
-                </div>
-            </template>
 
-            <template if:true={isLoaded}>
-                <!-- Introduction Banner -->
-                <div class="slds-notify slds-notify_alert slds-theme_info slds-var-m-bottom_large" role="alert">
-                    <span class="slds-assistive-text">info</span>
-                    <h2>Configure the Salesforce Site for public e-signatures and customize the email branding for signature requests.</h2>
-                </div>
+            <!-- Custom Fonts Section -->
+            <div class="slds-section slds-is-open">
+                <h3 class="slds-text-heading_small slds-var-m-bottom_small">Custom Fonts for PDF Generation</h3>
+                <p class="slds-text-body_regular slds-var-m-bottom_medium">
+                    Upload custom fonts (TTF, WOFF, WOFF2) to use in your PDF documents. When a template uses a font that matches an uploaded font family, it will be embedded in the generated PDF.
+                </p>
 
-                <!-- Progress Bar -->
-                <lightning-progress-indicator current-step={currentStep} type="path" variant="base" class="slds-var-m-bottom_large">
-                    <lightning-progress-step label="1. Salesforce Site" value="1" onclick={handleStepClick}></lightning-progress-step>
-                    <lightning-progress-step label="2. Email Branding" value="2" onclick={handleStepClick}></lightning-progress-step>
-                    <lightning-progress-step label="3. Done" value="3" onclick={handleStepClick}></lightning-progress-step>
-                </lightning-progress-indicator>
+                <!-- Font List -->
+                <template if:true={hasFonts}>
+                    <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-var-m-bottom_medium">
+                        <thead>
+                            <tr class="slds-line-height_reset">
+                                <th scope="col"><div class="slds-truncate">Font Family</div></th>
+                                <th scope="col"><div class="slds-truncate">Weight</div></th>
+                                <th scope="col"><div class="slds-truncate">Style</div></th>
+                                <th scope="col"><div class="slds-truncate">Format</div></th>
+                                <th scope="col"><div class="slds-truncate">Actions</div></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template for:each={fonts} for:item="font">
+                                <tr key={font.Id}>
+                                    <td><div class="slds-truncate"><strong>{font.Font_Family__c}</strong></div></td>
+                                    <td><div class="slds-truncate">{font.Font_Weight__c}</div></td>
+                                    <td><div class="slds-truncate">{font.Font_Style__c}</div></td>
+                                    <td><div class="slds-truncate">{font.formatLabel}</div></td>
+                                    <td>
+                                        <lightning-button-icon
+                                            icon-name="utility:delete"
+                                            variant="bare"
+                                            alternative-text="Delete font"
+                                            data-id={font.Id}
+                                            onclick={handleDeleteFont}>
+                                        </lightning-button-icon>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </template>
 
-                <!-- Step 1: Salesforce Site -->
-                <template if:true={isStep1}>
-                    <div class="slds-box slds-theme_default">
-                        <h2 class="slds-text-heading_medium slds-var-m-bottom_small">Step 1: Salesforce Site Configuration</h2>
-                        <ol class="slds-list_ordered slds-var-m-left_medium slds-var-m-bottom_medium slds-text-body_regular">
-                            <li>Go to <strong>Setup &gt; Sites</strong> (search "Sites" in Quick Find).</li>
-                            <li>If you don't have a Sites domain registered, register one (e.g., <strong>docgen</strong>).</li>
-                            <li>Click <strong>New</strong> to create a new site:
-                                <ul class="slds-list_dotted slds-var-m-left_medium">
-                                    <li>Site Label: <strong>DocGen Signatures</strong></li>
-                                    <li>Active Site Home Page: <strong>DocGenSignature</strong></li>
-                                    <li>Check <strong>Active</strong></li>
-                                </ul>
-                            </li>
-                            <li>After saving, click <strong>Public Access Settings</strong> on the Site detail page.</li>
-                            <li>In the Guest User profile, go to <strong>Enabled Visualforce Page Access</strong> and add <strong>DocGenSignature</strong>.</li>
-                            <li>Assign the <strong>DocGen Guest Signature</strong> permission set to the Site Guest User.</li>
-                            <li>Copy the <strong>Site URL</strong> from the Site detail page and paste it below.</li>
-                        </ol>
-
-                        <div class="slds-form-element slds-var-m-bottom_medium">
-                            <lightning-input
-                                type="url"
-                                label="Salesforce Site Base URL"
-                                placeholder="https://docgen.my.salesforce-sites.com"
-                                value={experienceSiteUrl}
-                                onchange={handleUrlChange}
-                                required>
-                            </lightning-input>
-                            <p class="slds-text-body_small slds-var-m-top_xx-small">Base URL only, no path. Example: https://docgen.my.salesforce-sites.com</p>
-                        </div>
-
-                        <lightning-button variant="brand" label="Save & Continue" onclick={handleSaveSettings} class="slds-var-m-right_small"></lightning-button>
-                        <lightning-button label="Next Step" onclick={nextStep}></lightning-button>
+                <template if:false={hasFonts}>
+                    <div class="slds-illustration slds-illustration_small slds-var-m-bottom_medium">
+                        <p class="slds-text-body_regular slds-text-color_weak">No custom fonts uploaded yet. PDFs will use standard web-safe fonts (Arial, Times New Roman, etc.).</p>
                     </div>
                 </template>
 
-                <!-- Step 2: Email Branding -->
-                <template if:true={isStep2}>
-                    <div class="slds-box slds-theme_default">
-                        <h2 class="slds-text-heading_medium slds-var-m-bottom_small">Step 2: Signature Email Branding</h2>
-                        <p class="slds-text-body_regular slds-var-m-bottom_medium">
-                            Customize the automated emails sent to signers when you create signature requests.
-                            When someone is sent for signature, they'll receive a branded email with a secure link to review and sign the document.
-                        </p>
-
-                        <div class="slds-grid slds-wrap slds-gutters">
-                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-var-p-bottom_small">
-                                <lightning-input
-                                    type="text"
-                                    label="Company / Organization Name"
-                                    value={companyName}
-                                    onchange={handleCompanyNameChange}
-                                    placeholder="Acme Corporation">
-                                </lightning-input>
-                            </div>
-                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-var-p-bottom_small">
-                                <lightning-input
-                                    type="url"
-                                    label="Logo Image URL"
-                                    value={emailLogoUrl}
-                                    onchange={handleLogoUrlChange}
-                                    placeholder="https://example.com/logo.png">
-                                </lightning-input>
-                                <p class="slds-text-body_small slds-var-m-top_xx-small">Recommended: 200x60px PNG with transparent background. Displayed at the top of emails.</p>
-                            </div>
-                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-var-p-bottom_small">
-                                <lightning-input
-                                    type="color"
-                                    label="Brand Color"
-                                    value={emailBrandColor}
-                                    onchange={handleBrandColorChange}>
-                                </lightning-input>
-                                <p class="slds-text-body_small slds-var-m-top_xx-small">Used for the email header bar and "Review &amp; Sign" button.</p>
-                            </div>
-                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-var-p-bottom_small">
-                                <lightning-input
-                                    type="text"
-                                    label="Email Subject Line"
-                                    value={emailSubject}
-                                    onchange={handleEmailSubjectChange}
-                                    placeholder="Action Required: Please Sign {DocumentTitle}">
-                                </lightning-input>
-                                <p class="slds-text-body_small slds-var-m-top_xx-small">Merge fields: &#123;SignerName&#125;, &#123;DocumentTitle&#125;, &#123;SenderName&#125;</p>
-                            </div>
-                            <div class="slds-col slds-size_1-of-1 slds-var-p-bottom_small">
-                                <lightning-input
-                                    type="text"
-                                    label="Email Message Body"
-                                    value={emailMessage}
-                                    onchange={handleEmailMessageChange}
-                                    placeholder="has sent you a document that requires your signature:"
-                                    max-length="255">
-                                </lightning-input>
-                                <p class="slds-text-body_small slds-var-m-top_xx-small">Merge fields: &#123;SignerName&#125;, &#123;DocumentTitle&#125;, &#123;SenderName&#125;. Leave blank for default message.</p>
-                            </div>
-                            <div class="slds-col slds-size_1-of-1 slds-var-p-bottom_small">
-                                <lightning-textarea
-                                    label="Email Footer Text"
-                                    value={emailFooterText}
-                                    onchange={handleFooterTextChange}
-                                    placeholder="© 2026 Acme Corp. All rights reserved."
-                                    max-length="1000">
-                                </lightning-textarea>
-                                <p class="slds-text-body_small slds-var-m-top_xx-small">Leave blank for default: "Powered by DocGen — Open-Source Document Generation for Salesforce"</p>
-                            </div>
-                        </div>
-
-                        <!-- Email Preview -->
-                        <div class="slds-box slds-theme_shade slds-var-m-top_medium slds-var-m-bottom_medium">
-                            <h3 class="slds-text-heading_small slds-var-m-bottom_small">Preview</h3>
-                            <p class="slds-text-body_small slds-var-m-bottom_small">Signers will receive an email like this when you send documents for signature:</p>
-                            <div style="background:#f4f4f4;padding:16px;border-radius:8px;text-align:center;">
-                                <div style="max-width:400px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.1);text-align:left;">
-                                    <div style="padding:16px;text-align:center;" class="slds-theme_info">
-                                        <template if:true={emailLogoUrl}>
-                                            <img src={emailLogoUrl} alt="Logo" style="max-height:36px;max-width:160px;" />
-                                        </template>
-                                        <template if:false={emailLogoUrl}>
-                                            <template if:true={companyName}>
-                                                <strong style="color:#fff;">{companyName}</strong>
-                                            </template>
-                                        </template>
-                                    </div>
-                                    <div style="padding:20px;font-size:13px;color:#555;">
-                                        <p><strong>Hi [Signer Name],</strong></p>
-                                        <p>{emailMessagePreview}</p>
-                                        <div style="background:#f8f9fa;padding:12px;border-radius:4px;margin:12px 0;">
-                                            <small style="color:#999;">Document</small><br/>
-                                            <strong>[Document Title]</strong>
-                                        </div>
-                                        <div style="text-align:center;margin:16px 0;">
-                                            <span style="display:inline-block;padding:10px 24px;border-radius:6px;color:#fff;font-weight:bold;font-size:14px;" class="slds-theme_info">Review &amp; Sign Document</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <lightning-button label="Back" onclick={prevStep} class="slds-var-m-right_small"></lightning-button>
-                        <lightning-button variant="brand" label="Save Email Settings" onclick={handleSaveEmailBranding} disabled={isSavingBranding} class="slds-var-m-right_small"></lightning-button>
-                        <lightning-button label="Next Step" onclick={nextStep}></lightning-button>
-                    </div>
+                <!-- Upload Button -->
+                <template if:false={showFontUpload}>
+                    <lightning-button
+                        label="Upload Font"
+                        variant="brand"
+                        icon-name="utility:upload"
+                        onclick={handleShowUpload}>
+                    </lightning-button>
                 </template>
 
-                <!-- Step 3: Done -->
-                <template if:true={isStep3}>
-                    <div class="slds-box slds-theme_default">
-                        <div class="slds-notify slds-notify_alert slds-theme_success slds-var-m-bottom_medium" role="alert">
-                            <h2>Setup Complete! Signature requests will now automatically send branded emails to signers.</h2>
+                <!-- Upload Form -->
+                <template if:true={showFontUpload}>
+                    <div class="slds-box slds-var-m-top_small">
+                        <h4 class="slds-text-heading_small slds-var-m-bottom_small">Upload New Font</h4>
+
+                        <div class="slds-grid slds-wrap slds-gutters_small">
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-var-m-bottom_small">
+                                <lightning-input
+                                    label="Font Family Name"
+                                    placeholder="e.g., Montserrat, Open Sans"
+                                    value={fontFamily}
+                                    onchange={handleFontFamilyChange}
+                                    required>
+                                </lightning-input>
+                                <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">Must match the font name in your DOCX template.</p>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-var-m-bottom_small">
+                                <lightning-input
+                                    type="file"
+                                    label="Font File"
+                                    accept=".ttf,.woff,.woff2"
+                                    onchange={handleFontFileChange}>
+                                </lightning-input>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3 slds-var-m-bottom_small">
+                                <lightning-combobox
+                                    label="Weight"
+                                    value={fontWeight}
+                                    options={fontWeightOptions}
+                                    onchange={handleFontWeightChange}>
+                                </lightning-combobox>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3 slds-var-m-bottom_small">
+                                <lightning-combobox
+                                    label="Style"
+                                    value={fontStyle}
+                                    options={fontStyleOptions}
+                                    onchange={handleFontStyleChange}>
+                                </lightning-combobox>
+                            </div>
+                            <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3 slds-var-m-bottom_small">
+                                <lightning-combobox
+                                    label="Format"
+                                    value={fontFormat}
+                                    options={fontFormatOptions}
+                                    onchange={handleFontFormatChange}>
+                                </lightning-combobox>
+                            </div>
                         </div>
-                        <p class="slds-text-body_regular slds-var-m-bottom_medium">
-                            You can return to this wizard at any time to update your Site URL or email branding settings.
-                        </p>
-                        <lightning-button label="Back" onclick={prevStep}></lightning-button>
+
+                        <div class="slds-var-m-top_small">
+                            <lightning-button
+                                label="Upload"
+                                variant="brand"
+                                disabled={isUploadDisabled}
+                                onclick={handleUploadFont}>
+                            </lightning-button>
+                            <lightning-button
+                                label="Cancel"
+                                variant="neutral"
+                                class="slds-var-m-left_x-small"
+                                onclick={handleCancelUpload}>
+                            </lightning-button>
+                        </div>
+
+                        <div class="slds-box slds-theme_shade slds-var-m-top_small">
+                            <p class="slds-text-body_small"><strong>Tip:</strong> For full font coverage, upload 4 variants of each font family:</p>
+                            <ul class="slds-list_dotted slds-text-body_small slds-var-m-top_xx-small">
+                                <li>Regular (normal weight, normal style)</li>
+                                <li>Bold (bold weight, normal style)</li>
+                                <li>Italic (normal weight, italic style)</li>
+                                <li>Bold Italic (bold weight, italic style)</li>
+                            </ul>
+                        </div>
                     </div>
                 </template>
-            </template>
+            </div>
         </div>
     </lightning-card>
 </template>

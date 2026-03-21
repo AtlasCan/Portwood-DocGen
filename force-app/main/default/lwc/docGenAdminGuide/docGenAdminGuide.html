@@ -48,10 +48,6 @@
                         </div>
                         <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
                             <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
-                            <strong>E-Signatures</strong> with audit trail and multi-signer support
-                        </div>
-                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
-                            <lightning-icon icon-name="utility:check" size="x-small" variant="success" class="slds-var-m-right_x-small"></lightning-icon>
                             <strong>Bulk generation</strong> for hundreds of records at once
                         </div>
                         <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
@@ -90,7 +86,7 @@
                         <lightning-icon icon-name="utility:warning" size="x-small" variant="inverse" class="slds-var-m-right_x-small"></lightning-icon>
                         Required: Enable Blob.toPdf() Release Update
                     </h3>
-                    <p class="slds-var-m-bottom_small">Before generating PDFs, you <strong>must</strong> enable the Spring '26 Release Update in your org. Without it, PDFs will show raw CSS text instead of formatted content, and images (including signatures) will not render.</p>
+                    <p class="slds-var-m-bottom_small">Before generating PDFs, you <strong>must</strong> enable the Spring '26 Release Update in your org. Without it, PDFs will show raw CSS text instead of formatted content, and images will not render.</p>
                     <p class="slds-var-m-bottom_small">Go to <a href="/lightning/setup/ReleaseUpdates/home" target="_blank"><strong>Setup &gt; Release Updates</strong></a> and enable <strong>"Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations"</strong>.</p>
                     <p class="slds-text-body_small">This is opt-in until Summer '26 when Salesforce enforces it for all orgs. See the <strong>Installation &amp; Setup</strong> section for full details.</p>
                 </div>
@@ -101,7 +97,6 @@
                         <li class="slds-var-p-bottom_x-small"><strong>Create a Template Record</strong> — Define the base Salesforce object and select the fields you need.</li>
                         <li class="slds-var-p-bottom_x-small"><strong>Upload a Word or PowerPoint file</strong> — Add merge tags like <code>&#123;Name&#125;</code> where you want data inserted.</li>
                         <li class="slds-var-p-bottom_x-small"><strong>Generate</strong> — From any record, click Generate to produce a merged document (DOCX, PPTX, or PDF).</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Optionally, send for signature</strong> — Route the generated document for e-signatures with a full audit trail.</li>
                     </ol>
                 </div>
 
@@ -122,11 +117,7 @@
                             </tr>
                             <tr>
                                 <td><strong>DocGen User</strong></td>
-                                <td>Generate documents, view templates (read-only), and manage own signature requests.</td>
-                            </tr>
-                            <tr>
-                                <td><strong>DocGen Guest Signature</strong></td>
-                                <td>Assigned to the Salesforce Site guest user for public e-signature access. Do NOT assign to internal users.</td>
+                                <td>Generate documents and view templates (read-only).</td>
                             </tr>
                         </tbody>
                     </table>
@@ -162,53 +153,16 @@
                     <p class="slds-text-body_small slds-text-color_weak">The Document Generator component automatically detects the record's object type and shows matching templates.</p>
                 </div>
 
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Step 4: Add Signature Sender (Optional)</h3>
-                    <p class="slds-var-m-bottom_small">To enable e-signatures from record pages:</p>
-                    <ol class="slds-list_ordered">
-                        <li>Edit the record page in Lightning App Builder.</li>
-                        <li>Drag the <strong>docGenSignatureSender</strong> component onto the page.</li>
-                        <li>Save and activate.</li>
-                    </ol>
-                    <p class="slds-text-body_small slds-text-color_weak">Users will see recently generated documents and can send them for signature directly.</p>
-                </div>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Step 5: Configure E-Signature Site (Optional)</h3>
-                    <p class="slds-var-m-bottom_small">If you plan to use e-signatures, you need a Salesforce Site for the public signing page:</p>
-                    <ol class="slds-list_ordered">
-                        <li>Go to <strong>Setup &gt; Sites</strong> (search "Sites" in Quick Find).</li>
-                        <li>If you don't have a Sites domain, register one (e.g., <code>docgen</code>).</li>
-                        <li>Click <strong>New</strong> and configure:
-                            <ul class="slds-list_dotted slds-var-m-left_medium">
-                                <li>Site Label: <strong>DocGen Signatures</strong></li>
-                                <li>Active Site Home Page: <strong>DocGenSignature</strong></li>
-                                <li>Check <strong>Active</strong></li>
-                            </ul>
-                        </li>
-                        <li>After saving, click <strong>Public Access Settings</strong>.</li>
-                        <li>In the Guest User profile, add <strong>DocGenSignature</strong> to Enabled Visualforce Page Access.</li>
-                        <li>Assign the <strong>DocGen Guest Signature</strong> permission set to the Site Guest User.</li>
-                        <li>Copy the <strong>Site URL</strong> and paste it into the <strong>DocGen Setup</strong> tab.</li>
-                    </ol>
-                </div>
-
                 <div class="slds-box slds-theme_error slds-var-m-bottom_medium">
                     <h3 class="slds-text-heading_small slds-var-m-bottom_small">Required: Enable Updated Blob.toPdf() (Spring '26)</h3>
-                    <p class="slds-var-m-bottom_small">This Release Update is <strong>required for all PDF generation</strong>, not just signatures. Without it, the old <code>Blob.toPdf()</code> engine does not understand <code>&lt;style&gt;</code> blocks or <code>&lt;img&gt;</code> tags — it dumps them as visible text in your PDF output. The updated engine uses the same Visualforce PDF rendering service (Flying Saucer) that powers <code>renderAs="pdf"</code>, giving you proper CSS, image, and font support.</p>
+                    <p class="slds-var-m-bottom_small">This Release Update is <strong>required for all PDF generation</strong>. Without it, the old <code>Blob.toPdf()</code> engine does not understand <code>&lt;style&gt;</code> blocks or <code>&lt;img&gt;</code> tags — it dumps them as visible text in your PDF output. The updated engine uses the same Visualforce PDF rendering service (Flying Saucer) that powers <code>renderAs="pdf"</code>, giving you proper CSS, image, and font support.</p>
                     <p class="slds-var-m-bottom_small"><strong>To enable:</strong></p>
                     <ol class="slds-list_ordered">
                         <li>Go to <a href="/lightning/setup/ReleaseUpdates/home" target="_blank"><strong>Setup &gt; Release Updates</strong></a></li>
                         <li>Find <strong>"Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations"</strong></li>
                         <li>Click <strong>Get Started</strong> &gt; <strong>Enable</strong></li>
                     </ol>
-                    <p class="slds-var-m-top_small"><strong>Without this:</strong> PDFs will contain raw CSS text instead of formatted content, and images (including signatures) will not render. This Release Update is opt-in until Summer '26 when Salesforce enforces it for all orgs.</p>
-                    <p class="slds-var-m-top_small"><strong>Why signatures specifically need this:</strong> Signed PDFs are generated by the Automated Process user via Platform Events and Queueable Apex. This system user cannot access Visualforce pages, so there is no fallback — <code>Blob.toPdf()</code> with the Release Update is the only path.</p>
-                </div>
-
-                <div class="slds-box slds-theme_warning">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Important: E-Signature Security</h3>
-                    <p>Signature links are secured with SHA-256 tokens and expire after 30 days. The guest user permission set is intentionally minimal — it only allows reading signature request records and creating audit trail entries. Never assign broader permissions to the Site guest user.</p>
+                    <p class="slds-var-m-top_small"><strong>Without this:</strong> PDFs will contain raw CSS text instead of formatted content, and images will not render. This Release Update is opt-in until Summer '26 when Salesforce enforces it for all orgs.</p>
                 </div>
             </template>
 
@@ -416,18 +370,6 @@
                     <p class="slds-var-m-bottom_small">For images that are the same in every document (logos, watermarks, headers), just place them directly in your Word or PowerPoint file as normal images. DocGen preserves all embedded template images in the output — they are extracted and stored as ContentVersions for reliable rendering in both DOCX and PDF.</p>
                 </div>
 
-                <div class="slds-box slds-theme_default">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Signature Placeholders</h3>
-                    <p class="slds-var-m-bottom_small">To mark where signatures should appear in a document, <strong>always include a role name</strong>:</p>
-                    <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
-                        <code>&#123;#Signature_Buyer&#125;</code> — Where the buyer signs<br/>
-                        <code>&#123;#Signature_Seller&#125;</code> — Where the seller signs<br/>
-                        <code>&#123;#Signature_Witness&#125;</code> — Where the witness signs
-                    </div>
-                    <p class="slds-var-m-bottom_x-small"><strong>Best practice:</strong> Always use the <code>&#123;#Signature_RoleName&#125;</code> format — even for single-signer documents. This ensures consistent behavior and makes it easy to add more signers later.</p>
-                    <p class="slds-text-body_small slds-text-color_weak">When the document is signed, the placeholder is replaced with the signer's handwritten signature image plus a timestamp.</p>
-                </div>
-
                 <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
                     <h3 class="slds-text-heading_small slds-var-m-bottom_small">Rich Text Fields</h3>
                     <p class="slds-var-m-bottom_small">When a merge tag references a <strong>Rich Text Area</strong> field, DocGen automatically detects the HTML content and preserves formatting in Word and PDF output. No special syntax is needed — just use the standard <code>&#123;FieldName&#125;</code> tag.</p>
@@ -475,7 +417,7 @@
                     <h3 class="slds-text-heading_small slds-var-m-bottom_small">Output Formats</h3>
                     <ul class="slds-list_dotted">
                         <li class="slds-var-p-bottom_x-small"><strong>Native (.docx / .pptx)</strong> — Preserves the original file format. Best for documents that recipients need to edit.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>PDF</strong> — Converts Word templates to PDF using Salesforce's native Blob.toPdf(). Best for finalized documents and those sent for signature. Note: PowerPoint templates always output as .pptx (PDF conversion is not supported for PPT).</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>PDF</strong> — Converts Word templates to PDF using Salesforce's native Blob.toPdf(). Best for finalized documents. Note: PowerPoint templates always output as .pptx (PDF conversion is not supported for PPT).</li>
                     </ul>
                 </div>
 
@@ -543,128 +485,13 @@
                 </div>
             </template>
 
-            <!-- ==================== E-SIGNATURES ==================== -->
-            <template if:true={isSignatures}>
-                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">E-Signatures</h2>
-
-                <div class="slds-box slds-theme_info slds-var-m-bottom_medium">
-                    <p><strong>Prerequisite:</strong> You must configure a Salesforce Site before using e-signatures. See the <strong>Installation &amp; Setup</strong> section for step-by-step instructions.</p>
-                </div>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">How Signatures Work (v1.4.0 — Template-Based Flow)</h3>
-                    <ol class="slds-list_ordered">
-                        <li class="slds-var-p-bottom_x-small"><strong>Create a template</strong> with signature placeholders (<code>&#123;#Signature_Buyer&#125;</code>, <code>&#123;#Signature_Seller&#125;</code>, etc.) alongside your regular merge fields and image tags.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Send for signature</strong> using the Signature Sender component. Select the template, assign contacts to roles, and click Send. No need to generate a document first.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Signers receive a branded email</strong> with a secure link to the signing page.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Signers review the fully merged document</strong> on a public Visualforce page — they see the actual record data, images, and child records, not a raw template.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Signers draw their signature</strong> on a canvas pad. Their signature and a timestamp are captured as an image.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>The signed PDF is generated</strong> — the template is merged with record data, signatures are stamped as images at the placeholder locations, and a PDF is rendered and saved to the record. All in one step, no DOCX intermediate.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>An audit trail</strong> records each signer's name, email, IP, browser, signed date, and a SHA-256 hash of the document.</li>
-                    </ol>
-                </div>
-
-                <div class="slds-box slds-theme_shade slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Under the Hood: How We Beat Governor Limits</h3>
-                    <p class="slds-var-m-bottom_small">Generating signed PDFs with images inside Apex's 6MB/12MB heap limits is widely considered impossible. Here's how DocGen does it:</p>
-                    <ul class="slds-list_dotted">
-                        <li class="slds-var-p-bottom_x-small"><strong>Pre-decomposed templates:</strong> When you save a template version, DocGen deconstructs the DOCX ZIP — extracting each XML part and embedded image into individual ContentVersion records. At generation time, we load raw XML strings and never touch the ZIP. ~75% heap savings.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Zero-heap images:</strong> For PDF output, image merge tags don't load image blobs into memory. We query only the ContentVersion ID, build a relative URL, and inject it into the HTML. <code>Blob.toPdf()</code> resolves the URL server-side. A 1.3MB image costs zero Apex heap.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>XML-level signature stamping:</strong> Signatures are injected as DrawingML XML fragments via string operations — no ZIP decompress/recompress cycle. Pure <code>String.replace()</code>.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Pre-computed preview:</strong> The admin's session pre-renders the document preview with public image URLs and caches it on the request record. Guest users load the preview from a regular field query — no Content sharing issues.</li>
-                    </ul>
-                    <p class="slds-var-m-top_small"><strong>Result:</strong> Signed PDFs with 20+ images (up to 30MB total image data) and 500+ child record rows, generated within governor limits.</p>
-                </div>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Sending Signatures</h3>
-                    <ol class="slds-list_ordered">
-                        <li class="slds-var-p-bottom_x-small">On the record page, find the <strong>Signature Sender</strong> component.</li>
-                        <li class="slds-var-p-bottom_x-small">Select <strong>DocGen Template</strong> mode (default) and choose your template from the dropdown. The system auto-detects signature role placeholders.</li>
-                        <li class="slds-var-p-bottom_x-small">Add signers — for each signer, enter their name, email, and assign a role (must match a <code>&#123;#Signature_RoleName&#125;</code> placeholder in the template).</li>
-                        <li class="slds-var-p-bottom_x-small">Optionally, use the <strong>Contact lookup</strong> to auto-fill name and email from a Contact record.</li>
-                        <li class="slds-var-p-bottom_x-small">Click <strong>Generate Signature Links</strong>. Each signer receives their own unique, secure link via email.</li>
-                    </ol>
-                    <p class="slds-var-m-top_small slds-text-body_small slds-text-color_weak">You can also switch to <strong>Existing Document</strong> mode to send a pre-generated DOCX for signature (legacy flow).</p>
-                </div>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Tracking Status</h3>
-                    <p class="slds-var-m-bottom_small">After sending, the Signature Sender component shows the status of each signer:</p>
-                    <ul class="slds-list_dotted">
-                        <li><strong>Pending</strong> — Email sent, signer hasn't opened the link yet.</li>
-                        <li><strong>Viewed</strong> — Signer opened the signing page but hasn't signed yet.</li>
-                        <li><strong>In Progress</strong> — Signer is actively on the signing page.</li>
-                        <li><strong>Signed</strong> — Signer completed their signature.</li>
-                    </ul>
-                    <p class="slds-var-m-top_small">Once all signers have signed, the final PDF is generated with all signatures stamped in place.</p>
-                </div>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Manual Signature Links</h3>
-                    <p>After sending, you can copy the signature link for any signer directly. This is useful if you need to share the link through a different channel (e.g., Slack, text message) or if the email didn't arrive.</p>
-                </div>
-
-                <div class="slds-box slds-theme_default">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Document Authenticator</h3>
-                    <p class="slds-var-m-bottom_small">DocGen includes a document verification tool that lets anyone verify a signed PDF's authenticity:</p>
-                    <ul class="slds-list_dotted">
-                        <li>Drop or upload a signed PDF file.</li>
-                        <li>The system computes a SHA-256 hash of the file <strong>entirely in the browser</strong> — the file content is never uploaded to the server.</li>
-                        <li>The hash is compared against the audit trail. If it matches, the signer details and signing timestamp are displayed.</li>
-                    </ul>
-                </div>
-            </template>
-
-            <!-- ==================== SIGNATURE ROLES & TEMPLATES ==================== -->
-            <template if:true={isRoles}>
-                <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Signature Roles &amp; Templates</h2>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Understanding Roles</h3>
-                    <p class="slds-var-m-bottom_small">Roles allow multiple people to sign the same document, each in a designated location. Every role maps to a placeholder in the Word template.</p>
-                    <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
-                        <strong>Example:</strong> A contract template might have:<br/>
-                        <code>&#123;#Signature_Client&#125;</code> — Where the client signs<br/>
-                        <code>&#123;#Signature_Account_Executive&#125;</code> — Where the AE signs<br/>
-                        <code>&#123;#Signature_Witness&#125;</code> — Where the witness signs
-                    </div>
-                    <p>When you send this document for signature, you assign each signer to one of these roles. The system scans your document and auto-detects available roles in the Signature Sender component.</p>
-                </div>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Role Naming Rules</h3>
-                    <ul class="slds-list_dotted">
-                        <li class="slds-var-p-bottom_x-small">Role names follow the format <code>&#123;#Signature_RoleName&#125;</code> in the template.</li>
-                        <li class="slds-var-p-bottom_x-small">Use underscores for multi-word roles: <code>&#123;#Signature_Account_Executive&#125;</code></li>
-                        <li class="slds-var-p-bottom_x-small">Role names are case-sensitive and must match exactly between the template and the signer assignment.</li>
-                        <li class="slds-var-p-bottom_x-small">For single-signer documents, still use a role: <code>&#123;#Signature_Signer&#125;</code> or <code>&#123;#Signature_Buyer&#125;</code>. This ensures consistent routing.</li>
-                    </ul>
-                </div>
-
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Signer Templates</h3>
-                    <p class="slds-var-m-bottom_small">If you frequently send documents with the same set of signer roles, create a <strong>Signer Template</strong> to save time:</p>
-                    <ol class="slds-list_ordered">
-                        <li class="slds-var-p-bottom_x-small">In the Signature Sender, configure your signers and roles.</li>
-                        <li class="slds-var-p-bottom_x-small">Click <strong>Save as Template</strong> and give it a name (e.g., "Standard Contract Signers").</li>
-                        <li class="slds-var-p-bottom_x-small">Next time, select the template from the <strong>Load from Template</strong> dropdown. The roles are pre-populated — just fill in the contact details.</li>
-                    </ol>
-                </div>
-
-                <div class="slds-box slds-theme_default">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Sort Order</h3>
-                    <p>Signers are processed in the order defined by the <strong>Sort Order</strong> field on each signer role. This determines the sequence in which the system generates the final signed document. Lower numbers are processed first.</p>
-                </div>
-            </template>
-
             <!-- ==================== EMAIL BRANDING & COPY ==================== -->
             <template if:true={isEmail}>
                 <h2 class="slds-text-heading_large slds-var-m-bottom_medium">Email Branding &amp; Copy</h2>
 
                 <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
                     <h3 class="slds-text-heading_small slds-var-m-bottom_small">Overview</h3>
-                    <p class="slds-var-m-bottom_small">When you send a document for e-signature, DocGen sends a branded HTML email to each signer. You can customize every visible element of these emails from the <strong>DocGen Setup</strong> tab.</p>
+                    <p class="slds-var-m-bottom_small">DocGen can send branded HTML emails. You can customize every visible element of these emails from the <strong>DocGen Setup</strong> tab.</p>
                 </div>
 
                 <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
@@ -691,13 +518,13 @@
                             </tr>
                             <tr>
                                 <td><strong>Brand Color</strong></td>
-                                <td>Hex color used for the email header bar and "Review &amp; Sign" CTA button.</td>
+                                <td>Hex color used for the email header bar and CTA button.</td>
                                 <td>#0176D3 (Salesforce blue)</td>
                             </tr>
                             <tr>
                                 <td><strong>Email Subject Line</strong></td>
                                 <td>Subject of the outbound email. Supports merge fields.</td>
-                                <td>Action Required: Please Sign &#123;DocumentTitle&#125;</td>
+                                <td>&#123;DocumentTitle&#125;</td>
                             </tr>
                             <tr>
                                 <td><strong>Email Footer Text</strong></td>
@@ -712,9 +539,9 @@
                     <h3 class="slds-text-heading_small slds-var-m-bottom_small">Email Merge Fields</h3>
                     <p class="slds-var-m-bottom_small">The following merge fields are available in the <strong>Email Subject Line</strong>:</p>
                     <div class="slds-box slds-theme_shade">
-                        <code>&#123;SignerName&#125;</code> — The name of the signer receiving the email<br/>
-                        <code>&#123;DocumentTitle&#125;</code> — The title of the document being sent for signature<br/>
-                        <code>&#123;SenderName&#125;</code> — The name of the Salesforce user who initiated the signature request
+                        <code>&#123;RecipientName&#125;</code> — The name of the recipient receiving the email<br/>
+                        <code>&#123;DocumentTitle&#125;</code> — The title of the document<br/>
+                        <code>&#123;SenderName&#125;</code> — The name of the Salesforce user who sent the email
                     </div>
                 </div>
 
@@ -723,11 +550,10 @@
                     <p class="slds-var-m-bottom_small">The email body layout is fixed for consistency and deliverability. The structure includes:</p>
                     <ul class="slds-list_dotted">
                         <li><strong>Header bar</strong> — Brand color background with logo or company name.</li>
-                        <li><strong>Greeting</strong> — "Hi [Signer Name],"</li>
-                        <li><strong>Message</strong> — "[Sender Name] has sent you a document that requires your signature."</li>
-                        <li><strong>Document info box</strong> — Shows document title and signer role (if multi-signer).</li>
-                        <li><strong>CTA button</strong> — "Review &amp; Sign Document" (links to the signing page).</li>
-                        <li><strong>Security note</strong> — "This link is unique to you and will expire in 30 days."</li>
+                        <li><strong>Greeting</strong> — "Hi [Recipient Name],"</li>
+                        <li><strong>Message</strong> — "[Sender Name] has sent you a document."</li>
+                        <li><strong>Document info box</strong> — Shows document title.</li>
+                        <li><strong>CTA button</strong> — Links to the document.</li>
                         <li><strong>Fallback URL</strong> — Plain text URL in case the button doesn't render.</li>
                         <li><strong>Footer</strong> — Your custom footer text or the default.</li>
                     </ul>
@@ -737,7 +563,7 @@
                     <h3 class="slds-text-heading_small slds-var-m-bottom_small">Email Deliverability Tips</h3>
                     <ul class="slds-list_dotted">
                         <li>Emails are sent from the Salesforce org's configured email address (via <code>Messaging.sendEmail</code>).</li>
-                        <li>If a signer is linked to a Contact record, the email uses <code>setTargetObjectId</code> for proper activity tracking.</li>
+                        <li>If a recipient is linked to a Contact record, the email uses <code>setTargetObjectId</code> for proper activity tracking.</li>
                         <li>Ensure your org's email deliverability setting is set to <strong>"All Email"</strong> (Setup &gt; Deliverability).</li>
                         <li>In sandbox environments, emails are only sent to verified addresses by default.</li>
                     </ul>
@@ -750,7 +576,7 @@
 
                 <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
                     <h3 class="slds-text-heading_small slds-var-m-bottom_small">Email Logo Setup</h3>
-                    <p class="slds-var-m-bottom_small">The logo appears at the top of every signature request email. To configure it:</p>
+                    <p class="slds-var-m-bottom_small">The logo appears at the top of every DocGen email. To configure it:</p>
                     <ol class="slds-list_ordered">
                         <li class="slds-var-p-bottom_x-small">Go to the <strong>DocGen Setup</strong> tab.</li>
                         <li class="slds-var-p-bottom_x-small">In <strong>Step 2: Email Branding</strong>, enter the <strong>Logo Image URL</strong>.</li>
@@ -771,12 +597,12 @@
                     <p class="slds-var-m-bottom_small">You can upload the logo as a Salesforce Static Resource or as a File (ContentVersion) and use its URL. However:</p>
                     <ul class="slds-list_dotted slds-var-m-bottom_small">
                         <li>Salesforce-hosted URLs require authentication — email clients <strong>will not render the image</strong> in the recipient's inbox.</li>
-                        <li>The image <strong>will still render</strong> if the recipient clicks through to the signing page (which runs in a browser with access).</li>
+                        <li>The image <strong>will still render</strong> if the recipient clicks through to the linked page (which runs in a browser with access).</li>
                         <li>For the best email experience, use an externally hosted URL.</li>
                     </ul>
 
                     <h4 class="slds-text-title_bold slds-var-m-top_small slds-var-m-bottom_x-small">Option 3: Salesforce Site-Hosted</h4>
-                    <p class="slds-var-m-bottom_small">If you have a Salesforce Site configured (for e-signatures), you can host the logo as a Static Resource and reference it via the Site URL:</p>
+                    <p class="slds-var-m-bottom_small">If you have a Salesforce Site configured, you can host the logo as a Static Resource and reference it via the Site URL:</p>
                     <p class="slds-var-m-bottom_small"><code>https://yourdomain.my.salesforce-sites.com/resource/YourLogo</code></p>
                     <p>This approach makes the image publicly accessible (via the Site) so email clients can render it. No Remote Site Setting is needed for this since it's on Salesforce's domain.</p>
                 </div>
@@ -800,7 +626,6 @@
                     <ul class="slds-list_dotted">
                         <li class="slds-var-p-bottom_x-small"><strong>Template images</strong> — Logos, watermarks, or other images placed directly in your .docx/.pptx file are preserved in the output. They are extracted and stored as ContentVersions linked to the template version for reliable rendering.</li>
                         <li class="slds-var-p-bottom_x-small"><strong>Rich Text field images</strong> — Images in Rich Text Area fields (e.g., a photo uploaded to a Description field) are automatically resolved and embedded. Salesforce-hosted image URLs are converted to absolute URLs for rendering.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Signature images</strong> — Drawn signatures are captured as PNG images and stamped into the document at the placeholder location.</li>
                     </ul>
                 </div>
             </template>
@@ -825,18 +650,16 @@
                     <h3 class="slds-text-heading_small slds-var-m-bottom_small">Permission Set Details</h3>
                     <ul class="slds-list_dotted">
                         <li class="slds-var-p-bottom_x-small"><strong>DocGen Admin</strong> — Full CRUD on all objects. Can manage templates, versions, sharing, settings, and view all audit records. Has modifyAllRecords and viewAllRecords on DocGen objects.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>DocGen User</strong> — Can create and generate documents. Read-only on templates and versions. Can create own signature requests and view audit trail. Cannot modify templates or access setup.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>DocGen Guest Signature</strong> — Minimal access for the Salesforce Site guest user. Can read signature request/signer records (to validate tokens) and create audit trail entries. Cannot read or modify templates, settings, or other records.</li>
+                        <li class="slds-var-p-bottom_x-small"><strong>DocGen User</strong> — Can create and generate documents. Read-only on templates and versions. Cannot modify templates or access setup.</li>
                     </ul>
                 </div>
 
                 <div class="slds-box slds-theme_shade">
                     <h3 class="slds-text-heading_small slds-var-m-bottom_small">Security Architecture</h3>
                     <ul class="slds-list_dotted">
-                        <li class="slds-var-p-bottom_x-small">All controller classes use <code>with sharing</code> to enforce sharing rules, except signature classes that must support guest user access (<code>without sharing</code> with token-based authentication).</li>
+                        <li class="slds-var-p-bottom_x-small">All controller classes use <code>with sharing</code> to enforce sharing rules.</li>
                         <li class="slds-var-p-bottom_x-small">CRUD/FLS enforcement uses a mix of <code>WITH USER_MODE</code> (for user-context queries) and <code>Security.stripInaccessible()</code> (for DML operations).</li>
                         <li class="slds-var-p-bottom_x-small">Dynamic SOQL in the data retriever validates all field names against the Schema before inclusion in queries.</li>
-                        <li class="slds-var-p-bottom_x-small">Guest user signature tokens are SHA-256 hashes with a 30-day expiration window.</li>
                         <li class="slds-var-p-bottom_x-small">No HTTP callouts or session ID usage — fully self-contained on the Salesforce platform.</li>
                     </ul>
                 </div>
@@ -866,39 +689,6 @@
                     </table>
                 </div>
 
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">E-Signature Objects</h3>
-                    <table class="slds-table slds-table_bordered slds-table_cell-buffer">
-                        <thead>
-                            <tr class="slds-line-height_reset">
-                                <th scope="col"><div class="slds-truncate">Object</div></th>
-                                <th scope="col"><div class="slds-truncate">API Name</div></th>
-                                <th scope="col"><div class="slds-truncate">Purpose</div></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr><td><strong>Signature Request</strong></td><td><code>DocGen_Signature_Request__c</code></td><td>Parent record for a signing session. Tracks status (Draft &rarr; Sent &rarr; In Progress &rarr; Signed/Cancelled), the source document, related record ID, and a secure token. For legacy single-signer flows, also stores the signer name, email, and signature data directly.</td></tr>
-                            <tr><td><strong>Signer</strong></td><td><code>DocGen_Signer__c</code></td><td>One record per person who needs to sign. Child of Signature Request (master-detail). Stores the signer's name, email, role, sort order, status (Pending &rarr; Viewed &rarr; Signed), their unique secure token, optional Contact lookup, and the captured signature image (base64 PNG).</td></tr>
-                            <tr><td><strong>Signature Audit</strong></td><td><code>DocGen_Signature_Audit__c</code></td><td>Immutable compliance record created when a signer completes their signature. Captures: signer name/email, signed date, IP address, browser user agent, SHA-256 document hash, and links to the Signer and Contact records.</td></tr>
-                            <tr><td><strong>Signature Template</strong></td><td><code>DocGen_Signature_Template__c</code></td><td>Reusable set of signer role definitions. Saves time when you frequently send the same document type (e.g., &quot;Standard Contract&quot; with Buyer + Seller + Witness).</td></tr>
-                            <tr><td><strong>Signature Template Role</strong></td><td><code>DocGen_Signature_Template_Role__c</code></td><td>Individual role within a Signature Template. Defines the role name and sort order. Child of Signature Template (master-detail).</td></tr>
-                            <tr><td><strong>Signature PDF Event</strong></td><td><code>DocGen_Signature_PDF__e</code></td><td>Platform Event that fires when all signers have completed. Triggers the final PDF generation with all signatures stamped into the document.</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="slds-box slds-theme_shade slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Signature Flow Lifecycle</h3>
-                    <ol class="slds-list_ordered">
-                        <li class="slds-var-p-bottom_x-small"><strong>Create Request</strong> &mdash; User selects a document and adds signers in the Signature Sender LWC. A parent <code>DocGen_Signature_Request__c</code> is created (Status = Sent) with child <code>DocGen_Signer__c</code> records (Status = Pending). Each signer gets a unique SHA-256 token.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Send Links</strong> &mdash; Each signer receives a secure URL containing their token. Links can be emailed (branded HTML email) or copied manually.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Validate Token</strong> &mdash; When a signer clicks their link, the system matches the token to their <code>DocGen_Signer__c</code> record, checks the 30-day expiration, and verifies they haven't already signed.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Sign</strong> &mdash; The signer reviews the document (eIDAS compliance) and draws their signature on a canvas. The signature PNG is saved to the Signer record and status updates to Signed.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Audit</strong> &mdash; A <code>DocGen_Signature_Audit__c</code> record is created capturing the signer's name, email, IP address, user agent, timestamp, and a SHA-256 hash of the document for integrity verification.</li>
-                        <li class="slds-var-p-bottom_x-small"><strong>Final PDF</strong> &mdash; When all signers complete, a <code>DocGen_Signature_PDF__e</code> Platform Event fires. A trigger stamps all signature images into the DOCX at their placeholder locations, generates a final PDF, and attaches it to the original record.</li>
-                    </ol>
-                </div>
-
                 <div class="slds-box slds-theme_default">
                     <h3 class="slds-text-heading_small slds-var-m-bottom_small">Relationship Diagram</h3>
                     <pre style="font-size: 11px; line-height: 1.4; background: #f4f6f9; padding: 12px; border-radius: 4px; overflow-x: auto;">
@@ -907,17 +697,7 @@ DocGen_Template__c
   └── DocGen_Saved_Query__c      (Master-Detail)
 
 DocGen_Job__c
-  └── Template__c                (Lookup → DocGen_Template__c)
-
-DocGen_Signature_Request__c
-  ├── DocGen_Signer__c           (Master-Detail)
-  │     └── Contact__c           (Lookup → Contact)
-  └── DocGen_Signature_Audit__c  (Master-Detail)
-        ├── Signer__c            (Lookup → DocGen_Signer__c)
-        └── Contact__c           (Lookup → Contact)
-
-DocGen_Signature_Template__c
-  └── DocGen_Signature_Template_Role__c  (Master-Detail)</pre>
+  └── Template__c                (Lookup → DocGen_Template__c)</pre>
                 </div>
             </template>
 
@@ -1015,21 +795,6 @@ DocGen_Signature_Template__c
                     <p class="slds-var-m-top_small">Returns: <code>jobId</code> — the ID of the bulk job record for monitoring.</p>
                 </div>
 
-                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Signature Actions</h3>
-                    <p class="slds-var-m-bottom_small">For signature automation in Flows:</p>
-                    <ul class="slds-list_dotted">
-                        <li><strong>DocGenSignatureValidator</strong> — Validates a signature token. Use this in Experience Cloud flows to verify the signer's identity before showing the signature pad.</li>
-                        <li><strong>DocGenSignatureFinalizer</strong> — Processes a completed signature submission in system context. Call this after the signer draws their signature to stamp it into the document.</li>
-                        <li><strong>DocGenSignatureSubmitter</strong> — Handles signature submission from a Flow context.</li>
-                    </ul>
-                </div>
-
-                <div class="slds-box slds-theme_default">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Platform Event: DocGen_Signature_PDF__e</h3>
-                    <p class="slds-var-m-bottom_small">When all signers have completed their signatures, the system publishes a Platform Event that triggers asynchronous PDF generation. This runs as the Automated Process user, bypassing guest user limitations.</p>
-                    <p class="slds-text-body_small slds-text-color_weak">You don't need to configure this — it works automatically. However, if you're building custom automation, you can subscribe to this event to trigger downstream processes after a document is fully signed.</p>
-                </div>
             </template>
 
             <!-- ==================== TROUBLESHOOTING ==================== -->
@@ -1069,25 +834,6 @@ DocGen_Signature_Template__c
                     </div>
 
                     <div class="slds-var-m-bottom_medium">
-                        <h4 class="slds-text-title_bold">Signature email not received</h4>
-                        <ul class="slds-list_dotted">
-                            <li>Check Setup &gt; Deliverability — must be set to "All Email".</li>
-                            <li>In sandbox, emails are only sent to verified addresses.</li>
-                            <li>Check the signer's email address is valid.</li>
-                            <li>Review email logs in Setup &gt; Email Logs.</li>
-                        </ul>
-                    </div>
-
-                    <div class="slds-var-m-bottom_medium">
-                        <h4 class="slds-text-title_bold">Signature link shows "Invalid or expired token"</h4>
-                        <ul class="slds-list_dotted">
-                            <li>Signature links expire after 30 days. A new signature request must be created.</li>
-                            <li>Verify the Salesforce Site URL is correctly configured in DocGen Setup.</li>
-                            <li>Ensure the DocGen Guest Signature permission set is assigned to the Site guest user.</li>
-                        </ul>
-                    </div>
-
-                    <div class="slds-var-m-bottom_medium">
                         <h4 class="slds-text-title_bold">PDF generation times out</h4>
                         <ul class="slds-list_dotted">
                             <li>Very large documents (many pages, many images) may exceed the timeout.</li>
@@ -1106,7 +852,7 @@ DocGen_Signature_Template__c
                     </div>
 
                     <div>
-                        <h4 class="slds-text-title_bold">Logo doesn't show in signature emails</h4>
+                        <h4 class="slds-text-title_bold">Logo doesn't show in emails</h4>
                         <ul class="slds-list_dotted">
                             <li>If hosted on Salesforce, email clients cannot fetch authenticated URLs. See the <strong>Logo &amp; Images</strong> section for hosting options.</li>
                             <li>Use a publicly accessible HTTPS URL for reliable rendering.</li>
@@ -1121,7 +867,7 @@ DocGen_Signature_Template__c
                         <li>Use the <strong>Generate Sample Document</strong> button in the Template Manager to test without navigating away.</li>
                         <li>Check Salesforce Debug Logs (Setup &gt; Debug Logs) for detailed error messages — look for entries starting with "DocGen:".</li>
                         <li>For bulk job failures, check the DocGen Job record for error counts and individual record errors.</li>
-                        <li>The Document Authenticator can verify if a signed PDF was tampered with after signing.</li>
+                        <li>The Document Authenticator can verify document authenticity via SHA-256 hash comparison.</li>
                     </ul>
                 </div>
             </template>

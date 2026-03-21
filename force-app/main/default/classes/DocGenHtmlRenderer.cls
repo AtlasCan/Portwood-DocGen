@@ -58,6 +58,17 @@ public with sharing class DocGenHtmlRenderer {
      * @return HTML string ready for Blob.toPdf()
      */
     public static String convertToHtml(String documentXml, Map<String, String> images) {
+        return convertToHtml(documentXml, images, null);
+    }
+
+    /**
+     * Converts document XML to HTML with custom font CSS injected into the style block.
+     * @param documentXml The processed word/document.xml content (post-merge)
+     * @param images Map of relationship IDs to image URLs or base64 data
+     * @param fontFaceCss @font-face CSS declarations to inject (null = no custom fonts)
+     * @return HTML string ready for Blob.toPdf()
+     */
+    public static String convertToHtml(String documentXml, Map<String, String> images, String fontFaceCss) {
         if (String.isBlank(documentXml)) {
             return HTML_PREFIX + HTML_SUFFIX;
         }
@@ -68,6 +79,32 @@ public with sharing class DocGenHtmlRenderer {
         String bodyContent = extractBodyContent(documentXml);
         String html = processBodyContent(bodyContent, images);
 
+        // Inject custom @font-face declarations before the base styles
+        if (String.isNotBlank(fontFaceCss)) {
+            String prefix = '<html><head><style>' + fontFaceCss +
+                '@page { size: letter; margin: 1in; }' +
+                'body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.15; color: #000; }' +
+                'h1 { font-size: 20pt; font-weight: bold; margin: 0 0 6pt 0; }' +
+                'h2 { font-size: 16pt; font-weight: bold; margin: 0 0 4pt 0; }' +
+                'h3 { font-size: 14pt; font-weight: bold; margin: 0 0 4pt 0; }' +
+                'h4 { font-size: 12pt; font-weight: bold; margin: 0 0 4pt 0; }' +
+                'h5 { font-size: 11pt; font-weight: bold; margin: 0 0 4pt 0; }' +
+                'h6 { font-size: 10pt; font-weight: bold; margin: 0 0 4pt 0; }' +
+                'h1, h2, h3, h4, h5, h6 { page-break-after: avoid; }' +
+                'table { border-collapse: collapse; width: 100%; page-break-inside: auto; }' +
+                'tr { page-break-inside: avoid; page-break-after: auto; }' +
+                'td, th { padding: 4pt; vertical-align: top; }' +
+                'p { margin: 0 0 8pt 0; orphans: 2; widows: 2; page-break-inside: avoid; }' +
+                'img { max-width: 100%; }' +
+                'ul, ol { margin: 0 0 8pt 0; padding-left: 36pt; }' +
+                'li { margin: 0 0 2pt 0; page-break-inside: avoid; }' +
+                'hr { border: none; border-top: 1px solid #000; margin: 6pt 0; }' +
+                'sub { vertical-align: sub; font-size: 0.8em; }' +
+                'sup { vertical-align: super; font-size: 0.8em; }' +
+                '</style></head><body>';
+            return prefix + html + HTML_SUFFIX;
+        }
+
         return HTML_PREFIX + html + HTML_SUFFIX;
     }
 
@@ -75,7 +112,75 @@ public with sharing class DocGenHtmlRenderer {
      * Overload for when no images are present.
      */
     public static String convertToHtml(String documentXml) {
-        return convertToHtml(documentXml, new Map<String, String>());
+        return convertToHtml(documentXml, new Map<String, String>(), null);
+    }
+
+    /**
+     * Builds @font-face CSS declarations from DocGen_Font__c records.
+     * Each font record maps to a ContentVersion containing the font binary.
+     * The font binary is loaded and base64-encoded into a data URI for embedding.
+     * Returns empty string if no custom fonts are configured.
+     */
+    public static String buildFontFaceCss() {
+        List<DocGen_Font__c> fonts = [
+            SELECT Font_Family__c, Font_Weight__c, Font_Style__c, Content_Version_Id__c, Font_Format__c
+            FROM DocGen_Font__c
+            WITH SECURITY_ENFORCED
+            ORDER BY Font_Family__c, Font_Weight__c, Font_Style__c
+        ];
+
+        if (fonts.isEmpty()) {
+            return '';
+        }
+
+        // Collect unique CV IDs, then batch-load font binaries
+        Set<Id> cvIds = new Set<Id>();
+        for (DocGen_Font__c f : fonts) {
+            if (String.isNotBlank(f.Content_Version_Id__c)) {
+                try {
+                    cvIds.add(Id.valueOf(f.Content_Version_Id__c));
+                } catch (Exception e) {
+                    // Skip invalid IDs
+                }
+            }
+        }
+
+        if (cvIds.isEmpty()) {
+            return '';
+        }
+
+        Map<Id, ContentVersion> cvMap = new Map<Id, ContentVersion>([
+            SELECT Id, VersionData FROM ContentVersion
+            WHERE Id IN :cvIds
+            WITH SECURITY_ENFORCED
+        ]);
+
+        String css = '';
+        for (DocGen_Font__c f : fonts) {
+            Id cvId;
+            try {
+                cvId = Id.valueOf(f.Content_Version_Id__c);
+            } catch (Exception e) {
+                continue;
+            }
+            ContentVersion cv = cvMap.get(cvId);
+            if (cv == null || cv.VersionData == null) continue;
+
+            String base64Data = EncodingUtil.base64Encode(cv.VersionData);
+            String mimeType = 'font/ttf';
+            String format = f.Font_Format__c != null ? f.Font_Format__c : 'truetype';
+            if (format == 'woff') mimeType = 'font/woff';
+            else if (format == 'woff2') mimeType = 'font/woff2';
+
+            css += '@font-face{' +
+                'font-family:\'' + f.Font_Family__c.escapeHtml4() + '\';' +
+                'src:url(data:' + mimeType + ';base64,' + base64Data + ') format(\'' + format + '\');' +
+                'font-weight:' + (f.Font_Weight__c != null ? f.Font_Weight__c : 'normal') + ';' +
+                'font-style:' + (f.Font_Style__c != null ? f.Font_Style__c : 'normal') + ';' +
+            '}';
+        }
+
+        return css;
     }
 
     /**

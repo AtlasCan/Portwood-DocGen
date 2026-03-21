@@ -65,7 +65,7 @@ public with sharing class DocGenService {
         String outputFormat = (String) dataMap.get('outputFormat');
         String templateType = (String) dataMap.get('templateType');
 
-        // Allow callers to force PDF output (e.g., signature flow always produces PDF)
+        // Allow callers to force PDF output format
         if (outputFormatOverride != null) {
             outputFormat = outputFormatOverride;
         }
@@ -663,7 +663,8 @@ public with sharing class DocGenService {
         }
 
         Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
-        String html = DocGenHtmlRenderer.convertToHtml(mr.documentXml, pdfImages);
+        String fontCss = DocGenHtmlRenderer.buildFontFaceCss();
+        String html = DocGenHtmlRenderer.convertToHtml(mr.documentXml, pdfImages, fontCss);
 
         // Blob.toPdf() with the Spring '26 Release Update resolves relative Salesforce
         // ContentVersion URLs (/sfc/servlet.shepherd/...) natively via the VF rendering engine.
@@ -694,7 +695,8 @@ public with sharing class DocGenService {
         }
 
         Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
-        return DocGenHtmlRenderer.convertToHtml(mr.documentXml, pdfImages);
+        String fontCss = DocGenHtmlRenderer.buildFontFaceCss();
+        return DocGenHtmlRenderer.convertToHtml(mr.documentXml, pdfImages, fontCss);
     }
 
     /**
@@ -754,52 +756,6 @@ public with sharing class DocGenService {
             'blob' => pdfBlob,
             'title' => mr.docTitle
         };
-    }
-
-    /**
-     * Merges a template with record data and returns the XML parts + image URL map
-     * needed for signature stamping and PDF rendering.
-     * Used by the template-based signature flow (no DOCX intermediate).
-     */
-    public static Map<String, Object> mergeTemplateForSignature(Id templateId, Id recordId) {
-        // Force PDF output so dynamic images use relative CV URLs (no blob loading)
-        MergeResult mr = mergeTemplate(templateId, recordId, null, 'PDF');
-
-        if (mr.templateType == 'PowerPoint') {
-            throw new DocGenException('Signature PDF generation is only supported for Word templates.');
-        }
-
-        Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
-
-        return new Map<String, Object>{
-            'documentXml' => mr.documentXml,
-            'relsXml' => mr.relsXml,
-            'contentTypesXml' => mr.contentTypesXml,
-            'pdfImageMap' => pdfImages,
-            'docTitle' => mr.docTitle
-        };
-    }
-
-    /**
-     * Deletes temporary image ContentVersion records (used by signature flow).
-     */
-    public static void cleanupTempImages(String batchKey) {
-        if (String.isBlank(batchKey)) return;
-        List<ContentVersion> tempCvs = [
-            SELECT ContentDocumentId FROM ContentVersion
-            WHERE Title LIKE :('docgen_tmp_' + batchKey + '_%')
-            WITH SYSTEM_MODE
-        ];
-        if (!tempCvs.isEmpty()) {
-            Set<Id> docIds = new Set<Id>();
-            for (ContentVersion cv : tempCvs) {
-                docIds.add(cv.ContentDocumentId);
-            }
-            if (!Schema.sObjectType.ContentDocument.isDeletable()) {
-                throw new DocGenException('Insufficient access to delete temporary images.');
-            }
-            delete [SELECT Id FROM ContentDocument WHERE Id IN :docIds];
-        }
     }
 
     /**

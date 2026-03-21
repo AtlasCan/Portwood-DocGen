@@ -1,130 +1,178 @@
 import { LightningElement, track, wire } from 'lwc';
 import getSettings from '@salesforce/apex/DocGenSetupController.getSettings';
-import saveSettings from '@salesforce/apex/DocGenSetupController.saveSettings';
-import saveEmailBrandingSettings from '@salesforce/apex/DocGenSetupController.saveEmailBrandingSettings';
+import getFonts from '@salesforce/apex/DocGenSetupController.getFonts';
+import uploadFont from '@salesforce/apex/DocGenSetupController.uploadFont';
+import deleteFont from '@salesforce/apex/DocGenSetupController.deleteFont';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { refreshApex } from '@salesforce/apex';
 
 export default class DocGenSetupWizard extends LightningElement {
-    @track experienceSiteUrl = '';
     @track isLoaded = false;
-    @track currentStep = '1';
+    @track fonts = [];
+    @track showFontUpload = false;
 
-    // Email branding state
-    @track companyName = '';
-    @track emailLogoUrl = '';
-    @track emailBrandColor = '#0176D3';
-    @track emailSubject = 'Action Required: Please Sign {DocumentTitle}';
-    @track emailMessage = '';
-    @track emailFooterText = '';
-    @track isSavingBranding = false;
+    // Font upload form
+    @track fontFamily = '';
+    @track fontWeight = 'normal';
+    @track fontStyle = 'normal';
+    @track fontFormat = 'truetype';
+    @track fontFileName = '';
+    @track fontBase64 = '';
+    @track isUploading = false;
+
+    _wiredFonts;
 
     @wire(getSettings)
     wiredSettings({ error, data }) {
-        if (data) {
-            this.experienceSiteUrl = data.Experience_Site_Url__c || '';
-            this.companyName = data.Company_Name__c || '';
-            this.emailLogoUrl = data.Signature_Email_Logo_Url__c || '';
-            this.emailBrandColor = data.Signature_Email_Brand_Color__c || '#0176D3';
-            this.emailSubject = data.Signature_Email_Subject__c || 'Action Required: Please Sign {DocumentTitle}';
-            this.emailMessage = data.Signature_Email_Message__c || '';
-            this.emailFooterText = data.Signature_Email_Footer_Text__c || '';
-            this.isLoaded = true;
-        } else if (error) {
+        if (data || error) {
             this.isLoaded = true;
         }
     }
 
-    handleStepClick(event) {
-        this.currentStep = event.target.value;
-    }
-
-    get isStep1() { return this.currentStep === '1'; }
-    get isStep2() { return this.currentStep === '2'; }
-    get isStep3() { return this.currentStep === '3'; }
-
-    nextStep() {
-        let stepNum = parseInt(this.currentStep, 10);
-        if (stepNum < 3) {
-            this.currentStep = String(stepNum + 1);
+    @wire(getFonts)
+    wiredFonts(result) {
+        this._wiredFonts = result;
+        if (result.data) {
+            this.fonts = result.data.map(f => ({
+                ...f,
+                label: f.Font_Family__c + ' (' + f.Font_Weight__c + ', ' + f.Font_Style__c + ')',
+                formatLabel: (f.Font_Format__c || 'truetype').toUpperCase()
+            }));
         }
     }
 
-    prevStep() {
-        let stepNum = parseInt(this.currentStep, 10);
-        if (stepNum > 1) {
-            this.currentStep = String(stepNum - 1);
+    get hasFonts() {
+        return this.fonts.length > 0;
+    }
+
+    get fontWeightOptions() {
+        return [
+            { label: 'Normal (400)', value: 'normal' },
+            { label: 'Bold (700)', value: 'bold' }
+        ];
+    }
+
+    get fontStyleOptions() {
+        return [
+            { label: 'Normal', value: 'normal' },
+            { label: 'Italic', value: 'italic' }
+        ];
+    }
+
+    get fontFormatOptions() {
+        return [
+            { label: 'TrueType (.ttf)', value: 'truetype' },
+            { label: 'WOFF (.woff)', value: 'woff' },
+            { label: 'WOFF2 (.woff2)', value: 'woff2' }
+        ];
+    }
+
+    get isUploadDisabled() {
+        return !this.fontFamily || !this.fontBase64 || this.isUploading;
+    }
+
+    handleShowUpload() {
+        this.showFontUpload = true;
+    }
+
+    handleCancelUpload() {
+        this.showFontUpload = false;
+        this.resetUploadForm();
+    }
+
+    handleFontFamilyChange(e) { this.fontFamily = e.target.value; }
+    handleFontWeightChange(e) { this.fontWeight = e.detail.value; }
+    handleFontStyleChange(e) { this.fontStyle = e.detail.value; }
+    handleFontFormatChange(e) { this.fontFormat = e.detail.value; }
+
+    handleFontFileChange(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const allowedTypes = ['.ttf', '.woff', '.woff2'];
+        const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        if (!allowedTypes.includes(ext)) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Invalid File',
+                message: 'Only TTF, WOFF, and WOFF2 font files are supported.',
+                variant: 'error'
+            }));
+            return;
         }
+
+        // Auto-detect format from extension
+        if (ext === '.ttf') this.fontFormat = 'truetype';
+        else if (ext === '.woff') this.fontFormat = 'woff';
+        else if (ext === '.woff2') this.fontFormat = 'woff2';
+
+        this.fontFileName = file.name;
+        const reader = new FileReader();
+        reader.onload = () => {
+            this.fontBase64 = reader.result.split(',')[1];
+        };
+        reader.readAsDataURL(file);
     }
 
-    handleUrlChange(event) {
-        this.experienceSiteUrl = event.target.value;
-    }
+    handleUploadFont() {
+        if (this.isUploadDisabled) return;
+        this.isUploading = true;
 
-    handleCompanyNameChange(event) { this.companyName = event.target.value; }
-    handleLogoUrlChange(event) { this.emailLogoUrl = event.target.value; }
-    handleBrandColorChange(event) { this.emailBrandColor = event.target.value; }
-    handleEmailSubjectChange(event) { this.emailSubject = event.target.value; }
-    handleEmailMessageChange(event) { this.emailMessage = event.target.value; }
-    handleFooterTextChange(event) { this.emailFooterText = event.target.value; }
-
-    get emailMessagePreview() {
-        return this.emailMessage || '[Sender] has sent you a document that requires your signature.';
-    }
-
-    handleSaveEmailBranding() {
-        this.isSavingBranding = true;
-        saveEmailBrandingSettings({
-            companyName: this.companyName,
-            logoUrl: this.emailLogoUrl,
-            brandColor: this.emailBrandColor,
-            emailSubject: this.emailSubject,
-            emailMessage: this.emailMessage,
-            footerText: this.emailFooterText
+        uploadFont({
+            fontFamily: this.fontFamily,
+            fontWeight: this.fontWeight,
+            fontStyle: this.fontStyle,
+            fontFormat: this.fontFormat,
+            fileName: this.fontFileName,
+            base64Data: this.fontBase64
         })
             .then(() => {
-                this.isSavingBranding = false;
-                this.dispatchEvent(
-                    new ShowToastEvent({
-                        title: 'Success',
-                        message: 'Email branding settings saved successfully',
-                        variant: 'success'
-                    })
-                );
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Font Uploaded',
+                    message: this.fontFamily + ' has been added successfully.',
+                    variant: 'success'
+                }));
+                this.showFontUpload = false;
+                this.resetUploadForm();
+                return refreshApex(this._wiredFonts);
             })
             .catch(error => {
-                this.isSavingBranding = false;
-                this.dispatchEvent(
-                    new ShowToastEvent({
-                        title: 'Error',
-                        message: error.body ? error.body.message : error.message,
-                        variant: 'error'
-                    })
-                );
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Upload Failed',
+                    message: error.body ? error.body.message : error.message,
+                    variant: 'error'
+                }));
+            })
+            .finally(() => {
+                this.isUploading = false;
             });
     }
 
-    handleSaveSettings() {
-        this.isLoaded = false;
-        saveSettings({ experienceSiteUrl: this.experienceSiteUrl })
+    handleDeleteFont(e) {
+        const fontId = e.target.dataset.id;
+        deleteFont({ fontId })
             .then(() => {
-                this.isLoaded = true;
-                this.dispatchEvent(
-                    new ShowToastEvent({
-                        title: 'Success',
-                        message: 'Settings saved successfully',
-                        variant: 'success'
-                    })
-                );
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Font Deleted',
+                    message: 'Font removed successfully.',
+                    variant: 'success'
+                }));
+                return refreshApex(this._wiredFonts);
             })
             .catch(error => {
-                this.isLoaded = true;
-                this.dispatchEvent(
-                    new ShowToastEvent({
-                        title: 'Error',
-                        message: error.body ? error.body.message : error.message,
-                        variant: 'error'
-                    })
-                );
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Error',
+                    message: error.body ? error.body.message : error.message,
+                    variant: 'error'
+                }));
             });
+    }
+
+    resetUploadForm() {
+        this.fontFamily = '';
+        this.fontWeight = 'normal';
+        this.fontStyle = 'normal';
+        this.fontFormat = 'truetype';
+        this.fontFileName = '';
+        this.fontBase64 = '';
     }
 }

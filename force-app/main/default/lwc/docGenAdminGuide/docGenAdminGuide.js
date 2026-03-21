@@ -10,8 +10,6 @@ export default class DocGenAdminGuide extends LightningElement {
         { name: 'tags', label: 'Merge Tags & Syntax', icon: 'utility:merge_field' },
         { name: 'generation', label: 'Generating Documents', icon: 'utility:download' },
         { name: 'bulk', label: 'Bulk Generation', icon: 'utility:multi_select_checkbox' },
-        { name: 'signatures', label: 'E-Signatures', icon: 'utility:edit_form' },
-        { name: 'roles', label: 'Signature Roles & Templates', icon: 'utility:people' },
         { name: 'email', label: 'Email Branding & Copy', icon: 'utility:email' },
         { name: 'logo', label: 'Logo & Images', icon: 'utility:image' },
         { name: 'sharing', label: 'Sharing & Permissions', icon: 'utility:lock' },
@@ -39,8 +37,6 @@ export default class DocGenAdminGuide extends LightningElement {
     get isTags() { return this.activeSection === 'tags'; }
     get isGeneration() { return this.activeSection === 'generation'; }
     get isBulk() { return this.activeSection === 'bulk'; }
-    get isSignatures() { return this.activeSection === 'signatures'; }
-    get isRoles() { return this.activeSection === 'roles'; }
     get isEmail() { return this.activeSection === 'email'; }
     get isLogo() { return this.activeSection === 'logo'; }
     get isSharing() { return this.activeSection === 'sharing'; }
