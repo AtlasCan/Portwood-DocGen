@@ -3,6 +3,7 @@
     <layoutSections>
         <customLabel>true</customLabel>
         <detailHeading>true</detailHeading>
+        <editHeading>false</editHeading>
         <label>Request Information</label>
         <layoutColumns>
             <layoutItems>
@@ -37,6 +38,7 @@
     <layoutSections>
         <customLabel>true</customLabel>
         <detailHeading>true</detailHeading>
+        <editHeading>false</editHeading>
         <label>Security</label>
         <layoutColumns>
             <layoutItems>
@@ -49,6 +51,7 @@
     <layoutSections>
         <customLabel>true</customLabel>
         <detailHeading>true</detailHeading>
+        <editHeading>false</editHeading>
         <label>System Information</label>
         <layoutColumns>
             <layoutItems>
@@ -64,24 +67,39 @@
         </layoutColumns>
         <style>TwoColumnsLeftToRight</style>
     </layoutSections>
+    <layoutSections>
+        <customLabel>false</customLabel>
+        <detailHeading>false</detailHeading>
+        <editHeading>false</editHeading>
+        <layoutColumns/>
+        <style>CustomLinks</style>
+    </layoutSections>
     <relatedLists>
-        <relatedList>DocGen_Signer__c.Signature_Request__c</relatedList>
         <fields>NAME</fields>
         <fields>Signer_Name__c</fields>
         <fields>Signer_Email__c</fields>
         <fields>Role_Name__c</fields>
         <fields>Status__c</fields>
         <fields>Sort_Order__c</fields>
+        <relatedList>DocGen_Signer__c.Signature_Request__c</relatedList>
     </relatedLists>
     <relatedLists>
-        <relatedList>DocGen_Signature_Audit__c.Signature_Request__c</relatedList>
         <fields>NAME</fields>
         <fields>Signer_Name__c</fields>
         <fields>Signed_Date__c</fields>
         <fields>IP_Address__c</fields>
         <fields>Document_Hash_SHA256__c</fields>
+        <relatedList>DocGen_Signature_Audit__c.Signature_Request__c</relatedList>
     </relatedLists>
     <showEmailCheckbox>false</showEmailCheckbox>
+    <showHighlightsPanel>false</showHighlightsPanel>
+    <showInteractionLogPanel>false</showInteractionLogPanel>
     <showRunAssignmentRulesCheckbox>false</showRunAssignmentRulesCheckbox>
     <showSubmitAndAttachButton>false</showSubmitAndAttachButton>
+    <summaryLayout>
+        <masterLabel>00hdL00000XvqAA</masterLabel>
+        <sizeX>4</sizeX>
+        <sizeY>0</sizeY>
+        <summaryLayoutStyle>Default</summaryLayoutStyle>
+    </summaryLayout>
 </Layout>

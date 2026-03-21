@@ -962,6 +962,13 @@ public with sharing class DocGenHtmlRenderer {
             cursor = tEnd + 6; // length of </w:t>
         }
 
+        // Unescape XML entities so downstream escapeHtml4() doesn't double-encode
+        result = result.replace('&amp;', '&');
+        result = result.replace('&lt;', '<');
+        result = result.replace('&gt;', '>');
+        result = result.replace('&apos;', '\'');
+        result = result.replace('&quot;', '"');
+
         return result;
     }
 

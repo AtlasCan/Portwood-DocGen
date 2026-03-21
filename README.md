@@ -2,11 +2,12 @@
 
 **A free, native, production-ready document engine for Salesforce.**
 
-[![Version](https://img.shields.io/badge/version-1.2.2-blue.svg)](#quick-install)
+[![Version](https://img.shields.io/badge/version-1.3.1-blue.svg)](#quick-install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![API Version](https://img.shields.io/badge/API-v66.0-orange.svg)](#)
 [![Dependencies](https://img.shields.io/badge/JS%20dependencies-zero-brightgreen.svg)](#)
+[![Buy Amanda a Coffee](https://img.shields.io/badge/Buy_Amanda_a_Coffee-%E2%98%95-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/davemoudya)
 
 Generate DOCX, PPTX, and PDF documents from any Salesforce record. Merge fields, loop over child records, inject images, collect legally-binding electronic signatures, and render PDFs -- all 100% server-side, without leaving Salesforce, and without paying a dime.
 
@@ -57,30 +58,57 @@ This project gives you a professional-grade document engine -- template manageme
 
 ## Quick Install
 
-**Package Version ID**: `04tdL000000RMqrQAG`
+**Package Version ID**: `04tdL000000RckLQAS`
 
 **CLI:**
 ```bash
-sf package install --package 04tdL000000RMqrQAG --wait 10 --installation-key-bypass
+sf package install --package 04tdL000000RckLQAS --wait 10 --installation-key-bypass
 ```
 
 **Browser:**
-- [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RMqrQAG)
-- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RMqrQAG)
+- [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RckLQAS)
+- [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RckLQAS)
 
 > Select **Install for Admins Only** during installation, then assign permission sets to your users.
 
+> **Required after install:** You must enable the Spring '26 Release Update **"Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations"** for PDF generation to work correctly. Without it, PDFs will render raw CSS as visible text and images will not appear. Go to [Setup > Release Updates](/lightning/setup/ReleaseUpdates/home) and enable it. This is opt-in until Summer '26 when Salesforce enforces it for all orgs. See [Required: Enable Updated Blob.toPdf()](#required-enable-updated-blobtopdf-spring-26) for full details.
+
 ## Known Limitations
-While this engine handles complex document generation, it operates entirely within the Salesforce platform and is subject to standard Apex Governor Limits:
 
-Synchronous Limit: 6 MB
-Asynchronous Limit: 12 MB
+DocGen runs 100% on the Salesforce platform, which means it operates within [Apex Governor Limits](https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_gov_limits.htm). Here's what that means in practice:
 
-Large Documents & Images
-Because the "heavy lifting" of PDF rendering and image injection happens on-server, memory usage can climb quickly. If your documents require multiple images, please ensure they are optimized and low-resolution to avoid LimitException: Apex heap size too large.
+| Limit | Value | What It Means |
+|-------|-------|---------------|
+| **Heap size (synchronous)** | 6 MB | The maximum memory available for a single document generation from a record page or Flow. This includes the template file, merged data, images, and the output document — all held in memory at once. |
+| **Heap size (asynchronous)** | 12 MB | The limit for bulk generation jobs, which run as Batch Apex. Each record gets its own 12 MB transaction. |
+| **SOQL queries** | 100 per transaction | Each document generation uses queries to fetch the record, parent fields, and child lists. The [Query Builder](#getting-started) limits parent fields to **10** and child relationships to **5** to keep well within this budget. |
+| **SOQL subqueries** | 20 per transaction | Salesforce limits the number of child relationship subqueries in a single SOQL statement. The Query Builder's 5-relationship cap provides a safe margin. |
+| **Total query rows** | 50,000 per transaction | All records returned across all queries count toward this limit. Child loops with thousands of records (e.g., 500 line items per Opportunity) can approach this. |
 
-Is this right for you?
-If your use case consistently requires generating documents or processing image data larger than these limits, this tool may not be the right fit for your requirements in its current state.
+**Large Documents & Images** — Because PDF rendering and image injection happen server-side, memory usage climbs with each image. If your documents include multiple images, use optimized/low-resolution versions to avoid `LimitException: Apex heap size too large`.
+
+**Is this right for you?** — If your use case consistently requires documents or image data larger than these limits, this tool may not be the right fit in its current state. For very large documents, consider the [client-side generation option](https://github.com/DaveMoudy/SalesforceDocGen/issues/23) which offloads assembly to the browser.
+
+## What's New in v1.3.1
+
+### Bug Fix: Character Encoding (#21)
+- Fixed `&` characters rendering as `&amp;` in PDF output -- the HTML renderer was double-encoding XML entities from the DOCX source
+
+### Documentation Overhaul
+- **Release Update visibility** -- Added prominent callout immediately after Quick Install explaining the required Spring '26 Blob.toPdf() Release Update. This was the #1 source of confusion for new users (Issues #27, #21, #28)
+- **In-app admin guide** -- Added Release Update warning to the Overview section with a direct link to [Setup > Release Updates](/lightning/setup/ReleaseUpdates/home)
+- **Query Builder limits** -- Expanded from one-word reasons to full explanations of why each limit exists, what Salesforce enforces, and links to Salesforce Governor Limits documentation
+- **Troubleshooting** -- Added "PDF shows raw CSS text" as the first troubleshooting entry, pointing users directly to the Release Update
+- **Known Limitations** -- Replaced terse limit descriptions with a detailed table explaining heap size, SOQL queries, subqueries, and total query rows in practical terms
+
+### Rich Text Field Documentation
+- Corrected inaccurate "plain text only" language -- DocGen already preserves bold, italic, underline, paragraph structure, and embedded images from Rich Text Area fields in Word and PDF output
+- Added new **Rich Text Fields** section to README and in-app Admin Guide documenting what is and isn't preserved
+
+### Page Layouts
+- Updated all 9 custom object page layouts from DevOrg-398
+
+---
 
 ## What's New in v1.2.2
 
@@ -241,21 +269,23 @@ E-signatures require a Salesforce Site (not Experience Cloud):
 
 ### Required: Enable Updated Blob.toPdf() (Spring '26)
 
-E-signature PDF generation runs as the **Automated Process user** via Platform Events and Queueable Apex. This system user cannot access Visualforce pages, so signature PDFs are rendered entirely through `Blob.toPdf()`. The Spring '26 Release Update must be enabled for `Blob.toPdf()` to properly render HTML with CSS and images.
+**This Release Update is required for all PDF generation**, not just signatures. The old `Blob.toPdf()` engine does not understand `<style>` blocks or `<img>` tags in HTML — it renders them as literal visible text in your PDF. The updated engine uses the same Visualforce PDF rendering service (Flying Saucer) that powers `renderAs="pdf"`, giving you proper CSS, image, and font support.
 
 **To enable:**
-1. Go to **Setup > Release Updates**
+1. Go to [**Setup > Release Updates**](/lightning/setup/ReleaseUpdates/home)
 2. Find **"Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations"**
 3. Click **Get Started** > **Enable**
 
 **What this does:**
 - Upgrades `Blob.toPdf()` to use the same rendering engine as Visualforce `renderAs="pdf"`
 - Enables CSS parsing (`<style>` tags), image rendering (`<img>` with Salesforce URLs), and modern font support
-- Required for signature images to appear in the signed PDF
+- Required for all PDF output — single-record, bulk, and signed PDFs
 
-**Without this Release Update**, signed PDFs will be generated but will contain raw CSS text instead of formatted content, and signature images will not render.
+**Without this Release Update**, PDFs will contain raw CSS text instead of formatted content, and images will not render. This is the most common issue reported by new users.
 
-> **Note:** This Release Update is opt-in until Summer '26 when it becomes enforced for all orgs.
+> **Note:** This Release Update is opt-in until Summer '26 when Salesforce enforces it for all orgs.
+
+**Why signatures are especially affected:** E-signature PDFs are generated by the Automated Process user via Platform Events and Queueable Apex. This system user cannot access Visualforce pages, so there is no fallback — `Blob.toPdf()` with the Release Update enabled is the only rendering path for signed documents.
 
 ### How the Automated Process User Works
 
@@ -298,7 +328,7 @@ DocGen uses **plain text replacement**. Each tag in your template is swapped wit
 - Tags are replaced with **text values only** -- they won't insert images, charts, or media (use the `{%}` image tag for that)
 - Tables don't dynamically expand -- use **loop tags** for repeating rows
 - Formatting (bold, font, color) comes from your template, not the data -- the replaced text inherits the tag's formatting
-- Rich Text fields are inserted as plain text (HTML stripped)
+- **Rich Text fields** preserve basic formatting in Word output (see [Rich Text Fields](#rich-text-fields) below)
 
 ### Tag Syntax Reference
 
@@ -346,6 +376,28 @@ Use `{%FieldName}` to dynamically insert images into Word documents. This is the
 > **Best practice:** Upload your image as a Salesforce File, copy the ContentVersion ID, and store it in a text field. Then use `{%MyField__c:200x60}` in your template.
 
 > Image tags only work in **Word (.docx)** templates. External URLs cannot be fetched (no HTTP callouts).
+
+### Rich Text Fields
+
+When a merge tag references a Rich Text Area field, DocGen automatically detects the HTML content and preserves formatting in Word and PDF output. No special syntax is needed -- just use the standard `{FieldName}` tag.
+
+**What's preserved (Word & PDF):**
+- **Bold**, *italic*, and underline formatting
+- Paragraph structure (line breaks, paragraph breaks)
+- Images embedded in the rich text field (Salesforce-hosted URLs and data URIs)
+
+**What's NOT preserved:**
+- Font colors, font sizes, and font families
+- Text alignment (center, right, justify)
+- Bullet and numbered lists (rendered as plain text paragraphs)
+- Tables within the rich text field
+- Hyperlinks (the text appears, but the link is not clickable)
+
+**PowerPoint:** Rich text is stripped to plain text in `.pptx` output. Only Word and PDF preserve formatting.
+
+**Images in Rich Text:** If your rich text field contains an embedded image (inserted via the Salesforce Rich Text editor), the image is automatically extracted and embedded in the output document. Salesforce-hosted image URLs are resolved to absolute paths so they render in both DOCX and PDF.
+
+> **Tip:** For simple text fields (Name, Email, etc.), formatting comes from the template -- the merged value inherits whatever font/style the tag had in your Word file. For Rich Text Area fields, the formatting comes from the data itself and overrides the tag's template styling.
 
 ### Date Formatting
 
