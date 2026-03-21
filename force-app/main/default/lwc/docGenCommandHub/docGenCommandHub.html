@@ -1,0 +1,256 @@
+<template>
+    <div class="hub-container">
+
+        <!-- ==================== COFFEE LINK ==================== -->
+        <div class="slds-grid slds-grid_align-end slds-var-m-bottom_small">
+            <a href="https://buymeacoffee.com/davemoudya" target="_blank" rel="noopener noreferrer"
+               style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #FFDD00; color: #000; font-size: 0.8125rem; font-weight: 600; border-radius: 20px; text-decoration: none;">
+                Buy Amanda a Coffee
+            </a>
+        </div>
+
+        <!-- ==================== WELCOME BANNER (< 10 templates, dismissible) ==================== -->
+        <template if:true={showBanner}>
+            <div class="slds-box slds-var-m-bottom_large" style="background: linear-gradient(135deg, #0176D3 0%, #014486 100%); border: none; border-radius: 12px; color: #fff; padding: 2rem 2rem 1.5rem 2rem; position: relative;">
+                <a href="javascript:void(0)" style="position: absolute; top: 12px; right: 16px; color: rgba(255,255,255,0.6); font-size: 1.25rem; text-decoration: none; line-height: 1;" onclick={handleDismissBanner} aria-label="Dismiss banner">&times;</a>
+                <h1 style="font-size: 1.75rem; font-weight: 700; margin: 0 0 0.25rem 0;">{bannerHeading}</h1>
+                <p style="font-size: 1rem; opacity: 0.85; margin: 0 0 1rem 0;">{bannerSubtext}</p>
+                <div class="slds-grid slds-gutters_large">
+                    <div class="slds-col slds-size_1-of-3">
+                        <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 1rem; height: 100%;">
+                            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">1</div>
+                            <p style="font-size: 0.875rem; opacity: 0.85; margin: 0;"><strong>Name your template</strong> — Give it a name and select your output type (PDF or Word).</p>
+                        </div>
+                    </div>
+                    <div class="slds-col slds-size_1-of-3">
+                        <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 1rem; height: 100%;">
+                            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">2</div>
+                            <p style="font-size: 0.875rem; opacity: 0.85; margin: 0;"><strong>Pick your data</strong> — Choose your Salesforce object and fields using the query builder or import from a report.</p>
+                        </div>
+                    </div>
+                    <div class="slds-col slds-size_1-of-3">
+                        <div style="background: rgba(255,255,255,0.15); border-radius: 8px; padding: 1rem; height: 100%;">
+                            <div style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.25rem;">3</div>
+                            <p style="font-size: 0.875rem; opacity: 0.85; margin: 0;"><strong>Upload your template</strong> — Upload your Word file with merge tags like <code style="background: rgba(0,0,0,0.2); padding: 1px 5px; border-radius: 3px;">&#123;Name&#125;</code> where you want data to appear.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- ==================== QUICK ACTIONS ROW ==================== -->
+        <template if:true={isLoaded}>
+            <div class="slds-grid slds-gutters slds-var-m-bottom_large">
+                <div class="slds-col slds-size_1-of-3">
+                    <div class="action-card slds-box slds-theme_default" onclick={handleScrollToTemplates}>
+                        <div class="slds-grid slds-grid_vertical-align-center slds-var-m-bottom_small">
+                            <lightning-icon icon-name="standard:template" size="small" class="slds-var-m-right_small"></lightning-icon>
+                            <h2 class="slds-text-heading_small card-title">Your Templates</h2>
+                        </div>
+                        <p class="slds-text-body_regular slds-text-color_weak">{templateCountLabel}</p>
+                    </div>
+                </div>
+                <div class="slds-col slds-size_1-of-3">
+                    <div class="action-card slds-box slds-theme_default" onclick={handleToggleBulk}>
+                        <div class="slds-grid slds-grid_vertical-align-center slds-var-m-bottom_small">
+                            <lightning-icon icon-name="standard:record_create" size="small" class="slds-var-m-right_small"></lightning-icon>
+                            <h2 class="slds-text-heading_small card-title">Generate for Many Records</h2>
+                        </div>
+                        <p class="slds-text-body_regular slds-text-color_weak">Create documents for hundreds of records at once</p>
+                    </div>
+                </div>
+                <div class="slds-col slds-size_1-of-3">
+                    <div class="action-card slds-box slds-theme_default" onclick={handleToggleHelp}>
+                        <div class="slds-grid slds-grid_vertical-align-center slds-var-m-bottom_small">
+                            <lightning-icon icon-name="standard:question_best" size="small" class="slds-var-m-right_small"></lightning-icon>
+                            <h2 class="slds-text-heading_small card-title">How It Works</h2>
+                        </div>
+                        <p class="slds-text-body_regular slds-text-color_weak">Tags, images, Flows, and troubleshooting</p>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- ==================== HELP SECTION ==================== -->
+        <template if:true={showHelp}>
+            <div class="slds-box slds-theme_default slds-var-m-bottom_large" style="border-radius: 8px;">
+                <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-var-m-bottom_medium">
+                    <h2 class="slds-text-heading_medium" style="font-weight: 700; margin: 0;">How It Works</h2>
+                    <lightning-button-icon icon-name="utility:close" variant="bare" alternative-text="Close help" onclick={handleToggleHelp}></lightning-button-icon>
+                </div>
+
+                <!-- TAGS -->
+                <div class="slds-var-m-bottom_medium">
+                    <h3 class="section-heading">Tags you can use in your Word template</h3>
+                    <p class="slds-text-body_regular slds-text-color_weak slds-var-m-bottom_small">Type these directly into your .docx file. DocGen replaces them with real data when you generate.</p>
+                    <div class="slds-grid slds-wrap slds-gutters_small">
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <div class="tag-card">
+                                <code class="tag-code" data-tag="\{Name}" onclick={handleCopyTag}>&#123;Name&#125;</code>
+                                <p class="tag-desc">Simple field — pulls the value from the record</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <div class="tag-card">
+                                <code class="tag-code" data-tag="\{Account.Name}" onclick={handleCopyTag}>&#123;Account.Name&#125;</code>
+                                <p class="tag-desc">Parent field — reaches up to a related record</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <div class="tag-card">
+                                <code class="tag-code" data-tag="loop-contacts" onclick={handleCopyTag}>&#123;#Contacts&#125;...&#123;/Contacts&#125;</code>
+                                <p class="tag-desc">Child loop — repeats a row or section for each related record</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <div class="tag-card">
+                                <code class="tag-code" data-tag="\{%Logo__c:200x60}" onclick={handleCopyTag}>&#123;%ImageField:WxH&#125;</code>
+                                <p class="tag-desc">Image — inserts from a ContentVersion ID stored in a text field. Specify pixel size with :WxH</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <div class="tag-card">
+                                <code class="tag-code" data-tag="\{CloseDate:MM/dd/yyyy}" onclick={handleCopyTag}>&#123;CloseDate:MM/dd/yyyy&#125;</code>
+                                <p class="tag-desc">Formatted date — add a colon and a date pattern</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <div class="tag-card">
+                                <code class="tag-code" data-tag="conditional-isactive" onclick={handleCopyTag}>&#123;#IsActive&#125;...&#123;/IsActive&#125;</code>
+                                <p class="tag-desc">Conditional — shows content only when field is true or non-empty</p>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">Click any tag to copy it. Tags inherit formatting (font, color, size) from your Word template.</p>
+                </div>
+
+                <!-- IMAGES & RICH TEXT -->
+                <div class="slds-var-m-bottom_medium">
+                    <h3 class="section-heading">Images and Rich Text</h3>
+                    <div class="slds-grid slds-wrap slds-gutters_small">
+                        <div class="slds-col slds-size_1-of-1 slds-var-p-bottom_small">
+                            <div class="info-card">
+                                <strong>Template images (logos, watermarks)</strong>
+                                <p class="tag-desc">Images embedded directly in your .docx file are automatically extracted and stored when you save a template version. At PDF time, they're referenced by URL — zero memory cost, unlimited images.</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <div class="info-card">
+                                <strong>&#123;%ImageField&#125; — Dynamic images</strong>
+                                <p class="tag-desc">Store a ContentVersion ID (starts with 068) in a text field. The % tag pulls that image into your document at the size you specify. For PDF, the image is fetched by URL — no heap cost.</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <div class="info-card">
+                                <strong>&#123;RichTextField&#125; — Rich Text Areas</strong>
+                                <p class="tag-desc">A regular tag on a Rich Text field renders the full formatted content — bold, italic, paragraphs, and embedded images all come through. No special syntax needed.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HOW IT WORKS UNDER THE HOOD -->
+                <div class="slds-var-m-bottom_medium">
+                    <h3 class="section-heading">How DocGen handles large documents without hitting limits</h3>
+                    <p class="slds-text-body_regular slds-text-color_weak slds-var-m-bottom_small">Salesforce gives each transaction 6 MB of memory. DocGen uses three techniques to stay well under that limit, even with large templates and many images:</p>
+                    <div class="slds-grid slds-wrap slds-gutters_small">
+                        <div class="slds-col slds-size_1-of-3 slds-var-p-bottom_small">
+                            <div class="info-card" style="height: 100%;">
+                                <strong>1. Pre-decomposition</strong>
+                                <p class="tag-desc">When you save a template version, DocGen unzips the .docx file and stores each piece (XML, images, styles) as a separate file in Salesforce. At generation time, it loads only the XML text — never the full ZIP. This cuts memory usage by ~75%.</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-var-p-bottom_small">
+                            <div class="info-card" style="height: 100%;">
+                                <strong>2. Zero-heap images</strong>
+                                <p class="tag-desc">Images are never loaded into memory for PDF output. Instead, DocGen passes a URL to the PDF engine and lets Salesforce fetch the image directly. This means 20+ images, even large ones, don't use any of your 6 MB budget.</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-var-p-bottom_small">
+                            <div class="info-card" style="height: 100%;">
+                                <strong>3. Client-side DOCX</strong>
+                                <p class="tag-desc">For DOCX output, the server sends the merged text and the browser assembles the final file. Each image is fetched in its own request with fresh memory. No size limit on downloads.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADD TO RECORD PAGES -->
+                <div class="slds-var-m-bottom_medium">
+                    <h3 class="section-heading">Add the Document Generator to record pages</h3>
+                    <div class="info-card">
+                        <p class="tag-desc">The <strong>docGenRunner</strong> component lets users generate documents from any record page:</p>
+                        <ol class="slds-list_ordered slds-text-body_small slds-var-m-top_small" style="padding-left: 1.25rem;">
+                            <li class="slds-var-p-bottom_xx-small">Navigate to any record page (e.g., an Account)</li>
+                            <li class="slds-var-p-bottom_xx-small">Click the gear icon &gt; <strong>Edit Page</strong></li>
+                            <li class="slds-var-p-bottom_xx-small">Drag <strong>docGenRunner</strong> onto the layout</li>
+                            <li>Save and activate — users will see a template dropdown and a Generate button</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- FLOW INTEGRATION -->
+                <div class="slds-var-m-bottom_medium">
+                    <h3 class="section-heading">Use in Flows</h3>
+                    <div class="slds-grid slds-wrap slds-gutters_small">
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <div class="info-card">
+                                <strong>Generate Document (Single Record)</strong>
+                                <p class="tag-desc">Invocable action: <code>DocGenFlowAction</code>. Pass a Template ID and Record ID. Returns the generated ContentDocument ID. Use in record-triggered flows, screen flows, or scheduled flows.</p>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2 slds-var-p-bottom_small">
+                            <div class="info-card">
+                                <strong>Generate Documents (Bulk)</strong>
+                                <p class="tag-desc">Invocable action: <code>DocGenBulkFlowAction</code>. Pass a Template ID and a WHERE clause. Creates a background job that generates documents for every matching record.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- COMMON ISSUES -->
+                <div>
+                    <h3 class="section-heading">Common issues</h3>
+                    <div class="info-card slds-var-m-bottom_x-small">
+                        <strong>PDF shows raw CSS text or broken images?</strong>
+                        <p class="tag-desc">Go to Setup &gt; Release Updates and enable "Use the Visualforce PDF Rendering Service for Blob.toPdf() Invocations." This is required for all PDF generation.</p>
+                    </div>
+                    <div class="info-card slds-var-m-bottom_x-small">
+                        <strong>Merge tags show as literal text?</strong>
+                        <p class="tag-desc">Tags are case-sensitive and must match the API name exactly. Tip: type tags in a plain text editor first, then paste into Word — this avoids Word splitting the tag across hidden XML runs.</p>
+                    </div>
+                    <div class="info-card slds-var-m-bottom_x-small">
+                        <strong>"Apex heap size too large" error?</strong>
+                        <p class="tag-desc">Your document or images are too large for a single transaction. Try reducing image sizes, or use Bulk Generation which has a higher 12 MB memory limit.</p>
+                    </div>
+                    <div class="info-card">
+                        <strong>Custom fonts not showing in PDF?</strong>
+                        <p class="tag-desc">PDF output supports Helvetica, Times, Courier, and Arial Unicode MS only (Salesforce platform limitation). For custom fonts, generate as DOCX — your template fonts carry through.</p>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- ==================== TEMPLATE MANAGER (always mounted) ==================== -->
+        <div data-section="templates" class="slds-var-m-bottom_large">
+            <c-doc-gen-admin></c-doc-gen-admin>
+        </div>
+
+        <!-- ==================== BULK GENERATOR (collapsible) ==================== -->
+        <div data-section="bulk">
+            <div class="slds-box slds-theme_default" style="border-radius: 8px; padding: 0;">
+                <div class="slds-grid slds-grid_vertical-align-center slds-var-p-around_medium" style="cursor: pointer; border-bottom: 1px solid #e5e5e5;" onclick={handleToggleBulk}>
+                    <lightning-icon icon-name={bulkSectionIcon} size="x-small" class="slds-var-m-right_small"></lightning-icon>
+                    <h2 class="slds-text-heading_small card-title">Bulk Generate</h2>
+                    <span class="slds-text-body_small slds-text-color_weak slds-var-m-left_small">Create documents for many records at once</span>
+                </div>
+                <template if:true={showBulk}>
+                    <div class="slds-var-p-around_medium">
+                        <c-doc-gen-bulk-runner></c-doc-gen-bulk-runner>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+    </div>
+</template>

@@ -65,7 +65,7 @@ const VERSION_COLUMNS = [
     @track versions = [];
 
     // Form/Wizard State
-    @track activeMainTab = 'list';
+    @track activeMainTab = 'new_template';
     @track currentWizardStep = '1';
 
     // Create State

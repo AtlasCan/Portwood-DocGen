@@ -196,31 +196,11 @@
         <enabled>true</enabled>
     </pageAccesses>
     <tabSettings>
-        <tab>DocGen_Admin_Guide</tab>
-        <visibility>Visible</visibility>
-    </tabSettings>
-    <tabSettings>
-        <tab>DocGen_Bulk_Gen</tab>
+        <tab>DocGen_Command_Hub</tab>
         <visibility>Visible</visibility>
     </tabSettings>
     <tabSettings>
         <tab>DocGen_Job__c</tab>
-        <visibility>Visible</visibility>
-    </tabSettings>
-    <tabSettings>
-        <tab>DocGen_Setup</tab>
-        <visibility>Visible</visibility>
-    </tabSettings>
-    <tabSettings>
-        <tab>DocGen_Template_Manager</tab>
-        <visibility>Visible</visibility>
-    </tabSettings>
-    <tabSettings>
-        <tab>DocGen_Template_Version__c</tab>
-        <visibility>Visible</visibility>
-    </tabSettings>
-    <tabSettings>
-        <tab>DocGen_Template__c</tab>
         <visibility>Visible</visibility>
     </tabSettings>
 </PermissionSet>
