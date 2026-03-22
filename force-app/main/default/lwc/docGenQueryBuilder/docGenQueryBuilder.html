@@ -206,34 +206,84 @@
                                                 <!-- Child Query Options -->
                                                 <div class="slds-grid slds-gutters slds-var-m-top_small slds-var-p-top_x-small slds-border_top">
                                                     <div class="slds-col slds-size_6-of-12">
-                                                        <lightning-input 
-                                                            label="Filter (WHERE)" 
-                                                            placeholder="e.g. StageName = 'Closed Won'" 
-                                                            value={child.whereClause} 
+                                                        <lightning-input
+                                                            label="Filter (WHERE)"
+                                                            placeholder="e.g. StageName = 'Closed Won'"
+                                                            value={child.whereClause}
                                                             data-index={index}
                                                             onchange={handleChildWhereChange}
                                                             field-level-help="Enter SOQL WHERE clause condition (without 'WHERE').">
                                                         </lightning-input>
                                                     </div>
                                                     <div class="slds-col slds-size_4-of-12">
-                                                        <lightning-input 
-                                                            label="Sort (ORDER BY)" 
-                                                            placeholder="e.g. CreatedDate DESC" 
-                                                            value={child.orderBy} 
+                                                        <lightning-input
+                                                            label="Sort (ORDER BY)"
+                                                            placeholder="e.g. CreatedDate DESC"
+                                                            value={child.orderBy}
                                                             data-index={index}
                                                             onchange={handleChildOrderChange}>
                                                         </lightning-input>
                                                     </div>
                                                     <div class="slds-col slds-size_2-of-12">
-                                                        <lightning-input 
-                                                            label="Limit" 
-                                                            type="number" 
-                                                            value={child.limitAmount} 
+                                                        <lightning-input
+                                                            label="Limit"
+                                                            type="number"
+                                                            value={child.limitAmount}
                                                             data-index={index}
                                                             onchange={handleChildLimitChange}
                                                             min="1" max="2000">
                                                         </lightning-input>
                                                     </div>
+                                                </div>
+
+                                                <!-- Grandchild (nested related list) section -->
+                                                <div class="slds-var-m-top_small slds-var-p-top_x-small slds-border_top">
+                                                    <!-- Existing grandchild configs -->
+                                                    <template if:true={child.grandchildConfigs}>
+                                                        <template for:each={child.grandchildConfigs} for:item="gc" for:index="gcIdx">
+                                                            <div key={gc.relationshipName} class="slds-box slds-var-m-bottom_small" style="background: #f8fafc; border-left: 3px solid #0176d3;">
+                                                                <div class="slds-grid slds-grid_align-spread slds-var-m-bottom_small">
+                                                                    <h5 class="slds-text-title_bold">{gc.relationshipName}</h5>
+                                                                    <lightning-button-icon icon-name="utility:delete" alternative-text="Remove" data-child-index={index} data-gc-index={gcIdx} onclick={removeGrandchildConfig}></lightning-button-icon>
+                                                                </div>
+                                                                <div class="slds-scrollable_y" style="height: 120px;">
+                                                                    <lightning-checkbox-group name="gcFields" label="Fields" variant="label-hidden" options={gc.filteredFields} value={gc.selectedFields} data-child-index={index} data-gc-index={gcIdx} onchange={handleGrandchildFieldChange}></lightning-checkbox-group>
+                                                                </div>
+                                                                <div class="slds-grid slds-gutters slds-var-m-top_x-small">
+                                                                    <div class="slds-col slds-size_6-of-12">
+                                                                        <lightning-input label="Filter (WHERE)" placeholder="e.g. Type = 'Revenue'" value={gc.whereClause} data-child-index={index} data-gc-index={gcIdx} onchange={handleGrandchildWhereChange}></lightning-input>
+                                                                    </div>
+                                                                    <div class="slds-col slds-size_4-of-12">
+                                                                        <lightning-input label="Sort (ORDER BY)" value={gc.orderBy} data-child-index={index} data-gc-index={gcIdx} onchange={handleGrandchildOrderChange}></lightning-input>
+                                                                    </div>
+                                                                    <div class="slds-col slds-size_2-of-12">
+                                                                        <lightning-input label="Limit" type="number" value={gc.limitAmount} data-child-index={index} data-gc-index={gcIdx} onchange={handleGrandchildLimitChange} min="1" max="2000"></lightning-input>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                    </template>
+
+                                                    <!-- Grandchild relationship picker -->
+                                                    <template if:true={child._showGrandchildDropdown}>
+                                                        <div class="slds-var-m-bottom_small" style="position: relative;">
+                                                            <lightning-input type="search" label="Search related lists" placeholder="Search..." data-child-index={index} onchange={handleGrandchildSearch}></lightning-input>
+                                                            <div class="slds-dropdown slds-dropdown_fluid" style="position: absolute; z-index: 100; max-height: 200px; overflow-y: auto;">
+                                                                <ul class="slds-listbox slds-listbox_vertical">
+                                                                    <template for:each={child._filteredGrandchildOptions} for:item="opt">
+                                                                        <li key={opt.value} class="slds-listbox__item">
+                                                                            <div class="slds-media slds-listbox__option slds-listbox__option_plain slds-media_small" data-child-index={index} data-value={opt.value} onclick={handleGrandchildSelect}>
+                                                                                <span class="slds-media__body"><span class="slds-truncate">{opt.label}</span></span>
+                                                                            </div>
+                                                                        </li>
+                                                                    </template>
+                                                                </ul>
+                                                            </div>
+                                                        </div>
+                                                    </template>
+
+                                                    <!-- Add Related List button -->
+                                                    <lightning-button label="Add Related List" variant="neutral" size="small" icon-name="utility:add" data-child-index={index} onclick={handleAddGrandchild}></lightning-button>
                                                 </div>
                                             </div>
                                         </template>

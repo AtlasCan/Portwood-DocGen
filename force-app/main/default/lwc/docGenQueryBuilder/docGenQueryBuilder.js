@@ -646,20 +646,49 @@ export default class DocGenQueryBuilder extends LightningElement {
                 };
             });
             
-            const allCodes = [loopStart, ...fields.map(f => f.code), loopEnd];
-            
+            // Grandchild tags
+            let grandchildTags = [];
+            if (child.grandchildConfigs) {
+                grandchildTags = child.grandchildConfigs.map(gc => {
+                    const gcStart = `{#${gc.relationshipName}}`;
+                    const gcEnd = `{/${gc.relationshipName}}`;
+                    const gcFields = gc.selectedFields.map(f => ({
+                        label: f,
+                        code: `{${f}}`,
+                        sample: ''
+                    }));
+                    return {
+                        name: gc.relationshipName,
+                        loopStart: gcStart,
+                        loopEnd: gcEnd,
+                        fields: gcFields,
+                        copyAllText: [gcStart, ...gcFields.map(f => f.code), gcEnd].join('\n')
+                    };
+                });
+            }
+
+            const allCodes = [loopStart, ...fields.map(f => f.code)];
+            grandchildTags.forEach(gc => {
+                allCodes.push(gc.loopStart);
+                gc.fields.forEach(f => allCodes.push('  ' + f.code));
+                allCodes.push(gc.loopEnd);
+            });
+            allCodes.push(loopEnd);
+
             if (search) {
                 fields = fields.filter(f => f.label.toLowerCase().includes(search) || f.code.toLowerCase().includes(search));
             }
-            
+
             const isSectionMatch = child.relationshipName.toLowerCase().includes(search);
             const hasVisibleFields = fields.length > 0;
-            
+
             return {
                 name: child.relationshipName,
                 loopStart: loopStart,
                 loopEnd: loopEnd,
                 fields: fields,
+                grandchildren: grandchildTags,
+                hasGrandchildren: grandchildTags.length > 0,
                 copyAllText: allCodes.join('\n'),
                 isVisible: !search || isSectionMatch || hasVisibleFields
             };
@@ -1076,20 +1105,149 @@ export default class DocGenQueryBuilder extends LightningElement {
         this.notifyChange();
     }
 
+    // --- Grandchild (nested child-of-child) handlers ---
+
+    handleAddGrandchild(event) {
+        const childIndex = event.target.dataset.childIndex;
+        const child = this.childConfigs[childIndex];
+        if (!child || !child.childObjectApiName) return;
+
+        // Fetch grandchild relationship options for this child's object
+        getChildRelationships({ objectName: child.childObjectApiName })
+            .then(data => {
+                child._grandchildOptions = data;
+                child._showGrandchildDropdown = true;
+                child._filteredGrandchildOptions = data;
+                this.childConfigs = [...this.childConfigs];
+            });
+    }
+
+    handleGrandchildSearch(event) {
+        const childIndex = event.target.dataset.childIndex;
+        const child = this.childConfigs[childIndex];
+        const searchKey = event.target.value.toLowerCase();
+        child._grandchildLabel = event.target.value;
+        child._showGrandchildDropdown = true;
+        child._filteredGrandchildOptions = (child._grandchildOptions || []).filter(opt =>
+            opt.label.toLowerCase().includes(searchKey)
+        );
+        this.childConfigs = [...this.childConfigs];
+    }
+
+    handleGrandchildSelect(event) {
+        const childIndex = event.currentTarget.dataset.childIndex;
+        const relName = event.currentTarget.dataset.value;
+        const child = this.childConfigs[childIndex];
+        const relOption = (child._grandchildOptions || []).find(opt => opt.value === relName);
+        if (!relOption) return;
+
+        child._showGrandchildDropdown = false;
+        child._grandchildLabel = '';
+
+        if (!child.grandchildConfigs) child.grandchildConfigs = [];
+
+        // Don't add duplicates
+        if (child.grandchildConfigs.find(gc => gc.relationshipName === relName)) return;
+
+        const gcObjName = relOption.childObjectApiName;
+        getObjectFields({ objectName: gcObjName })
+            .then(data => {
+                child.grandchildConfigs.push({
+                    relationshipName: relName,
+                    childObjectApiName: gcObjName,
+                    selectedFields: [],
+                    whereClause: '',
+                    orderBy: '',
+                    limitAmount: '',
+                    availableFields: data,
+                    filteredFields: data.slice(0, 200)
+                });
+                this.childConfigs = [...this.childConfigs];
+                this.notifyChange();
+            });
+    }
+
+    handleGrandchildFieldChange(event) {
+        const childIndex = event.target.dataset.childIndex;
+        const gcIndex = event.target.dataset.gcIndex;
+        const child = this.childConfigs[childIndex];
+        if (child && child.grandchildConfigs && child.grandchildConfigs[gcIndex]) {
+            child.grandchildConfigs[gcIndex].selectedFields = event.detail.value;
+            this.childConfigs = [...this.childConfigs];
+            this.notifyChange();
+        }
+    }
+
+    handleGrandchildWhereChange(event) {
+        const childIndex = event.target.dataset.childIndex;
+        const gcIndex = event.target.dataset.gcIndex;
+        const child = this.childConfigs[childIndex];
+        if (child && child.grandchildConfigs && child.grandchildConfigs[gcIndex]) {
+            child.grandchildConfigs[gcIndex].whereClause = event.detail.value;
+            this.childConfigs = [...this.childConfigs];
+            this.notifyChange();
+        }
+    }
+
+    handleGrandchildOrderChange(event) {
+        const childIndex = event.target.dataset.childIndex;
+        const gcIndex = event.target.dataset.gcIndex;
+        const child = this.childConfigs[childIndex];
+        if (child && child.grandchildConfigs && child.grandchildConfigs[gcIndex]) {
+            child.grandchildConfigs[gcIndex].orderBy = event.detail.value;
+            this.childConfigs = [...this.childConfigs];
+            this.notifyChange();
+        }
+    }
+
+    handleGrandchildLimitChange(event) {
+        const childIndex = event.target.dataset.childIndex;
+        const gcIndex = event.target.dataset.gcIndex;
+        const child = this.childConfigs[childIndex];
+        if (child && child.grandchildConfigs && child.grandchildConfigs[gcIndex]) {
+            child.grandchildConfigs[gcIndex].limitAmount = event.detail.value;
+            this.childConfigs = [...this.childConfigs];
+            this.notifyChange();
+        }
+    }
+
+    removeGrandchildConfig(event) {
+        const childIndex = event.target.dataset.childIndex;
+        const gcIndex = event.target.dataset.gcIndex;
+        const child = this.childConfigs[childIndex];
+        if (child && child.grandchildConfigs) {
+            child.grandchildConfigs.splice(gcIndex, 1);
+            this.childConfigs = [...this.childConfigs];
+            this.notifyChange();
+        }
+    }
+
     get generatedQuery() {
         if (!this.selectedFields || (this.selectedFields.length === 0 && this.childConfigs.length === 0)) return '';
-        // If NO fields selected but we have subqueries, technically valid SOQL? No, SELECT list cannot be empty.
-        // Assuming user selects base/parent fields.
         let queryParts = [...this.selectedFields];
-        
+
         this.childConfigs.forEach(child => {
             if (child.selectedFields.length > 0) {
-                let childQuery = `(SELECT ${child.selectedFields.join(', ')} FROM ${child.relationshipName}`;
-                
+                let childFields = [...child.selectedFields];
+
+                // Append grandchild subqueries inside the child's field list
+                if (child.grandchildConfigs) {
+                    child.grandchildConfigs.forEach(gc => {
+                        if (gc.selectedFields.length > 0) {
+                            let gcQuery = `(SELECT ${gc.selectedFields.join(', ')} FROM ${gc.relationshipName}`;
+                            if (gc.whereClause) gcQuery += ` WHERE ${gc.whereClause}`;
+                            if (gc.orderBy) gcQuery += ` ORDER BY ${gc.orderBy}`;
+                            if (gc.limitAmount) gcQuery += ` LIMIT ${gc.limitAmount}`;
+                            gcQuery += ')';
+                            childFields.push(gcQuery);
+                        }
+                    });
+                }
+
+                let childQuery = `(SELECT ${childFields.join(', ')} FROM ${child.relationshipName}`;
                 if (child.whereClause) childQuery += ` WHERE ${child.whereClause}`;
                 if (child.orderBy) childQuery += ` ORDER BY ${child.orderBy}`;
                 if (child.limitAmount) childQuery += ` LIMIT ${child.limitAmount}`;
-                
                 childQuery += ')';
                 queryParts.push(childQuery);
             }
