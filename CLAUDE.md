@@ -115,6 +115,75 @@ DOCX output preserves whatever fonts are in the template file. If users need cus
 - Test image CV: `068Ff000006MHefIAG` (1.3MB PNG "Design") — stored in Account.Description and first 15 Contacts' Title field
 - Release Update enabled
 
+## E2E Test Script
+
+**Every code change MUST be validated by the E2E test script.** If you add a feature, add a test for it in the script. If the script doesn't pass, the change doesn't ship.
+
+Run: `sf apex run --target-org <org> -f scripts/e2e-test.apex`
+
+The script creates its own data (Account, Contacts, Opportunity, Products, Line Items), runs the V3 tree walker, validates parent fields, tests legacy backward compatibility, and generates an actual document. Output: `PASS: N  FAIL: 0  ALL TESTS PASSED`
+
+**Requires:** An existing template named "E2E Full Tree Test" with a DOCX file attached and a template version. Create once per org using the E2E data setup scripts.
+
+**When adding features:**
+1. Add test assertions to `scripts/e2e-test.apex`
+2. Run the script — all tests must pass
+3. If a test fails, fix before committing
+
+Current tests (9): Account name, Owner.Name parent field, Contacts count, Opportunities count, Line Items count, Product2.Name on Line Items, Legacy V1 backward compat, document generation, generated file not empty.
+
+## Query Config Formats
+
+Three formats, all stored in `Query_Config__c` (32KB LongTextArea):
+
+### V1 — Legacy flat string
+```
+Name, Industry, (SELECT FirstName, LastName FROM Contacts)
+```
+Detected by: does NOT start with `{`. Parsed by the original `getRecordData()` method.
+
+### V2 — JSON flat (junction support)
+```json
+{"v":2,"baseObject":"Opportunity","baseFields":["Name"],"parentFields":["Account.Name"],
+ "children":[{"rel":"OpportunityLineItems","fields":["Name"]}],
+ "junctions":[{"junctionRel":"OpportunityContactRoles","targetObject":"Contact","targetIdField":"ContactId","targetFields":["FirstName"]}]}
+```
+Detected by: starts with `{`, `"v":2`. Parsed by `getRecordDataV2()`.
+
+### V3 — Query tree (multi-object, any depth)
+```json
+{"v":3,"root":"Account","nodes":[
+  {"id":"n0","object":"Account","fields":["Name"],"parentFields":["Owner.Name"],"parentNode":null,"lookupField":null,"relationshipName":null},
+  {"id":"n1","object":"Contact","fields":["FirstName"],"parentFields":[],"parentNode":"n0","lookupField":"AccountId","relationshipName":"Contacts"},
+  {"id":"n2","object":"Opportunity","fields":["Name","Amount"],"parentFields":[],"parentNode":"n0","lookupField":"AccountId","relationshipName":"Opportunities"},
+  {"id":"n3","object":"OpportunityLineItem","fields":["Quantity"],"parentFields":["Product2.Name"],"parentNode":"n2","lookupField":"OpportunityId","relationshipName":"OpportunityLineItems"}
+]}
+```
+Detected by: starts with `{`, `"v":3`. Parsed by `getRecordDataV3()` tree walker. Each node is one SOQL query, stitched into parent's data map via `lookupField`.
+
+**Backward compat:** All three formats work. The DataRetriever auto-detects the format and routes to the correct parser.
+
+## Command Hub Architecture
+
+The DocGen app has 2 tabs: "DocGen" (Command Hub) and "Job History".
+
+The Command Hub (`docGenCommandHub` LWC) contains:
+- Welcome banner (< 10 templates, dismissible)
+- Quick action cards (Templates, Bulk Generate, How It Works)
+- Embedded template manager (`docGenAdmin`)
+- Embedded bulk runner (`docGenBulkRunner`, collapsible)
+- Help section with merge tag cheat sheet, heap architecture explanation, Flow integration
+
+The template wizard uses `docGenColumnBuilder` for the query builder step (tab-per-object layout with tree visualization). The old `docGenQueryBuilder` is still available via Manual Query toggle for legacy configs.
+
+## Font Support
+
+### PDF output
+`Blob.toPdf()` only supports 4 built-in fonts: Helvetica (`sans-serif`), Times (`serif`), Courier (`monospace`), Arial Unicode MS. CSS `@font-face` is NOT supported. **Do NOT re-add custom font upload for PDF.**
+
+### DOCX output
+Preserves whatever fonts are in the template file.
+
 ## AppExchange
 
 DocGen is NOT on the AppExchange. Do not reference AppExchange in user-facing documentation (admin guide, README). Code comments saying "AppExchange safe" (meaning no callouts/session IDs) are fine.

@@ -27,37 +27,23 @@
 
                             <!-- Step 2: Query Builder -->
                             <template if:true={isStep2}>
-                                <div class="slds-grid slds-grid_align-spread slds-var-m-bottom_small">
-                                    <div class="slds-col">
-                                        <div class="slds-var-p-around_small slds-theme_info slds-box">
-                                            <h3 class="slds-text-heading_small slds-var-m-bottom_xx-small">
-                                                <lightning-icon icon-name="utility:info" size="x-small" class="slds-var-m-right_x-small" variant="info"></lightning-icon>
-                                                Pick your data
-                                            </h3>
-                                            <p class="slds-text-body_small">
-                                                Choose your <strong>Base Object</strong> (Account, Contact, Opportunity, etc.), then select the fields you want in your document.
-                                                Add <strong>Parent Fields</strong> to pull data from related records, or <strong>Child Lists</strong> to loop over related items like Contacts or Line Items.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="slds-col slds-col_bump-left slds-shrink-none">
-                                        <lightning-input type="toggle"
-                                            label="Manual Query Mode"
-                                            checked={isNewManualQuery}
-                                            onchange={handleNewManualQueryToggle}
-                                            message-toggle-active="Manual"
-                                            message-toggle-inactive="Builder">
-                                        </lightning-input>
-                                    </div>
+                                <div class="slds-grid slds-grid_align-end slds-var-m-bottom_small">
+                                    <lightning-input type="toggle"
+                                        label="Manual Query Mode"
+                                        checked={isNewManualQuery}
+                                        onchange={handleNewManualQueryToggle}
+                                        message-toggle-active="Manual"
+                                        message-toggle-inactive="Builder">
+                                    </lightning-input>
                                 </div>
 
-                                <!-- Builder Mode -->
+                                <!-- Visual Builder (Column Layout) -->
                                 <template if:false={isNewManualQuery}>
-                                    <c-doc-gen-query-builder
+                                    <c-doc-gen-column-builder
                                         selected-object={newTemplateObject}
                                         query-config={newTemplateQuery}
                                         onconfigchange={handleConfigChange}>
-                                    </c-doc-gen-query-builder>
+                                    </c-doc-gen-column-builder>
                                 </template>
 
                                 <!-- Manual Mode -->
@@ -223,11 +209,11 @@
 
                              <!-- Builder Mode -->
                              <template if:false={isManualQuery}>
-                                <c-doc-gen-query-builder
+                                <c-doc-gen-column-builder
                                     selected-object={editTemplateObject}
-                                    query-config={editTemplateQuery} 
+                                    query-config={editTemplateQuery}
                                     onconfigchange={handleEditConfigChange}>
-                                </c-doc-gen-query-builder>
+                                </c-doc-gen-column-builder>
                              </template>
 
                              <!-- Manual Mode -->
@@ -268,12 +254,10 @@
                                     </p>
                                 </div>
                             </div>
-                             <c-doc-gen-query-builder
+                             <c-doc-gen-column-builder
                                 selected-object={editTemplateObject}
-                                query-config={editTemplateQuery} 
-                                show-tags-only="true"
-                                test-record-id={editTemplateTestRecordId}>
-                            </c-doc-gen-query-builder>
+                                query-config={editTemplateQuery}>
+                            </c-doc-gen-column-builder>
                         </lightning-tab>
 
                         <!-- Tab 4: Document & History -->

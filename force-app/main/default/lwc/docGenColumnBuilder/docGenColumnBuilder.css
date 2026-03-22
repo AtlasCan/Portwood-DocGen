@@ -1,0 +1,30 @@
+:host {
+    display: block;
+    width: 100%;
+}
+
+.badge-base {
+    display: inline-block;
+    font-size: 0.625rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.badge-main { background: #0176D3; color: #fff; }
+.badge-related { background: #2E844A; color: #fff; }
+.badge-linked { background: #FE9339; color: #fff; }
+
+.active-tab {
+    color: #0176D3;
+    border-bottom-color: #0176D3 !important;
+}
+.inactive-tab {
+    color: #706e6b;
+}
+.inactive-tab:hover {
+    color: #181818;
+    background: #f3f2f2;
+}
