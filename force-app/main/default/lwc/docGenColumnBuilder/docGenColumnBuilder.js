@@ -25,6 +25,7 @@ export default class DocGenColumnBuilder extends LightningElement {
     // === CORE STATE: Tree Nodes ===
     @track treeNodes = [];
     @track activeNodeId = null;
+    @track savedReportFilters = ''; // WHERE clause from report import
 
     // === UI STATE ===
     @track objectOptions = [];
@@ -201,6 +202,9 @@ export default class DocGenColumnBuilder extends LightningElement {
             if (node.limitClause) n.limit = node.limitClause;
             if (node.junctionConfig) n.junction = node.junctionConfig;
             config.nodes.push(n);
+        }
+        if (this.savedReportFilters) {
+            config.bulkWhereClause = this.savedReportFilters;
         }
         return JSON.stringify(config);
     }
@@ -738,9 +742,14 @@ export default class DocGenColumnBuilder extends LightningElement {
             });
         }
 
+        // Save report filters for bulk generation
+        if (result.bulkWhereClause) {
+            this.savedReportFilters = result.bulkWhereClause;
+        }
+
         let toastMsg = result.fieldCount + ' fields from "' + result.reportName + '" applied.';
         if (result.bulkWhereClause) {
-            toastMsg += ' Filter: ' + result.bulkWhereClause;
+            toastMsg += ' Filter saved for bulk generation: ' + result.bulkWhereClause;
         }
         this.dispatchEvent(new ShowToastEvent({
             title: 'Report Imported',
