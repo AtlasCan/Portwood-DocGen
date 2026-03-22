@@ -91,9 +91,7 @@
                 <!-- Per-Object Relationship Actions -->
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid #e5e5e5;">
                     <lightning-button label="Add child records" variant="neutral" icon-name="utility:add" size="small" onclick={handleAddNode}></lightning-button>
-                    <template if:true={activeNode.isRoot}>
-                        <lightning-button label="Add parent above" variant="neutral" icon-name="utility:level_up" size="small" onclick={handleAddParentNode}></lightning-button>
-                    </template>
+                    <lightning-button label="Add parent above" variant="neutral" icon-name="utility:level_up" size="small" onclick={handleAddParentNode}></lightning-button>
                 </div>
 
                 <!-- Field Search + Select All -->

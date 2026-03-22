@@ -233,15 +233,22 @@ export default class DocGenColumnBuilder extends LightningElement {
     @track addParentSearch = '';
 
     handleAddParentNode() {
-        const root = this.rootNode;
-        if (!root) return;
+        const node = this.activeNode;
+        if (!node) return;
         this.addParentSearch = '';
+        this._addParentForNodeId = node.id;
 
-        // Get parent relationships for the current root object
-        getParentRelationships({ objectName: root.objectApiName })
+        getParentRelationships({ objectName: node.objectApiName })
             .then(data => {
                 this.parentLookupOptions = data;
                 this.showAddParentModal = true;
+            })
+            .catch(error => {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Error',
+                    message: error.body ? error.body.message : 'Could not load parent relationships.',
+                    variant: 'error'
+                }));
             });
     }
 
@@ -260,44 +267,59 @@ export default class DocGenColumnBuilder extends LightningElement {
 
         this.showAddParentModal = false;
 
-        const oldRoot = this.rootNode;
-        const parentObjectName = opt.targetObject; // e.g., 'Account'
+        // Find the node we're adding a parent to
+        const childNode = this.treeNodes.find(n => n.id === this._addParentForNodeId);
+        if (!childNode) return;
+
+        const parentObjectName = opt.targetObject;
         const parentLabel = parentObjectName;
 
-        // Create new root node
-        const newRoot = this._createNode(parentObjectName, parentLabel, true, null, null, null);
+        // If this node already has a parent, insert between them
+        // If this is the root, the new parent becomes root
+        const isCurrentRoot = childNode.isRoot;
 
-        // Demote old root to child of the new root
-        // The lookup field is on the OLD root: e.g., Opportunity.AccountId
-        // relName is the relationship name: e.g., 'Account'
-        oldRoot.isRoot = false;
-        oldRoot.isNotRoot = true;
-        oldRoot.parentNodeId = newRoot.id;
-        oldRoot.lookupField = relName + 'Id'; // e.g., AccountId
+        // Create new parent node
+        const newParent = this._createNode(parentObjectName, parentLabel,
+            isCurrentRoot, // New parent is root if child was root
+            childNode.parentNodeId, // Takes the child's old parent
+            childNode.lookupField, // Takes the child's old lookup (if any)
+            childNode.relationshipName // Takes the child's old relationship name
+        );
 
-        // Determine the relationship name from the new parent's perspective
-        // (what the parent calls its children of this type)
+        // Update child to point to new parent
+        childNode.parentNodeId = newParent.id;
+        childNode.lookupField = relName + 'Id';
+        if (isCurrentRoot) {
+            childNode.isRoot = false;
+            childNode.isNotRoot = true;
+        }
+
+        // Determine relationship name from new parent's perspective
         getChildRelationships({ objectName: parentObjectName })
             .then(rels => {
-                const match = rels.find(r => r.childObjectApiName === oldRoot.objectApiName);
+                const match = rels.find(r => r.childObjectApiName === childNode.objectApiName);
                 if (match) {
-                    oldRoot.relationshipName = match.value; // e.g., 'Opportunities'
+                    childNode.relationshipName = match.value;
                 } else {
-                    oldRoot.relationshipName = oldRoot.objectApiName + 's'; // fallback
+                    childNode.relationshipName = childNode.objectApiName + 's';
                 }
                 this.treeNodes = [...this.treeNodes];
                 this._notifyChange();
             });
 
-        this.treeNodes = [newRoot, ...this.treeNodes];
-        this.activeNodeId = newRoot.id;
-        this.selectedObject = parentObjectName;
-        this.selectedObjectLabel = parentLabel;
-        this._loadNodeFields(newRoot);
+        this.treeNodes = [newParent, ...this.treeNodes.filter(n => n.id !== newParent.id)];
+        this.activeNodeId = newParent.id;
+
+        if (isCurrentRoot) {
+            this.selectedObject = parentObjectName;
+            this.selectedObjectLabel = parentLabel;
+        }
+
+        this._loadNodeFields(newParent);
 
         this.dispatchEvent(new ShowToastEvent({
             title: 'Parent Added',
-            message: parentLabel + ' is now the root. ' + oldRoot.label + ' is connected below it.',
+            message: parentLabel + ' added above ' + childNode.label + '.',
             variant: 'success'
         }));
     }
