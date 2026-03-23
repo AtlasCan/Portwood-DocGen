@@ -11,13 +11,13 @@ Turn any Word template into a merged PDF or DOCX, straight from your Salesforce 
 
 ## Install (2 minutes)
 
-**Latest (v2.3.0 — Apollo+)**: `04tdL000000RvwfQAC`
+**Latest (v2.3.0 — Apollo+)**: `04tdL000000Rw9ZQAS`
 
 ```bash
-sf package install --package 04tdL000000RvwfQAC --wait 10 --installation-key-bypass
+sf package install --package 04tdL000000Rw9ZQAS --wait 10 --installation-key-bypass
 ```
 
-Or click: [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RvwfQAC) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RvwfQAC)
+Or click: [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000Rw9ZQAS) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000Rw9ZQAS)
 
 **Previous (v2.0.0 — Apollo)**: `04tdL000000RnavQAC`
 
