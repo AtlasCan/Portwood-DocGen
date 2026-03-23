@@ -2,7 +2,7 @@
 
 Turn any Word template into a merged PDF or DOCX, straight from your Salesforce records.
 
-[![Version](https://img.shields.io/badge/version-2.0.0_Apollo-blue.svg)](#install)
+[![Version](https://img.shields.io/badge/version-2.2.0_PDF_Merger-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![Buy Amanda a Coffee](https://img.shields.io/badge/Buy_Amanda_a_Coffee-%E2%98%95-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/davemoudya)
@@ -11,21 +11,21 @@ Turn any Word template into a merged PDF or DOCX, straight from your Salesforce 
 
 ## Install (2 minutes)
 
-**Stable (v2.0.0)**: `04tdL000000RnavQAC`
+**Latest (v2.2.0 — PDF Merger)**: `04tdL000000RrppQAC`
+
+```bash
+sf package install --package 04tdL000000RrppQAC --wait 10 --installation-key-bypass
+```
+
+Or click: [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RrppQAC) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RrppQAC)
+
+**Previous (v2.0.0 — Apollo)**: `04tdL000000RnavQAC`
 
 ```bash
 sf package install --package 04tdL000000RnavQAC --wait 10 --installation-key-bypass
 ```
 
 Or click: [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RnavQAC) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RnavQAC)
-
-**Beta (v2.1.0 — PDF Merger)**: `04tdL000000RrRdQAK`
-
-```bash
-sf package install --package 04tdL000000RrRdQAK --wait 10 --installation-key-bypass
-```
-
-Or click: [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RrRdQAK) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RrRdQAK)
 
 **After install:**
 1. Assign the **DocGen Admin** permission set to yourself (Setup > Permission Sets)
