@@ -2,7 +2,7 @@
 
 Turn any Word template into a merged PDF or DOCX, straight from your Salesforce records.
 
-[![Version](https://img.shields.io/badge/version-2.3.0_Apollo+-blue.svg)](#install)
+[![Version](https://img.shields.io/badge/version-2.4.0_Apollo+-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![Buy Amanda a Coffee](https://img.shields.io/badge/Buy_Amanda_a_Coffee-%E2%98%95-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/davemoudya)
@@ -11,13 +11,13 @@ Turn any Word template into a merged PDF or DOCX, straight from your Salesforce 
 
 ## Install (2 minutes)
 
-**Latest (v2.3.0 — Apollo+)**: `04tdL000000Rw9ZQAS`
+**Latest (v2.3.0 — Apollo+)**: `04tdL000000RwBBQA0`
 
 ```bash
-sf package install --package 04tdL000000Rw9ZQAS --wait 10 --installation-key-bypass
+sf package install --package 04tdL000000RwBBQA0 --wait 10 --installation-key-bypass
 ```
 
-Or click: [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000Rw9ZQAS) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000Rw9ZQAS)
+Or click: [Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RwBBQA0) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000RwBBQA0)
 
 **Previous (v2.0.0 — Apollo)**: `04tdL000000RnavQAC`
 
@@ -58,7 +58,10 @@ That's it. DocGen handles the rest — merging data, injecting images, computing
 | `{#BoolField}...{/BoolField}` | Show/hide based on field value | `{#IsActive}Active member{/IsActive}` |
 | `{RichTextField}` | Full rich text (bold, italic, images) | `{Description}` on a Rich Text Area |
 | `{SUM:List.Field}` | Aggregate — sum, count, avg, min, max | `{SUM:QuoteLineItems.TotalPrice}`, `{COUNT:Contacts}` |
-| `{*FieldName}` | Code 128 barcode from field value | `{*ProductCode}`, `{*OrderNumber}` |
+| `{*FieldName}` | Code 128 barcode (PDF only) | `{*ProductCode}`, `{*OrderNumber}` |
+| `{*FieldName:qr}` | QR code (PDF only, up to 255 chars) | `{*Website:qr}`, `{*TrackingUrl:qr:200}` |
+| `{Field:currency}` | Currency formatting | `{Amount:currency}` → $500,000.00 |
+| `{Field:#,##0.00}` | Number formatting | `{Price:#,##0.00}` → 1,234.56 |
 
 Tags inherit the formatting from your template — whatever font, color, and size the tag has is what the output gets.
 
@@ -98,7 +101,8 @@ Generate your document with DocGen. Send it to a signature provider. Best tool f
 | **XLSX Output** | Excel templates with merge tags in cells. Shared strings inlined automatically. |
 | **PPTX Output** | PowerPoint templates with merge tags in text boxes and shapes. |
 | **Aggregate Tags** | `{SUM:...}`, `{COUNT:...}`, `{AVG:...}`, `{MIN:...}`, `{MAX:...}` — computed from child records |
-| **Barcode Tags** | `{*FieldName}` renders Code 128 barcodes as CSS bars in PDF. No fonts needed. |
+| **Barcodes & QR Codes** | Code 128 (`{*Field}`) and QR codes (`{*Field:qr}`) in PDF. Custom sizing. Up to 255 chars. |
+| **Number Formatting** | `{Field:currency}`, `{Field:percent}`, `{Field:#,##0.00}` — commas, decimals, dollar signs |
 | **PDF Merger** | Merge generated PDFs with existing PDFs on the record — client-side, no heap limits |
 | **Merge-Only Mode** | Combine existing PDFs without generating a template. Dual-listbox reordering. |
 | **Document Packets** | Generate multiple templates into one merged PDF. Optionally append existing PDFs. |

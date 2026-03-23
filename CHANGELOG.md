@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.4.0 — "Apollo+"
+- **QR Codes** — `{*Field:qr}` generates QR codes in PDF output. Supports up to 255 characters (full text field). Custom sizing: `{*Field:qr:200}` for 200px square. Version 1-14 with Level M error correction and Reed-Solomon.
+- **Barcode Sizing** — `{*Field:code128:300x80}` for custom barcode dimensions.
+- **Number & Currency Formatting** — `{Amount:currency}` → $500,000.00. Also `:percent`, `:number`, and custom patterns like `{Price:#,##0.00}`.
+- All 13 barcode/QR tests passing, E2E 13/13.
+
 ## v2.3.0 — "Apollo+"
 - **PDF Merger** — Generate a document and merge it with existing PDFs on the record in one step. Client-side merge engine (`docGenPdfMerger.js`) — pure JS, no external dependencies, zero heap.
 - **Merge-Only Mode** — Combine existing PDFs without generating a template. Dual-listbox for reordering. Select 2+ PDFs, merge, download or save.

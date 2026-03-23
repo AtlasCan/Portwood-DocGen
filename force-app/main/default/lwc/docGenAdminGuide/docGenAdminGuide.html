@@ -412,14 +412,29 @@
                 </div>
 
                 <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
-                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Barcode Tags</h3>
-                    <p class="slds-var-m-bottom_small">Render scannable Code 128 barcodes from any field value:</p>
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Barcode &amp; QR Code Tags</h3>
+                    <p class="slds-var-m-bottom_small">Render scannable barcodes and QR codes from any field value:</p>
                     <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
-                        <code>&#123;*ProductCode&#125;</code> — Barcode from Product Code field<br/>
-                        <code>&#123;*OrderNumber&#125;</code> — Barcode from Order Number field
+                        <code>&#123;*ProductCode&#125;</code> — Code 128 barcode (default)<br/>
+                        <code>&#123;*Website:qr&#125;</code> — QR code at default size (150px)<br/>
+                        <code>&#123;*TrackingUrl:qr:200&#125;</code> — QR code at 200px square<br/>
+                        <code>&#123;*SKU:code128:300x80&#125;</code> — Barcode at 300px wide, 80px tall
                     </div>
-                    <p class="slds-var-m-bottom_small">Barcodes render as CSS bars in <strong>PDF output only</strong>. No barcode fonts or external images needed — <code>Blob.toPdf()</code> renders the bars natively. Barcodes do not appear in DOCX, XLSX, or PPTX output.</p>
-                    <p class="slds-text-body_small slds-text-color_weak">Supports any printable ASCII text. The barcode includes a checksum character for scanner reliability.</p>
+                    <p class="slds-var-m-bottom_small">Barcodes and QR codes render in <strong>PDF output only</strong> as CSS bars/grids — no fonts or external images needed. QR codes support up to <strong>255 characters</strong> (a full Salesforce text field). They do not appear in DOCX, XLSX, or PPTX output.</p>
+                    <p class="slds-text-body_small slds-text-color_weak">Code 128 supports any printable ASCII text with checksum. QR uses byte mode with Level M error correction (Version 1-14).</p>
+                </div>
+
+                <div class="slds-box slds-theme_default slds-var-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-var-m-bottom_small">Number &amp; Currency Formatting</h3>
+                    <p class="slds-var-m-bottom_small">Format numbers with commas, decimal places, dollar signs, and percentage symbols:</p>
+                    <div class="slds-box slds-theme_shade slds-var-m-bottom_small">
+                        <code>&#123;Amount:currency&#125;</code> — $500,000.00<br/>
+                        <code>&#123;Rate:percent&#125;</code> — 15.5%<br/>
+                        <code>&#123;Quantity:number&#125;</code> — 1,234 (no decimals)<br/>
+                        <code>&#123;Price:#,##0.00&#125;</code> — 1,234.56 (custom decimals)<br/>
+                        <code>&#123;Score:#,##0&#125;</code> — 1,234 (no decimals, with commas)
+                    </div>
+                    <p class="slds-text-body_small slds-text-color_weak">Works in all template formats (Word, Excel, PowerPoint). Use <code>:currency</code> for dollar amounts, <code>:percent</code> for percentages, or a custom pattern with <code>#</code> and <code>0</code> for precise control.</p>
                 </div>
 
                 <div class="slds-box slds-theme_default slds-var-m-bottom_medium">

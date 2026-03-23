@@ -1,8 +1,8 @@
 {
   "packageDirectories": [
     {
-      "versionName": "Apollo+ — Aggregates, Barcodes, Excel, PDF Merger",
-      "versionNumber": "2.3.0.NEXT",
+      "versionName": "Apollo+ — QR Codes, Number Formatting, Full Feature Suite",
+      "versionNumber": "2.4.0.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Document Generation",
@@ -56,6 +56,7 @@
     "Document Generation@2.2.0-1": "04tdL000000RrppQAC",
     "Document Generation@2.3.0-1": "04tdL000000Rvi9QAC",
     "Document Generation@2.3.0-2": "04tdL000000RvwfQAC",
-    "Document Generation@2.3.0-3": "04tdL000000Rw9ZQAS"
+    "Document Generation@2.3.0-3": "04tdL000000Rw9ZQAS",
+    "Document Generation@2.4.0-1": "04tdL000000RwBBQA0"
   }
 }
