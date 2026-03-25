@@ -65,8 +65,8 @@ private class DocGenBulkFlowActionTest {
             DocGenBulkFlowAction.Response res = new DocGenBulkFlowAction.Response();
             res.jobId = null;
             res.errorMessage = 'test';
-            System.assertEquals(null, res.jobId);
-            System.assertEquals('test', res.errorMessage);
+            System.assertEquals(null, res.jobId, 'jobId should be null when not set');
+            System.assertEquals('test', res.errorMessage, 'errorMessage should match assigned value');
         }
     }
 }

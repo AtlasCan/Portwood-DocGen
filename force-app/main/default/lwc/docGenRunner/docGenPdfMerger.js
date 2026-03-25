@@ -73,7 +73,7 @@ function extractDict(str, pos) {
  */
 function renumberRefs(text, numMap) {
     return text.replace(/\b(\d+)(\s+0\s+R)\b/g, (match, numStr, rest) => {
-        const num = parseInt(numStr);
+        const num = parseInt(numStr, 10);
         return numMap.has(num) ? numMap.get(num) + rest : match;
     });
 }
@@ -104,7 +104,7 @@ function parsePdf(bytes) {
     let m;
 
     while ((m = objRe.exec(str)) !== null) {
-        const num = parseInt(m[1]);
+        const num = parseInt(m[1], 10);
         const headerEnd = m.index + m[0].length;
         const endIdx = str.indexOf('endobj', headerEnd);
         if (endIdx === -1) continue;
@@ -126,7 +126,7 @@ function parsePdf(bytes) {
             // Use /Length (direct value) when available for precise extraction
             const lenMatch = dictText.match(/\/Length\s+(\d+)(?!\s+\d+\s+R)/);
             if (lenMatch) {
-                const len = parseInt(lenMatch[1]);
+                const len = parseInt(lenMatch[1], 10);
                 streamBytes = bytes.slice(dStart, dStart + len);
             } else {
                 // Fallback: scan to endstream, trim trailing EOL
@@ -153,7 +153,7 @@ function parsePdf(bytes) {
     if (startxrefIdx !== -1) {
         const xrefOffsetMatch = str.substring(startxrefIdx + 9).match(/\s*(\d+)/);
         if (xrefOffsetMatch) {
-            const xrefOffset = parseInt(xrefOffsetMatch[1]);
+            const xrefOffset = parseInt(xrefOffsetMatch[1], 10);
             const atOffset = str.substring(xrefOffset, xrefOffset + 10).trimStart();
 
             if (atOffset.startsWith('xref')) {
@@ -166,7 +166,7 @@ function parsePdf(bytes) {
                         throw new Error('Encrypted PDFs cannot be merged');
                     }
                     const rm = trailerDict.match(/\/Root\s+(\d+)\s+0\s+R/);
-                    if (rm) rootNum = parseInt(rm[1]);
+                    if (rm) rootNum = parseInt(rm[1], 10);
                 }
             } else {
                 // Cross-reference stream (PDF 1.5+) — the object dict IS the trailer
@@ -181,7 +181,7 @@ function parsePdf(bytes) {
                         throw new Error('Encrypted PDFs cannot be merged');
                     }
                     const rm = dictText.match(/\/Root\s+(\d+)\s+0\s+R/);
-                    if (rm) rootNum = parseInt(rm[1]);
+                    if (rm) rootNum = parseInt(rm[1], 10);
                 }
             }
         }
@@ -196,7 +196,7 @@ function parsePdf(bytes) {
                 throw new Error('Encrypted PDFs cannot be merged');
             }
             const rm = trailerDict.match(/\/Root\s+(\d+)\s+0\s+R/);
-            if (rm) rootNum = parseInt(rm[1]);
+            if (rm) rootNum = parseInt(rm[1], 10);
         }
     }
 
@@ -206,7 +206,7 @@ function parsePdf(bytes) {
             if (obj.dictText.includes('/Root')) {
                 const rm = obj.dictText.match(/\/Root\s+(\d+)\s+0\s+R/);
                 if (rm) {
-                    rootNum = parseInt(rm[1]);
+                    rootNum = parseInt(rm[1], 10);
                     break;
                 }
             }
@@ -233,14 +233,14 @@ function parsePdf(bytes) {
             // Intermediate /Pages node — recurse into children
             const refs = [...km[1].matchAll(/(\d+)\s+0\s+R/g)];
             const pages = [];
-            for (const r of refs) pages.push(...walkPages(parseInt(r[1]), visited));
+            for (const r of refs) pages.push(...walkPages(parseInt(r[1], 10), visited));
             return pages;
         }
         // Leaf /Page object
         return [objNum];
     }
 
-    const pageNums = walkPages(parseInt(pm[1]), new Set());
+    const pageNums = walkPages(parseInt(pm[1], 10), new Set());
 
     return { objects, rootNum, pageNums };
 }
@@ -263,7 +263,7 @@ function resolveMediaBox(objects, pageNum) {
         const mb = obj.dictText.match(/\/MediaBox\s*\[([^\]]+)\]/);
         if (mb) return mb[0];
         const pr = obj.dictText.match(/\/Parent\s+(\d+)\s+0\s+R/);
-        num = pr ? parseInt(pr[1]) : null;
+        num = pr ? parseInt(pr[1], 10) : null;
     }
     return '/MediaBox [0 0 612 792]'; // US Letter fallback
 }

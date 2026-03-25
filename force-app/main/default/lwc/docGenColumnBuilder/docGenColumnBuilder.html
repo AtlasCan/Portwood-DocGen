@@ -36,7 +36,10 @@
         <div class="slds-box slds-var-m-bottom_small" style="background: #f8fafc; border-radius: 8px; border: 1px solid #e5e5e5; padding: 0.75rem 1rem;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
                 <span style="font-size: 0.75rem; font-weight: 600; color: #706e6b; text-transform: uppercase; letter-spacing: 0.5px;">Your Document Structure</span>
-                <lightning-button label="Import from Report" variant="neutral" icon-name="utility:upload" size="small" onclick={handleOpenReportImport}></lightning-button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <lightning-button label="Change Object" variant="neutral" icon-name="utility:refresh" size="small" onclick={handleChangeRoot}></lightning-button>
+                    <lightning-button label="Import from Report" variant="neutral" icon-name="utility:upload" size="small" onclick={handleOpenReportImport}></lightning-button>
+                </div>
             </div>
             <div style="font-size: 0.8125rem; font-family: monospace;">
                 <template for:each={relationshipTree} for:item="item">

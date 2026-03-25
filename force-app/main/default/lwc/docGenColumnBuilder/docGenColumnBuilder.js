@@ -304,7 +304,10 @@ export default class DocGenColumnBuilder extends LightningElement {
     }
 
     handleParentPickerFieldChange(event) {
-        this.parentPickerSelectedFields = event.detail.value;
+        // Preserve selections hidden by the current search filter
+        const visibleValues = new Set(this.filteredParentPickerFieldOptions.map(f => f.value));
+        const hiddenSelections = this.parentPickerSelectedFields.filter(f => !visibleValues.has(f));
+        this.parentPickerSelectedFields = [...hiddenSelections, ...event.detail.value];
     }
 
     handleParentPickerAddCommon() {
@@ -397,13 +400,34 @@ export default class DocGenColumnBuilder extends LightningElement {
             });
     }
 
-    handleCopyTag(event) {
+    async handleCopyTag(event) {
         const tag = event.currentTarget.dataset.copy;
-        if (tag && navigator.clipboard) {
-            navigator.clipboard.writeText(tag).then(() => {
-                this.dispatchEvent(new ShowToastEvent({ title: 'Copied', message: tag, variant: 'success' }));
-            });
+        if (!tag) { return; }
+        try {
+            await this._copyToClipboard(tag);
+            this.dispatchEvent(new ShowToastEvent({ title: 'Copied', message: tag, variant: 'success' }));
+        } catch {
+            this.dispatchEvent(new ShowToastEvent({ title: 'Copy Failed', message: 'Unable to copy to clipboard.', variant: 'error' }));
         }
+    }
+
+    _copyToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+            return navigator.clipboard.writeText(text);
+        }
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+        } finally {
+            document.body.removeChild(textArea);
+        }
+        return Promise.resolve();
     }
 
     handleChangeRoot() {
@@ -837,17 +861,10 @@ export default class DocGenColumnBuilder extends LightningElement {
             }
         }
 
-        // Save report filters FIRST (before async loading notifies parent)
-        if (result.bulkWhereClause) {
-            this.savedReportFilters = result.bulkWhereClause;
-        }
-        // Trigger a notifyChange so the config includes bulkWhereClause immediately
+        // Trigger a notifyChange so the config includes fields immediately
         this._notifyChange();
 
         let toastMsg = result.fieldCount + ' fields from "' + result.reportName + '" applied.';
-        if (result.bulkWhereClause) {
-            toastMsg += ' Filter saved for bulk generation: ' + result.bulkWhereClause;
-        }
         this.dispatchEvent(new ShowToastEvent({
             title: 'Report Imported',
             message: toastMsg,

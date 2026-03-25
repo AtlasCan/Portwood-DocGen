@@ -691,7 +691,7 @@ public with sharing class DocGenService {
 
             // Collect all rels XML to parse: main document rels + header/footer rels
             List<String> allRelsXmls = new List<String>();
-            if (relsXml != null) allRelsXmls.add(relsXml);
+            if (relsXml != null) { allRelsXmls.add(relsXml); }
             allRelsXmls.addAll(additionalRelsXmls);
 
             for (String currentRels : allRelsXmls) {
@@ -784,7 +784,7 @@ public with sharing class DocGenService {
             // Strip domain if absolute — Blob.toPdf() only resolves relative paths
             if (url.startsWithIgnoreCase('http')) {
                 Integer pathStart = url.indexOf('/sfc/');
-                if (pathStart == -1) pathStart = url.indexOf('/servlet/');
+                if (pathStart == -1) { pathStart = url.indexOf('/servlet/'); }
                 if (pathStart != -1) {
                     url = url.substring(pathStart);
                 }
@@ -1047,8 +1047,8 @@ public with sharing class DocGenService {
             for (Integer i = 0; i < contents.size(); i++) {
                 Integer segStart = flatOffsets.get(i);
                 Integer segEnd = segStart + contents.get(i).length();
-                if (openBrace >= segStart && openBrace < segEnd) openSeg = i;
-                if (closeBrace >= segStart && closeBrace < segEnd) closeSeg = i;
+                if (openBrace >= segStart && openBrace < segEnd) { openSeg = i; }
+                if (closeBrace >= segStart && closeBrace < segEnd) { closeSeg = i; }
             }
 
             if (openSeg != -1 && closeSeg != -1 && openSeg != closeSeg) {
@@ -1194,7 +1194,7 @@ public with sharing class DocGenService {
                          sectionResult = processXml(innerXml, data);
                     } else if (val instanceof Map<String, Object>) {
                         Map<String, Object> mapVal = (Map<String, Object>) val;
-                         if (mapVal.containsKey('records') && mapVal.get('records') instanceof List<Object>) {
+                        if (mapVal.containsKey('records') && mapVal.get('records') instanceof List<Object>) {
                             List<Object> records = (List<Object>) mapVal.get('records');
                             for (Object item : records) {
                                 if (item instanceof Map<String, Object>) {
@@ -1207,7 +1207,7 @@ public with sharing class DocGenService {
                     } else if (val instanceof List<Object>) {
                          List<Object> listVal = (List<Object>) val;
                          for (Object item : listVal) {
-                              if (item instanceof Map<String, Object>) sectionResult += processXml(innerXml, (Map<String, Object>) item);
+                              if (item instanceof Map<String, Object>) { sectionResult += processXml(innerXml, (Map<String, Object>) item); }
                          }
                     } else if (val != null) {
                          sectionResult = processXml(innerXml, data);
@@ -1787,7 +1787,7 @@ public with sharing class DocGenService {
         Boolean firstPara = true;
         for (String para : paragraphs) {
             String trimmed = para.trim();
-            if (String.isBlank(trimmed)) continue;
+            if (String.isBlank(trimmed)) { continue; }
 
             if (!firstPara) {
                 result += '</w:p><w:p>';  // new paragraph
@@ -1891,9 +1891,9 @@ public with sharing class DocGenService {
         String rPr = '';
         if (bold || italic || underline) {
             rPr = '<w:rPr>';
-            if (bold) rPr += '<w:b/>';
-            if (italic) rPr += '<w:i/>';
-            if (underline) rPr += '<w:u w:val="single"/>';
+            if (bold) { rPr += '<w:b/>'; }
+            if (italic) { rPr += '<w:i/>'; }
+            if (underline) { rPr += '<w:u w:val="single"/>'; }
             rPr += '</w:rPr>';
         }
         return '<w:r>' + rPr + '<w:t xml:space="preserve">' + text.escapeXml() + '</w:t></w:r>';
@@ -1956,12 +1956,12 @@ public with sharing class DocGenService {
             if (src.startsWith('data:image/')) {
                 // Data URI — decode to blob (for DOCX embedding)
                 String base64Part = src.substringAfter(',');
-                if (src.containsIgnoreCase('jpeg') || src.containsIgnoreCase('jpg')) ext = 'jpeg';
+                if (src.containsIgnoreCase('jpeg') || src.containsIgnoreCase('jpg')) { ext = 'jpeg'; }
                 imageBlob = EncodingUtil.base64Decode(base64Part);
             }
             // For Salesforce URLs (servlet, sfc, https), store URL for PDF rendering.
             // Blob.toPdf() resolves Salesforce URLs natively via the VF engine.
-            if (src.containsIgnoreCase('.jpg') || src.containsIgnoreCase('.jpeg')) ext = 'jpeg';
+            if (src.containsIgnoreCase('.jpg') || src.containsIgnoreCase('.jpeg')) { ext = 'jpeg'; }
         } catch (Exception e) {
             // Image source parsing failed (invalid data URI, malformed HTML) — fall through to URL handling
             System.debug(LoggingLevel.ERROR, 'DocGenService: Image source parsing failed: ' + e.getMessage());
@@ -2074,7 +2074,7 @@ public with sharing class DocGenService {
             // 2. Base64 data URI
             else if (fieldValue.startsWith('data:image/')) {
                 String base64Part = fieldValue.substringAfter(',');
-                if (fieldValue.containsIgnoreCase('jpeg') || fieldValue.containsIgnoreCase('jpg')) ext = 'jpeg';
+                if (fieldValue.containsIgnoreCase('jpeg') || fieldValue.containsIgnoreCase('jpg')) { ext = 'jpeg'; }
                 imageBlob = EncodingUtil.base64Decode(base64Part);
             }
             // 3. Raw base64 (no data URI prefix)
@@ -2088,7 +2088,7 @@ public with sharing class DocGenService {
                     // Skip loading the blob entirely to save heap.
                     List<ContentVersion> cvs = [SELECT Id, FileExtension FROM ContentVersion WHERE Id = :fieldValue WITH SYSTEM_MODE LIMIT 1];
                     if (!cvs.isEmpty()) {
-                        if (cvs[0].FileExtension != null) ext = cvs[0].FileExtension.toLowerCase();
+                        if (cvs[0].FileExtension != null) { ext = cvs[0].FileExtension.toLowerCase(); }
                         cvImageUrl = '/sfc/servlet.shepherd/version/download/' + cvs[0].Id;
                     }
                 } else {
@@ -2096,7 +2096,7 @@ public with sharing class DocGenService {
                     List<ContentVersion> cvs = [SELECT Id, VersionData, FileExtension FROM ContentVersion WHERE Id = :fieldValue WITH SYSTEM_MODE LIMIT 1];
                     if (!cvs.isEmpty()) {
                         imageBlob = cvs[0].VersionData;
-                        if (cvs[0].FileExtension != null) ext = cvs[0].FileExtension.toLowerCase();
+                        if (cvs[0].FileExtension != null) { ext = cvs[0].FileExtension.toLowerCase(); }
                         cvImageUrl = '/sfc/servlet.shepherd/version/download/' + cvs[0].Id;
                     }
                 }
@@ -2104,13 +2104,13 @@ public with sharing class DocGenService {
             // 5. Salesforce file URL containing refid (rich text image reference)
             else if (fieldValue.containsIgnoreCase('refid=')) {
                 String refId = fieldValue.substringAfterLast('refid=').substringBefore('&');
-                if (String.isBlank(refId)) refId = fieldValue.substringAfterLast('refid=');
+                if (String.isBlank(refId)) { refId = fieldValue.substringAfterLast('refid='); }
                 imageBlob = fetchSalesforceImage(refId);
             }
             // 6. Salesforce servlet/sfc URL
             else if (fieldValue.containsIgnoreCase('/servlet/') || fieldValue.containsIgnoreCase('/sfc/')) {
                 String docId = fieldValue.substringAfterLast('/');
-                if (docId.contains('?')) docId = docId.substringBefore('?');
+                if (docId.contains('?')) { docId = docId.substringBefore('?'); }
                 imageBlob = fetchSalesforceImage(docId);
             }
             // 7. Generic HTTPS URL — can't fetch without session ID (AppExchange safe).
@@ -2129,12 +2129,12 @@ public with sharing class DocGenService {
                     Integer sIdx = fieldValue.indexOfIgnoreCase('src=');
                     if (sIdx != -1) {
                         sIdx += 4;
-                        while (sIdx < fieldValue.length() && fieldValue.substring(sIdx, sIdx + 1) == ' ') sIdx++;
+                        while (sIdx < fieldValue.length() && fieldValue.substring(sIdx, sIdx + 1) == ' ') { sIdx++; }
                         String qc = fieldValue.substring(sIdx, sIdx + 1);
                         if (qc == '"' || qc == '\'') {
                             sIdx++;
                             Integer sEnd = fieldValue.indexOf(qc, sIdx);
-                            if (sEnd != -1) sourceUrl = fieldValue.substring(sIdx, sEnd).replace('&amp;', '&');
+                            if (sEnd != -1) { sourceUrl = fieldValue.substring(sIdx, sEnd).replace('&amp;', '&'); }
                         }
                     }
                 } else if (fieldValue.startsWithIgnoreCase('http') || fieldValue.startsWith('/')) {

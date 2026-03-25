@@ -1,10 +1,11 @@
-# DocGen — Free Document Generation for Salesforce
+# Portwood DocGen — Free Document Generation for Salesforce
 
 Generate PDFs, Word docs, Excel spreadsheets, and PowerPoint presentations from any Salesforce record. Merge PDFs, add barcodes and QR codes, compute totals — 100% native, zero external dependencies, completely free.
 
-[![Version](https://img.shields.io/badge/version-2.7.0.7_Beacon-blue.svg)](#install)
+[![Version](https://img.shields.io/badge/version-1.0.4_Namespace-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
+[![Namespace](https://img.shields.io/badge/namespace-portwoodglobal-purple.svg)](#install)
 [![Code Analyzer](https://img.shields.io/badge/Critical-0-brightgreen)](#code-quality)
 [![Code Analyzer](https://img.shields.io/badge/High-0-brightgreen)](#code-quality)
 
@@ -12,13 +13,26 @@ Generate PDFs, Word docs, Excel spreadsheets, and PowerPoint presentations from 
 
 ## Install
 
+**New install:**
+
 ```bash
-sf package install --package 04tdL000000S3arQAC --wait 10 --installation-key-bypass
+sf package install --package 04tal000006P9z7AAC --wait 10 --target-org <your-org>
 ```
 
-[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000S3arQAC) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tdL000000S3arQAC)
+[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006P9z7AAC) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006P9z7AAC)
 
 **Then:** Assign **DocGen Admin** permission set | Enable **Blob.toPdf() Release Update** | Open the **DocGen** app
+
+### Upgrading from the old unnamespaced package
+
+If you previously installed the unnamespaced "Document Generation" package:
+
+1. **Uninstall** the old package (Setup > Installed Packages > Document Generation > Uninstall)
+2. **Install** the new namespaced package using the links above
+3. Re-assign the **DocGen Admin** or **DocGen User** permission sets
+4. Re-create your templates (the old templates used different custom object API names without namespace)
+
+> **Why the change?** The package now uses the `portwoodglobal` namespace for better isolation, upgrade safety, and Salesforce Accelerator distribution. This is a one-time migration.
 
 ---
 
@@ -283,6 +297,19 @@ QR encoding verified module-by-module against [qrcode-generator](https://www.npm
 
 ---
 
+## Roadmap
+
+DocGen is now published through a Salesforce Partner org (Portwood Global Solutions). We are actively working toward listing as a **Salesforce Accelerator** (similar to DLRS and other community-driven tools). A community support page is in progress — stay tuned.
+
+## Support
+
+For questions, bugs, or feature requests:
+
+- **Email:** hello@portwoodglobalsolutions.com
+- **GitHub Issues:** [github.com/DaveMoudy/SalesforceDocGen/issues](https://github.com/DaveMoudy/SalesforceDocGen/issues)
+
+---
+
 ## Contributing
 
 Open-source under Apache 2.0. Contributions welcome:
@@ -291,10 +318,12 @@ Open-source under Apache 2.0. Contributions welcome:
 2. Create a feature branch
 3. Submit a PR with a clear description
 
-Report bugs via [GitHub Issues](https://github.com/DaveMoudy/SalesforceDocGen/issues).
-
 ---
 
 ## License
 
 Apache License, Version 2.0. See [LICENSE](LICENSE).
+
+---
+
+Built by [Portwood Global Solutions](https://portwoodglobalsolutions.com)

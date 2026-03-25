@@ -664,9 +664,10 @@ public with sharing class DocGenController {
     public static List<Map<String, String>> getTemplateShares(Id templateId) {
         List<Map<String, String>> shares = new List<Map<String, String>>();
 
-        List<SObject> shareRecords = Database.query(
+        String shareObject = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getName().replace('__c', '__Share');
+        List<SObject> shareRecords = Database.query( // NOPMD ApexSOQLInjection - shareObject derived from Schema.SObjectType describe, not user input
             'SELECT Id, UserOrGroupId, UserOrGroup.Name, AccessLevel, RowCause ' +
-            'FROM DocGen_Template__Share ' +
+            'FROM ' + String.escapeSingleQuotes(shareObject) + ' ' +
             'WHERE ParentId = :templateId AND RowCause != \'Owner\' WITH SYSTEM_MODE'
         );
 
@@ -690,7 +691,8 @@ public with sharing class DocGenController {
      */
     @AuraEnabled
     public static void shareTemplate(Id templateId, Id userOrGroupId, String accessLevel) {
-        SObject share = Schema.getGlobalDescribe().get('DocGen_Template__Share').newSObject();
+        String shareObject = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getName().replace('__c', '__Share');
+        SObject share = Schema.getGlobalDescribe().get(shareObject).newSObject();
         share.put('ParentId', templateId);
         share.put('UserOrGroupId', userOrGroupId);
         share.put('AccessLevel', accessLevel);
@@ -1494,10 +1496,10 @@ public with sharing class DocGenController {
         };
         for (String candidate : candidates) {
             SObjectType juncType = Schema.getGlobalDescribe().get(candidate);
-            if (juncType == null) continue;
+            if (juncType == null) { continue; }
             for (SObjectField sof : juncType.getDescribe().fields.getMap().values()) {
                 Schema.DescribeFieldResult dfr = sof.getDescribe();
-                if (dfr.getType() != Schema.DisplayType.REFERENCE || dfr.getReferenceTo() == null) continue;
+                if (dfr.getType() != Schema.DisplayType.REFERENCE || dfr.getReferenceTo() == null) { continue; }
                 for (Schema.SObjectType ref : dfr.getReferenceTo()) {
                     if (ref.getDescribe().getName() == targetObjectName) {
                         return dfr.getName();
@@ -1513,13 +1515,13 @@ public with sharing class DocGenController {
      * E.g., OpportunityContactRoles → OpportunityContactRole.
      */
     private static String resolveJunctionObjectName(String junctionRelName) {
-        if (String.isBlank(junctionRelName)) return null;
+        if (String.isBlank(junctionRelName)) { return null; }
         for (String candidate : new List<String>{
             junctionRelName.removeEnd('s'),
             junctionRelName.removeEnd('es'),
             junctionRelName
         }) {
-            if (Schema.getGlobalDescribe().containsKey(candidate)) return candidate;
+            if (Schema.getGlobalDescribe().containsKey(candidate)) { return candidate; }
         }
         return junctionRelName.removeEnd('s');
     }
@@ -1529,12 +1531,12 @@ public with sharing class DocGenController {
      * E.g., on OpportunityContactRole, the ContactId field has relationship name 'Contact'.
      */
     private static String resolveJunctionTargetRelName(String junctionObjName, String targetObjectName) {
-        if (String.isBlank(junctionObjName) || String.isBlank(targetObjectName)) return null;
+        if (String.isBlank(junctionObjName) || String.isBlank(targetObjectName)) { return null; }
         SObjectType juncType = Schema.getGlobalDescribe().get(junctionObjName);
-        if (juncType == null) return null;
+        if (juncType == null) { return null; }
         for (SObjectField sof : juncType.getDescribe().fields.getMap().values()) {
             Schema.DescribeFieldResult dfr = sof.getDescribe();
-            if (dfr.getType() != Schema.DisplayType.REFERENCE || dfr.getReferenceTo() == null) continue;
+            if (dfr.getType() != Schema.DisplayType.REFERENCE || dfr.getReferenceTo() == null) { continue; }
             for (Schema.SObjectType ref : dfr.getReferenceTo()) {
                 if (ref.getDescribe().getName() == targetObjectName && dfr.getRelationshipName() != null) {
                     return dfr.getRelationshipName();
@@ -2500,16 +2502,30 @@ public with sharing class DocGenController {
         // IDs are populated on the list after insert — no re-query needed
         // (re-querying breaks insertion order and mismatches CVs to templates)
 
-        // Create active template versions
+        // Create active template versions with snapshot headers
         List<DocGen_Template_Version__c> versions = new List<DocGen_Template_Version__c>();
         for (Integer i = 0; i < templates.size(); i++) {
             versions.add(new DocGen_Template_Version__c(
                 Template__c = templates[i].Id,
                 Content_Version_Id__c = cvs[i].Id,
-                Is_Active__c = true
+                Is_Active__c = true,
+                Query_Config__c = templates[i].Query_Config__c,
+                Category__c = templates[i].Category__c,
+                Description__c = templates[i].Description__c,
+                Type__c = templates[i].Type__c,
+                Base_Object_API__c = templates[i].Base_Object_API__c
             ));
         }
         insert versions; // NOPMD ApexCRUDViolation - package-internal custom object; access controlled by DocGen permission sets
+
+        // Extract and save template images for PDF rendering
+        for (Integer i = 0; i < versions.size(); i++) {
+            try {
+                DocGenService.extractAndSaveTemplateImages(templates[i].Id, versions[i].Id);
+            } catch (Exception imgErr) {
+                System.debug(LoggingLevel.ERROR, 'Sample template image extraction failed for ' + templates[i].Name + ': ' + imgErr.getMessage());
+            }
+        }
 
         return templates.size();
     }

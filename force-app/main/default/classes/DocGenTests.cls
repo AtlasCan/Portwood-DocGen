@@ -51,7 +51,7 @@ private class DocGenTests {
             System.assertNotEquals(null, result.get('data'), 'Data should not be null');
             System.assertNotEquals(null, result.get('templateFile'), 'File should not be null');
             Map<String, Object> data = (Map<String, Object>) result.get('data');
-            System.assertEquals('Test Account', data.get('Name'));
+            System.assertEquals('Test Account', data.get('Name'), 'Account Name should match test data');
         }
     }
 
@@ -60,7 +60,7 @@ private class DocGenTests {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             List<DocGen_Template__c> tpls = DocGenController.getTemplatesForObject('Account');
-            System.assertEquals(1, tpls.size());
+            System.assertEquals(1, tpls.size(), 'Should return 1 template for Account');
         }
     }
     @isTest

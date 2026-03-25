@@ -21,9 +21,9 @@ private class BarcodeGeneratorTest {
     static void testGetPatternNullAndBlank() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            System.assertEquals(null, BarcodeGenerator.getPattern(null, 'code128'));
-            System.assertEquals(null, BarcodeGenerator.getPattern('', 'code128'));
-            System.assertEquals(null, BarcodeGenerator.getPattern('test', 'unsupported'));
+            System.assertEquals(null, BarcodeGenerator.getPattern(null, 'code128'), 'Null input should return null pattern');
+            System.assertEquals(null, BarcodeGenerator.getPattern('', 'code128'), 'Blank input should return null pattern');
+            System.assertEquals(null, BarcodeGenerator.getPattern('test', 'unsupported'), 'Unsupported type should return null pattern');
         }
     }
 
@@ -53,8 +53,8 @@ private class BarcodeGeneratorTest {
     static void testGenerateNullAndBlank() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            System.assertEquals(null, BarcodeGenerator.generate(null, 'code128'));
-            System.assertEquals(null, BarcodeGenerator.generate('', 'code128'));
+            System.assertEquals(null, BarcodeGenerator.generate(null, 'code128'), 'Null input should return null BMP');
+            System.assertEquals(null, BarcodeGenerator.generate('', 'code128'), 'Blank input should return null BMP');
         }
     }
 
@@ -64,9 +64,9 @@ private class BarcodeGeneratorTest {
         System.runAs(u) {
             // Should handle all printable ASCII without error
             String pattern = BarcodeGenerator.getPattern('!@#$%^&*()_+-=[]{}|;:,.<>?', 'code128');
-            System.assertNotEquals(null, pattern);
+            System.assertNotEquals(null, pattern, 'Special characters should produce a valid pattern');
             Blob bmp = BarcodeGenerator.generate('Special: 100% Done!', 'code128');
-            System.assertNotEquals(null, bmp);
+            System.assertNotEquals(null, bmp, 'Special characters should produce a valid BMP');
         }
     }
 
@@ -100,7 +100,7 @@ private class BarcodeGeneratorTest {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
             String qr = BarcodeGenerator.getPattern('https://salesforce.com/test', 'qr');
-            System.assertNotEquals(null, qr);
+            System.assertNotEquals(null, qr, 'QR pattern for URL should not be null');
             List<String> rows = qr.split('\n');
             // URL needs version 2+ (25x25)
             System.assert(rows.size() >= 25, 'URL should need at least version 2');
@@ -123,8 +123,8 @@ private class BarcodeGeneratorTest {
     static void testQrNullAndBlank() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            System.assertEquals(null, BarcodeGenerator.getPattern(null, 'qr'));
-            System.assertEquals(null, BarcodeGenerator.getPattern('', 'qr'));
+            System.assertEquals(null, BarcodeGenerator.getPattern(null, 'qr'), 'Null input should return null QR pattern');
+            System.assertEquals(null, BarcodeGenerator.getPattern('', 'qr'), 'Blank input should return null QR pattern');
         }
     }
 

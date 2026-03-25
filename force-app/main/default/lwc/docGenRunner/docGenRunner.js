@@ -8,6 +8,8 @@ import getChildRecordPdfs from '@salesforce/apex/DocGenController.getChildRecord
 import getRecordPdfs from '@salesforce/apex/DocGenController.getRecordPdfs';
 import { NavigationMixin } from 'lightning/navigation';
 import { downloadBase64 as downloadBase64Util } from 'c/docGenUtils';
+import OUT_FMT_FIELD from '@salesforce/schema/DocGen_Template__c.Output_Format__c';
+import TYPE_FIELD from '@salesforce/schema/DocGen_Template__c.Type__c';
 
 export default class DocGenRunner extends NavigationMixin(LightningElement) {
     @api recordId;
@@ -70,7 +72,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
 
     get templateOutputFormat() {
         const t = this._templateData.find(tmpl => tmpl.Id === this.selectedTemplateId);
-        return t ? t.Output_Format__c : null;
+        return t ? t[OUT_FMT_FIELD.fieldApiName] : null;
     }
 
     get showMergeOption() { return this.templateOutputFormat === 'PDF'; }
@@ -136,7 +138,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
 
     get pdfTemplateOptions() {
         return this._templateData
-            .filter(t => t.Output_Format__c === 'PDF')
+            .filter(t => t[OUT_FMT_FIELD.fieldApiName] === 'PDF')
             .map(t => ({ label: t.Name, value: t.Id }));
     }
 
@@ -250,7 +252,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
         this.error = '';
         try {
             const t = this._templateData.find(tmpl => tmpl.Id === this.selectedTemplateId);
-            const isPDF = t.Output_Format__c === 'PDF';
+            const isPDF = t[OUT_FMT_FIELD.fieldApiName] === 'PDF';
             const saveToRecord = this.outputMode === 'save';
 
             if (isPDF) {
@@ -275,7 +277,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                     templateId: this.selectedTemplateId,
                     recordId: this.recordId
                 });
-                this.downloadBase64(result.base64, (result.title || 'Document') + (t.Type__c === 'PowerPoint' ? '.pptx' : '.docx'), 'application/octet-stream');
+                this.downloadBase64(result.base64, (result.title || 'Document') + (t[TYPE_FIELD.fieldApiName] === 'PowerPoint' ? '.pptx' : '.docx'), 'application/octet-stream');
             }
         } catch (e) {
             this.error = e.body ? e.body.message : e.message;

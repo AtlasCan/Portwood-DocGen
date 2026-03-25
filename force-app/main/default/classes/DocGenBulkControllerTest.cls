@@ -111,7 +111,7 @@ public with sharing class DocGenBulkControllerTest {
         Integer count = DocGenBulkController.validateFilter('Account', '');
         Test.stopTest();
 
-        System.assert(count >= 1);
+        System.assert(count >= 1, 'Should count at least 1 account when no condition is provided');
     }
 
     @IsTest
@@ -129,7 +129,7 @@ public with sharing class DocGenBulkControllerTest {
         // No heap check when merge is false
         Boolean hasHeap = false;
         for (DocGenBulkController.AnalysisItem item : analysis.items) {
-            if (item.label == 'Merge Heap') hasHeap = true;
+            if (item.label == 'Merge Heap') { hasHeap = true; }
         }
         System.assertEquals(false, hasHeap, 'Should not include heap check without merge mode');
     }
@@ -146,7 +146,7 @@ public with sharing class DocGenBulkControllerTest {
         System.assertEquals(true, analysis.canProceed, 'Small merge job should be safe');
         Boolean hasHeap = false;
         for (DocGenBulkController.AnalysisItem item : analysis.items) {
-            if (item.label == 'Merge Heap') hasHeap = true;
+            if (item.label == 'Merge Heap') { hasHeap = true; }
         }
         System.assertEquals(true, hasHeap, 'Should include heap check in merge mode');
     }
@@ -163,7 +163,7 @@ public with sharing class DocGenBulkControllerTest {
         // With V3 config (1 node), 200 batch * 1 query + 4 overhead = 204, which exceeds 100 limit
         Boolean hasSoqlError = false;
         for (DocGenBulkController.AnalysisItem item : analysis.items) {
-            if (item.label == 'SOQL Queries' && item.status == 'error') hasSoqlError = true;
+            if (item.label == 'SOQL Queries' && item.status == 'error') { hasSoqlError = true; }
         }
         System.assertEquals(true, hasSoqlError, 'High batch size should trigger SOQL error');
         System.assertEquals(false, analysis.canProceed, 'Should not be able to proceed with limit exceeded');

@@ -192,8 +192,8 @@ public with sharing class DocGenBulkController {
             Integer errors = 0;
             Integer warnings = 0;
             for (AnalysisItem item : analysis.items) {
-                if (item.status == 'error') errors++;
-                else if (item.status == 'warning') warnings++;
+                if (item.status == 'error') { errors++; }
+                else if (item.status == 'warning') { warnings++; }
             }
             if (errors > 0) {
                 analysis.summary = 'Cannot proceed — ' + errors + ' limit(s) will be exceeded.';
@@ -213,8 +213,8 @@ public with sharing class DocGenBulkController {
      * Counts the number of SOQL queries needed per record based on the query config format.
      */
     private static Integer countQueriesPerRecord(String queryConfig) {
-        if (String.isBlank(queryConfig)) return 1;
-        if (!queryConfig.trim().startsWith('{')) return 1; // V1 flat string
+        if (String.isBlank(queryConfig)) { return 1; }
+        if (!queryConfig.trim().startsWith('{')) { return 1; } // V1 flat string
 
         try {
             Map<String, Object> config = (Map<String, Object>) JSON.deserializeUntyped(queryConfig);
@@ -225,9 +225,9 @@ public with sharing class DocGenBulkController {
                 // V2: 1 base + children + junctions
                 Integer count = 1;
                 List<Object> children = (List<Object>) config.get('children');
-                if (children != null) count += children.size();
+                if (children != null) { count += children.size(); }
                 List<Object> junctions = (List<Object>) config.get('junctions');
-                if (junctions != null) count += junctions.size() * 2; // junction query + target query
+                if (junctions != null) { count += junctions.size() * 2; } // junction query + target query
                 return count;
             } else if (version == 3) {
                 // V3: one query per node

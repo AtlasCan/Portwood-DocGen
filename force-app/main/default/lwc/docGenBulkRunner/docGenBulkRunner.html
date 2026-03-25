@@ -265,19 +265,21 @@
                     <div class="slds-col slds-var-p-top_large">
                         <lightning-input
                             type="checkbox"
-                            label="Merge PDFs"
-                            checked={mergePdf}
-                            onchange={handleMergePdfChange}
-                            disabled={isProcessing}>
+                            label="Combined PDF Only"
+                            checked={mergeOnly}
+                            onchange={handleMergeOnlyChange}
+                            disabled={isProcessing}
+                            field-level-help="Recommended. Produces one merged PDF containing all records. Most efficient — uses minimal heap.">
                         </lightning-input>
                     </div>
                     <div class="slds-col slds-var-p-top_large">
                         <lightning-input
                             type="checkbox"
-                            label="Merge Only"
-                            checked={mergeOnly}
-                            onchange={handleMergeOnlyChange}
-                            disabled={isProcessing}>
+                            label="Combined + Individual PDFs"
+                            checked={keepIndividual}
+                            onchange={handleKeepIndividualChange}
+                            disabled={keepIndividualDisabled}
+                            field-level-help="Produces both a merged PDF and a separate PDF per record. Uses more heap — reduce batch size if needed.">
                         </lightning-input>
                     </div>
 

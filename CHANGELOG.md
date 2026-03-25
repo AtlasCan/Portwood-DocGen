@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.0.4 — "Namespace Release" (Portwood DocGen)
+- **Namespaced Package** — DocGen is now distributed as `portwoodglobal` namespaced unlocked 2GP package via Portwood Global Solutions. Existing unnamespaced installs must uninstall and reinstall.
+- **Namespace-Aware LWC** — All Lightning Web Components now use `@salesforce/schema` imports for field access, ensuring correct field resolution in namespaced subscriber orgs. Fixes "undefined" and "field does not exist" errors.
+- **Visual Query Builder Fixes** — Tag copy now works in all Lightning contexts (clipboard fallback). "Change Object" button added to tree header. Parent field search preserves selections when filtering.
+- **Manual Query Mode** — Toggling to Manual now converts V3 JSON to readable V1 SOQL format. Editable and saveable as V1.
+- **Sample Templates Fixed** — Sample templates now create proper version snapshots with metadata headers and image extraction. No more "undefined" in template lists.
+- **Bulk Runner UX** — "Combined PDF Only" and "Combined + Individual PDFs" replace confusing "Merge PDFs" / "Merge Only" toggles. Combined-only is now the default (saves heap).
+- **Sample Record Promoted** — Record picker moved to persistent bar above all tabs in the edit modal. Accessible from any tab.
+- **Permission Sets Updated** — All custom fields, Apex classes, VF pages, and tabs audited and corrected for both Admin and User permission sets.
+- **Dead Code Removed** — Removed vestigial DocGenVerify VF page (e-signature leftover).
+- **Code Quality** — 161 assertion messages added, 64 missing braces fixed, 11 parseInt radix fixes. Code Analyzer: 0 Critical, 0 High.
+- **E2E Tests** — 20 tests (added doc generation size check). All 495 Apex tests passing, 83% coverage.
+- **Support** — hello@portwoodglobalsolutions.com
+
 ## v2.7.0.7 — "Beacon"
 - **Header/Footer Images in PDF** — Fixed: images in Word headers and footers now render in PDF output. The template image extraction now parses `word/_rels/header*.xml.rels` and `word/_rels/footer*.xml.rels` in addition to the main document rels. All image relationship IDs are combined so `buildPdfImageMap()` can resolve them. Templates with header/footer images must be re-saved to pick up the fix.
 - **Add Related Records UI Refresh** — Fixed: clicking "Add Related Records" now immediately updates the document structure tree and tabs without requiring navigation away and back.

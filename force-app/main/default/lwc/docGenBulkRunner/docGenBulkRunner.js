@@ -13,6 +13,14 @@ import deleteQuery from '@salesforce/apex/DocGenBulkController.deleteQuery';
 import getRecentJobs from '@salesforce/apex/DocGenBulkController.getRecentJobs';
 import analyzeJob from '@salesforce/apex/DocGenBulkController.analyzeJob';
 import generatePdf from '@salesforce/apex/DocGenController.generatePdf';
+import BASE_OBJ_FIELD from '@salesforce/schema/DocGen_Template__c.Base_Object_API__c';
+import OUT_FMT_FIELD from '@salesforce/schema/DocGen_Template__c.Output_Format__c';
+import QCONFIG_FIELD from '@salesforce/schema/DocGen_Template__c.Query_Config__c';
+import JOB_LABEL_FIELD from '@salesforce/schema/DocGen_Job__c.Label__c';
+import JOB_STATUS_FIELD from '@salesforce/schema/DocGen_Job__c.Status__c';
+import JOB_SUCCESS_FIELD from '@salesforce/schema/DocGen_Job__c.Success_Count__c';
+import JOB_ERROR_FIELD from '@salesforce/schema/DocGen_Job__c.Error_Count__c';
+import JOB_TOTAL_FIELD from '@salesforce/schema/DocGen_Job__c.Total_Records__c';
 
 const POLL_INTERVAL_MS = 5000;
 const TERMINAL_STATUSES = ['Completed', 'Failed', 'Completed with Errors'];
@@ -54,9 +62,9 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
             this.templates = result.data.map(t => {
                 this._templateDataMap[t.Id] = t;
                 return {
-                    label: t.Name + ' (' + t.Base_Object_API__c + ' \u2022 ' + (t.Output_Format__c || 'Document') + ')',
+                    label: t.Name + ' (' + t[BASE_OBJ_FIELD.fieldApiName] + ' \u2022 ' + (t[OUT_FMT_FIELD.fieldApiName] || 'Document') + ')',
                     value: t.Id,
-                    baseObject: t.Base_Object_API__c
+                    baseObject: t[BASE_OBJ_FIELD.fieldApiName]
                 };
             });
         } else if (result.error) {
@@ -76,8 +84,9 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
     @track recentJobs = [];
     @track jobLabel = '';
     @track batchSize = 1;
-    @track mergePdf = false;
-    @track mergeOnly = false;
+    @track mergePdf = true;
+    @track mergeOnly = true;
+    @track keepIndividual = false;
     @track jobSearchTerm = '';
 
     // Job analysis state
@@ -211,16 +220,16 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
                 this.recentJobs = data.map(j => ({
                     id: j.Id,
                     name: j.Name,
-                    label: j.Label__c || '',
+                    label: j[JOB_LABEL_FIELD.fieldApiName] || '',
                     templateName: j.Template__r ? j.Template__r.Name : '',
-                    outputFormat: j.Template__r ? j.Template__r.Output_Format__c : '',
-                    status: j.Status__c,
-                    success: j.Success_Count__c || 0,
-                    error: j.Error_Count__c || 0,
-                    total: j.Total_Records__c || 0,
+                    outputFormat: j.Template__r ? j.Template__r[OUT_FMT_FIELD.fieldApiName] : '',
+                    status: j[JOB_STATUS_FIELD.fieldApiName],
+                    success: j[JOB_SUCCESS_FIELD.fieldApiName] || 0,
+                    error: j[JOB_ERROR_FIELD.fieldApiName] || 0,
+                    total: j[JOB_TOTAL_FIELD.fieldApiName] || 0,
                     date: new Date(j.CreatedDate).toLocaleDateString(),
-                    isRunning: !['Completed', 'Failed', 'Completed with Errors'].includes(j.Status__c),
-                    displayName: j.Label__c || (j.Template__r ? j.Template__r.Name : j.Name)
+                    isRunning: !['Completed', 'Failed', 'Completed with Errors'].includes(j[JOB_STATUS_FIELD.fieldApiName]),
+                    displayName: j[JOB_LABEL_FIELD.fieldApiName] || (j.Template__r ? j.Template__r.Name : j.Name)
                 }));
             })
             .catch(() => {});
@@ -249,15 +258,34 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
         if (!this.mergePdf) {
             this.mergeOnly = false;
         }
-        if (this.filterValidated) this.runAnalysis();
+        if (this.filterValidated) { this.runAnalysis(); }
     }
 
     handleMergeOnlyChange(event) {
         this.mergeOnly = event.target.checked;
         if (this.mergeOnly) {
             this.mergePdf = true;
+            this.keepIndividual = false;
+        } else {
+            this.mergePdf = false;
+            this.keepIndividual = false;
         }
-        if (this.filterValidated) this.runAnalysis();
+        if (this.filterValidated) { this.runAnalysis(); }
+    }
+
+    handleKeepIndividualChange(event) {
+        this.keepIndividual = event.target.checked;
+        if (this.keepIndividual) {
+            this.mergePdf = true;
+            this.mergeOnly = false;
+        } else {
+            this.mergeOnly = true;
+        }
+        if (this.filterValidated) { this.runAnalysis(); }
+    }
+
+    get keepIndividualDisabled() {
+        return !this.mergeOnly || this.isProcessing;
     }
 
     handleJobSearchChange(event) {
@@ -316,9 +344,9 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
      */
     applyAutoFilter() {
         const tmplData = this._templateDataMap[this.selectedTemplateId];
-        if (!tmplData || !tmplData.Query_Config__c) return;
+        if (!tmplData || !tmplData[QCONFIG_FIELD.fieldApiName]) return;
 
-        const autoFilter = extractWhereClause(tmplData.Query_Config__c);
+        const autoFilter = extractWhereClause(tmplData[QCONFIG_FIELD.fieldApiName]);
         if (!autoFilter) return;
 
         this.condition = autoFilter;
@@ -476,12 +504,12 @@ export default class DocGenBulkRunner extends NavigationMixin(LightningElement) 
         if (!this.jobId) return;
         try {
             const job = await getJobStatus({ jobId: this.jobId });
-            this.jobStatus = job.Status__c;
-            const total = job.Total_Records__c || 0;
-            const current = (job.Success_Count__c || 0) + (job.Error_Count__c || 0);
+            this.jobStatus = job[JOB_STATUS_FIELD.fieldApiName];
+            const total = job[JOB_TOTAL_FIELD.fieldApiName] || 0;
+            const current = (job[JOB_SUCCESS_FIELD.fieldApiName] || 0) + (job[JOB_ERROR_FIELD.fieldApiName] || 0);
             this.jobProgress = {
-                success: job.Success_Count__c || 0,
-                error: job.Error_Count__c || 0,
+                success: job[JOB_SUCCESS_FIELD.fieldApiName] || 0,
+                error: job[JOB_ERROR_FIELD.fieldApiName] || 0,
                 total: total,
                 percent: total > 0 ? Math.floor((current / total) * 100) : 0
             };

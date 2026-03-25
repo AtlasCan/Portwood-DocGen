@@ -23,15 +23,39 @@ import TYPE_FIELD from '@salesforce/schema/DocGen_Template__c.Type__c';
 import BASE_OBJECT_FIELD from '@salesforce/schema/DocGen_Template__c.Base_Object_API__c';
 import QUERY_CONFIG_FIELD from '@salesforce/schema/DocGen_Template__c.Query_Config__c';
 import DESC_FIELD from '@salesforce/schema/DocGen_Template__c.Description__c';
+import OUTPUT_FORMAT_FIELD from '@salesforce/schema/DocGen_Template__c.Output_Format__c';
+import TEST_RECORD_FIELD from '@salesforce/schema/DocGen_Template__c.Test_Record_Id__c';
+import DOC_TITLE_FIELD from '@salesforce/schema/DocGen_Template__c.Document_Title_Format__c';
+import IS_DEFAULT_FIELD from '@salesforce/schema/DocGen_Template__c.Is_Default__c';
+// Version fields (DocGen_Template_Version__c)
+import VER_IS_ACTIVE_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Is_Active__c';
+import VER_CV_ID_FIELD from '@salesforce/schema/DocGen_Template_Version__c.Content_Version_Id__c';
+
+// Field API name map — resolves namespace automatically
+const F = {
+    Name: 'Name',
+    Category: CATEGORY_FIELD.fieldApiName,
+    Type: TYPE_FIELD.fieldApiName,
+    OutputFormat: OUTPUT_FORMAT_FIELD.fieldApiName,
+    BaseObject: BASE_OBJECT_FIELD.fieldApiName,
+    QueryConfig: QUERY_CONFIG_FIELD.fieldApiName,
+    Desc: DESC_FIELD.fieldApiName,
+    TestRecordId: TEST_RECORD_FIELD.fieldApiName,
+    DocTitleFormat: DOC_TITLE_FIELD.fieldApiName,
+    IsDefault: IS_DEFAULT_FIELD.fieldApiName,
+    // Version fields
+    VerIsActive: VER_IS_ACTIVE_FIELD.fieldApiName,
+    VerCvId: VER_CV_ID_FIELD.fieldApiName
+};
 
 const COLUMNS = [
-    { label: 'Category', fieldName: 'Category__c', initialWidth: 150 },
+    { label: 'Category', fieldName: F.Category, initialWidth: 150 },
     { label: 'Name', fieldName: 'Name' },
-    { label: 'Type', fieldName: 'Type__c', initialWidth: 100 },
-    { label: 'Output Format', fieldName: 'Output_Format__c', initialWidth: 120 },
-    { label: 'Base Object', fieldName: 'Base_Object_API__c' },
+    { label: 'Type', fieldName: F.Type, initialWidth: 100 },
+    { label: 'Output Format', fieldName: F.OutputFormat, initialWidth: 120 },
+    { label: 'Base Object', fieldName: F.BaseObject },
     { label: 'Default', fieldName: 'defaultLabel', initialWidth: 80, cellAttributes: { class: { fieldName: 'defaultClass' } } },
-    { label: 'Description', fieldName: 'Description__c' },
+    { label: 'Description', fieldName: F.Desc },
     { type: 'action', typeAttributes: { rowActions: [
         { label: 'View', name: 'view' },
         { label: 'Edit', name: 'edit' },
@@ -121,8 +145,8 @@ const VERSION_COLUMNS = [
         if (result.data) {
             this.templates = result.data.map(t => ({
                 ...t,
-                defaultLabel: t.Is_Default__c ? '★' : '',
-                defaultClass: t.Is_Default__c ? 'slds-text-color_success slds-text-title_bold' : ''
+                defaultLabel: t[F.IsDefault] ? '★' : '',
+                defaultClass: t[F.IsDefault] ? 'slds-text-color_success slds-text-title_bold' : ''
             }));
             // Auto-install sample templates on first load if org has none
             if (this.templates.length === 0 && !this._samplesChecked && !this.isInstallingSamples) {
@@ -139,11 +163,11 @@ const VERSION_COLUMNS = [
         const lowerKey = this.searchKey.toLowerCase();
         return this.templates.filter(t =>
             (t.Name && t.Name.toLowerCase().includes(lowerKey)) ||
-            (t.Category__c && t.Category__c.toLowerCase().includes(lowerKey)) ||
-            (t.Base_Object_API__c && t.Base_Object_API__c.toLowerCase().includes(lowerKey)) ||
-            (t.Type__c && t.Type__c.toLowerCase().includes(lowerKey)) ||
-            (t.Output_Format__c && t.Output_Format__c.toLowerCase().includes(lowerKey)) ||
-            (t.Description__c && t.Description__c.toLowerCase().includes(lowerKey)) ||
+            (t[F.Category] && t[F.Category].toLowerCase().includes(lowerKey)) ||
+            (t[F.BaseObject] && t[F.BaseObject].toLowerCase().includes(lowerKey)) ||
+            (t[F.Type] && t[F.Type].toLowerCase().includes(lowerKey)) ||
+            (t[F.OutputFormat] && t[F.OutputFormat].toLowerCase().includes(lowerKey)) ||
+            (t[F.Desc] && t[F.Desc].toLowerCase().includes(lowerKey)) ||
             (t.Id && t.Id.toLowerCase().includes(lowerKey))
         );
     }
@@ -226,6 +250,83 @@ const VERSION_COLUMNS = [
         this.newTemplateQuery = event.detail.queryConfig;
     }
 
+    get readableQueryConfig() {
+        return this._formatQueryConfig(this.newTemplateQuery);
+    }
+
+    get readableEditQueryConfig() {
+        return this._formatQueryConfig(this.editTemplateQuery);
+    }
+
+    get isV3Query() {
+        const q = this.newTemplateQuery;
+        return q && q.trim().startsWith('{') && q.includes('"v":3');
+    }
+
+    get isEditV3Query() {
+        const q = this.editTemplateQuery;
+        return q && q.trim().startsWith('{') && q.includes('"v":3');
+    }
+
+    _formatQueryConfig(configStr) {
+        if (!configStr) { return ''; }
+        try {
+            const cfg = JSON.parse(configStr);
+            if (cfg.v !== 3 || !cfg.nodes) { return configStr; }
+
+            // Build V1-style SOQL field list from V3 tree
+            const root = cfg.nodes.find(n => !n.parentNode);
+            if (!root) { return configStr; }
+
+            const parts = [];
+
+            // Root fields
+            if (root.fields && root.fields.length) {
+                parts.push(...root.fields);
+            }
+            // Root parent fields (e.g., Owner.Name)
+            if (root.parentFields && root.parentFields.length) {
+                parts.push(...root.parentFields);
+            }
+
+            // Child subqueries
+            const buildSubquery = (parentId) => {
+                const children = cfg.nodes.filter(n => n.parentNode === parentId);
+                for (const child of children) {
+                    const subFields = [];
+                    if (child.fields && child.fields.length) {
+                        subFields.push(...child.fields);
+                    }
+                    if (child.parentFields && child.parentFields.length) {
+                        subFields.push(...child.parentFields);
+                    }
+                    let subquery = '(SELECT ' + subFields.join(', ') + ' FROM ' + child.relationshipName;
+                    if (child.where) { subquery += ' WHERE ' + child.where; }
+                    if (child.orderBy) { subquery += ' ORDER BY ' + child.orderBy; }
+                    if (child.limit) { subquery += ' LIMIT ' + child.limit; }
+                    subquery += ')';
+                    parts.push(subquery);
+
+                    // Recurse for grandchildren (nested in comment for clarity)
+                    const grandchildren = cfg.nodes.filter(n => n.parentNode === child.id);
+                    if (grandchildren.length > 0) {
+                        for (const gc of grandchildren) {
+                            const gcFields = [...(gc.fields || []), ...(gc.parentFields || [])];
+                            let gcQuery = '  \u2192 ' + gc.relationshipName + ': ' + gcFields.join(', ');
+                            if (gc.where) { gcQuery += ' WHERE ' + gc.where; }
+                            parts.push(gcQuery);
+                        }
+                    }
+                }
+            };
+            buildSubquery(root.id);
+
+            return parts.join(', ');
+        } catch {
+            return configStr;
+        }
+    }
+
     handleNewManualQueryToggle(event) {
         this.isNewManualQuery = event.target.checked;
     }
@@ -253,6 +354,13 @@ const VERSION_COLUMNS = [
 
     handleManualQueryToggle(event) {
         this.isManualQuery = event.target.checked;
+        // Convert V3 JSON to V1 flat string when switching to manual mode
+        if (this.isManualQuery && this.isEditV3Query) {
+            const v1 = this._formatQueryConfig(this.editTemplateQuery);
+            if (v1 && v1 !== this.editTemplateQuery) {
+                this.editTemplateQuery = v1;
+            }
+        }
     }
 
     handleQueryStringChange(event) {
@@ -338,13 +446,34 @@ const VERSION_COLUMNS = [
         }
     }
 
-    handleCopyEditTag(event) {
+    async handleCopyEditTag(event) {
         const tag = event.currentTarget.dataset.tag;
-        if (tag && navigator.clipboard) {
-            navigator.clipboard.writeText(tag).then(() => {
-                this.dispatchEvent(new ShowToastEvent({ title: 'Copied', message: tag, variant: 'success' }));
-            });
+        if (!tag) { return; }
+        try {
+            await this._copyToClipboard(tag);
+            this.dispatchEvent(new ShowToastEvent({ title: 'Copied', message: tag, variant: 'success' }));
+        } catch {
+            this.dispatchEvent(new ShowToastEvent({ title: 'Copy Failed', message: 'Unable to copy to clipboard.', variant: 'error' }));
         }
+    }
+
+    _copyToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+            return navigator.clipboard.writeText(text);
+        }
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+        } finally {
+            document.body.removeChild(textArea);
+        }
+        return Promise.resolve();
     }
 
     handleTitleFormatChange(event) {
@@ -390,7 +519,7 @@ const VERSION_COLUMNS = [
         fields[NAME_FIELD.fieldApiName] = this.newTemplateName;
         fields[CATEGORY_FIELD.fieldApiName] = this.newTemplateCategory;
         fields[TYPE_FIELD.fieldApiName] = this.newTemplateType;
-        fields['Output_Format__c'] = this.newTemplateOutputFormat;
+        fields[OUTPUT_FORMAT_FIELD.fieldApiName] = this.newTemplateOutputFormat;
         fields[BASE_OBJECT_FIELD.fieldApiName] = this.newTemplateObject;
         fields[QUERY_CONFIG_FIELD.fieldApiName] = this.newTemplateQuery;
         fields[DESC_FIELD.fieldApiName] = this.newTemplateDesc;
@@ -404,14 +533,14 @@ const VERSION_COLUMNS = [
             const newRow = {
                 Id: record.id,
                 Name: this.newTemplateName,
-                Category__c: this.newTemplateCategory,
-                Type__c: this.newTemplateType,
-                Output_Format__c: this.newTemplateOutputFormat,
-                Base_Object_API__c: this.newTemplateObject,
-                Description__c: this.newTemplateDesc,
-                Query_Config__c: this.newTemplateQuery,
-                Test_Record_Id__c: null,
-                Document_Title_Format__c: null,
+                [F.Category]: this.newTemplateCategory,
+                [F.Type]: this.newTemplateType,
+                [F.OutputFormat]: this.newTemplateOutputFormat,
+                [F.BaseObject]: this.newTemplateObject,
+                [F.Desc]: this.newTemplateDesc,
+                [F.QueryConfig]: this.newTemplateQuery,
+                [F.TestRecordId]: null,
+                [F.DocTitleFormat]: null,
                 ContentDocumentLinks: []
             };
 
@@ -463,15 +592,15 @@ const VERSION_COLUMNS = [
         try {
             this.editTemplateId = row.Id;
             this.editTemplateName = row.Name;
-            this.editTemplateCategory = row.Category__c;
-            this.editTemplateType = row.Type__c;
-            this.editTemplateObject = row.Base_Object_API__c;
-            this.editTemplateOutputFormat = row.Output_Format__c || 'Native';
-            this.editTemplateDesc = row.Description__c;
-            this.editTemplateQuery = row.Query_Config__c;
-            this.editTemplateTestRecordId = row.Test_Record_Id__c;
-            this.editTemplateTitleFormat = row.Document_Title_Format__c;
-            this.editTemplateIsDefault = row.Is_Default__c || false;
+            this.editTemplateCategory = row[F.Category];
+            this.editTemplateType = row[F.Type];
+            this.editTemplateObject = row[F.BaseObject];
+            this.editTemplateOutputFormat = row[F.OutputFormat] || 'Native';
+            this.editTemplateDesc = row[F.Desc];
+            this.editTemplateQuery = row[F.QueryConfig];
+            this.editTemplateTestRecordId = row[F.TestRecordId];
+            this.editTemplateTitleFormat = row[F.DocTitleFormat];
+            this.editTemplateIsDefault = row[F.IsDefault] || false;
 
             let cdLinks = [];
             if (row.ContentDocumentLinks) {
@@ -527,7 +656,7 @@ const VERSION_COLUMNS = [
                 }
                 const total = data.length;
                 this.versions = data.map((v, index) => {
-                    const isActive = v.Is_Active__c;
+                    const isActive = v[F.VerIsActive];
                     return {
                         ...v,
                         VersionNumber: 'v' + (total - index),
@@ -553,10 +682,10 @@ const VERSION_COLUMNS = [
 
                 this.showToast('Success', 'Version activated.', 'success');
 
-                this.editTemplateQuery = row.Query_Config__c;
-                this.editTemplateCategory = row.Category__c;
-                this.editTemplateDesc = row.Description__c;
-                this.editTemplateType = row.Type__c;
+                this.editTemplateQuery = row[F.QueryConfig];
+                this.editTemplateCategory = row[F.Category];
+                this.editTemplateDesc = row[F.Desc];
+                this.editTemplateType = row[F.Type];
 
                 this.loadVersions(this.editTemplateId);
                 refreshApex(this.wiredTemplatesResult);
@@ -596,8 +725,12 @@ const VERSION_COLUMNS = [
 
     @track isGeneratingPreview = false;
 
+    get isPreviewVersionActive() {
+        return this.previewVersion?.[F.VerIsActive] || false;
+    }
+
     get previewVersionQueryFormatted() {
-        const raw = this.previewVersion?.Query_Config__c;
+        const raw = this.previewVersion?.[F.QueryConfig];
         if (!raw) return '';
         // Format: split on commas that are NOT inside parentheses (subqueries)
         let depth = 0;
@@ -620,11 +753,11 @@ const VERSION_COLUMNS = [
     }
 
     get previewGenerateDisabled() {
-        return !this.previewVersion?.Content_Version_Id__c || !this.editTemplateTestRecordId || this.isGeneratingPreview;
+        return !this.previewVersion?.[F.VerCvId] || !this.editTemplateTestRecordId || this.isGeneratingPreview;
     }
 
     handlePreviewDownload() {
-        const cvId = this.previewVersion?.Content_Version_Id__c;
+        const cvId = this.previewVersion?.[F.VerCvId];
         if (cvId) {
             this[NavigationMixin.Navigate]({
                 type: 'standard__webPage',
@@ -636,7 +769,7 @@ const VERSION_COLUMNS = [
     }
 
     async handlePreviewGenerate() {
-        if (!this.previewVersion?.Content_Version_Id__c || !this.editTemplateTestRecordId) {
+        if (!this.previewVersion?.[F.VerCvId] || !this.editTemplateTestRecordId) {
             this.showToast('Warning', 'Template file and test record are required.', 'warning');
             return;
         }
@@ -645,18 +778,18 @@ const VERSION_COLUMNS = [
 
         try {
             // Activate this version first so generation uses its file and config
-            if (!this.previewVersion.Is_Active__c) {
+            if (!this.previewVersion[F.VerIsActive]) {
                 await activateVersion({ versionId: this.previewVersion.Id });
                 // Sync version config to local edit state
-                this.editTemplateQuery = this.previewVersion.Query_Config__c;
-                this.editTemplateCategory = this.previewVersion.Category__c;
-                this.editTemplateDesc = this.previewVersion.Description__c;
-                this.editTemplateType = this.previewVersion.Type__c;
+                this.editTemplateQuery = this.previewVersion[F.QueryConfig];
+                this.editTemplateCategory = this.previewVersion[F.Category];
+                this.editTemplateDesc = this.previewVersion[F.Desc];
+                this.editTemplateType = this.previewVersion[F.Type];
                 this.loadVersions(this.editTemplateId);
                 refreshApex(this.wiredTemplatesResult);
             }
 
-            const isPPT = ['PowerPoint', 'PPT', 'PPTX'].includes(this.previewVersion.Type__c);
+            const isPPT = ['PowerPoint', 'PPT', 'PPTX'].includes(this.previewVersion[F.Type]);
 
             if (isPPT || this.editTemplateOutputFormat === 'Native') {
                 const result = await processAndReturnDocument({
@@ -704,15 +837,15 @@ const VERSION_COLUMNS = [
         const fields = {
             Id: this.editTemplateId,
             Name: this.editTemplateName,
-            Category__c: this.editTemplateCategory,
-            Type__c: this.editTemplateType,
-            Output_Format__c: this.editTemplateOutputFormat,
-            Base_Object_API__c: this.editTemplateObject,
-            Description__c: this.editTemplateDesc,
-            Query_Config__c: this.editTemplateQuery,
-            Test_Record_Id__c: this.editTemplateTestRecordId,
-            Document_Title_Format__c: this.editTemplateTitleFormat,
-            Is_Default__c: this.editTemplateIsDefault
+            'Category__c': this.editTemplateCategory,
+            'Type__c': this.editTemplateType,
+            'Output_Format__c': this.editTemplateOutputFormat,
+            'Base_Object_API__c': this.editTemplateObject,
+            'Description__c': this.editTemplateDesc,
+            'Query_Config__c': this.editTemplateQuery,
+            'Test_Record_Id__c': this.editTemplateTestRecordId,
+            'Document_Title_Format__c': this.editTemplateTitleFormat,
+            'Is_Default__c': this.editTemplateIsDefault
         };
 
         try {
@@ -733,15 +866,15 @@ const VERSION_COLUMNS = [
         const fields = {
             Id: this.editTemplateId,
             Name: this.editTemplateName,
-            Category__c: this.editTemplateCategory,
-            Type__c: this.editTemplateType,
-            Output_Format__c: this.editTemplateOutputFormat,
-            Base_Object_API__c: this.editTemplateObject,
-            Description__c: this.editTemplateDesc,
-            Query_Config__c: this.editTemplateQuery,
-            Test_Record_Id__c: this.editTemplateTestRecordId,
-            Document_Title_Format__c: this.editTemplateTitleFormat,
-            Is_Default__c: this.editTemplateIsDefault
+            'Category__c': this.editTemplateCategory,
+            'Type__c': this.editTemplateType,
+            'Output_Format__c': this.editTemplateOutputFormat,
+            'Base_Object_API__c': this.editTemplateObject,
+            'Description__c': this.editTemplateDesc,
+            'Query_Config__c': this.editTemplateQuery,
+            'Test_Record_Id__c': this.editTemplateTestRecordId,
+            'Document_Title_Format__c': this.editTemplateTitleFormat,
+            'Is_Default__c': this.editTemplateIsDefault
         };
 
         try {

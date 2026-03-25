@@ -51,23 +51,30 @@
                                 <!-- Manual Mode -->
                                 <template if:true={isNewManualQuery}>
                                     <div class="slds-box slds-theme_shade" style="border-radius: 8px;">
-                                        <lightning-input
-                                            label="Base Object API Name"
-                                            value={newTemplateObject}
-                                            onchange={handleNewManualObjectChange}
-                                            required
-                                            class="slds-var-m-bottom_small">
-                                        </lightning-input>
-                                        <lightning-textarea
-                                            label="SOQL Query Fields"
-                                            value={newTemplateQuery}
-                                            onchange={handleNewQueryStringChange}
-                                            class="slds-text-font_monospace"
-                                            style="min-height: 200px;">
-                                        </lightning-textarea>
-                                        <p class="slds-text-body_small slds-var-m-top_x-small">
-                                            Enter comma-separated fields or subqueries. Example: <code>Name, Industry, (SELECT LastName FROM Contacts)</code>
-                                        </p>
+                                        <template if:true={isV3Query}>
+                                            <p style="font-size: 0.75rem; font-weight: 600; color: #706e6b; margin-bottom: 0.5rem;">Query Configuration</p>
+                                            <pre style="font-size: 0.8125rem; background: #fff; padding: 0.75rem; border-radius: 6px; border: 1px solid #e5e5e5; white-space: pre-wrap; margin: 0;">{readableQueryConfig}</pre>
+                                            <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_x-small">Switch back to Builder mode to edit this configuration.</p>
+                                        </template>
+                                        <template if:false={isV3Query}>
+                                            <lightning-input
+                                                label="Base Object API Name"
+                                                value={newTemplateObject}
+                                                onchange={handleNewManualObjectChange}
+                                                required
+                                                class="slds-var-m-bottom_small">
+                                            </lightning-input>
+                                            <lightning-textarea
+                                                label="SOQL Query Fields"
+                                                value={newTemplateQuery}
+                                                onchange={handleNewQueryStringChange}
+                                                class="slds-text-font_monospace"
+                                                style="min-height: 200px;">
+                                            </lightning-textarea>
+                                            <p class="slds-text-body_small slds-var-m-top_x-small">
+                                                Enter comma-separated fields or subqueries. Example: <code>Name, Industry, (SELECT LastName FROM Contacts)</code>
+                                            </p>
+                                        </template>
                                     </div>
                                 </template>
                             </template>
@@ -78,7 +85,8 @@
                                     <h3 class="slds-text-heading_medium slds-var-m-bottom_medium">Review Template</h3>
                                     <p class="slds-var-m-bottom_small"><strong>Name:</strong> {newTemplateName}</p>
                                     <p class="slds-var-m-bottom_small"><strong>Object:</strong> {newTemplateObject}</p>
-                                    <p class="slds-var-m-bottom_small"><strong>Query:</strong> {newTemplateQuery}</p>
+                                    <p class="slds-var-m-bottom_small"><strong>Query:</strong></p>
+                                    <pre style="font-size: 0.8125rem; background: #f3f2f2; padding: 0.75rem; border-radius: 6px; white-space: pre-wrap; margin: 0 0 0.5rem 0;">{readableQueryConfig}</pre>
                                     <p class="slds-var-m-top_large">Click "Create Template" to save.</p>
                                 </div>
                             </template>
@@ -167,6 +175,24 @@
                     <h2 class="slds-text-heading_medium slds-hyphenate">Edit Template Configuration</h2>
                 </header>
                 <div class="slds-modal__content slds-var-p-around_medium">
+                    <!-- Sample Record (persistent across all tabs) -->
+                    <div style="display: flex; align-items: center; gap: 1rem; padding: 0.5rem 0.75rem; background: #f8fafc; border: 1px solid #e5e5e5; border-radius: 6px; margin-bottom: 0.75rem;">
+                        <lightning-icon icon-name="utility:record" size="x-small" alternative-text="Sample Record"></lightning-icon>
+                        <div style="flex: 1; min-width: 0;">
+                            <lightning-record-picker
+                                label="Sample Record"
+                                variant="label-hidden"
+                                object-api-name={editTemplateObject}
+                                value={editTemplateTestRecordId}
+                                onchange={handleEditTestRecordChange}
+                                placeholder="Set a sample record for previews...">
+                            </lightning-record-picker>
+                        </div>
+                        <template if:true={editTemplateTestRecordId}>
+                            <span class="slds-text-body_small slds-text-color_weak" style="white-space: nowrap;">ID: {editTemplateTestRecordId}</span>
+                        </template>
+                    </div>
+
                     <lightning-tabset variant="scoped" active-tab-value={activeEditTab}>
                         <!-- Tab 1: Settings -->
                         <lightning-tab label="Settings" value="details">
@@ -193,21 +219,6 @@
                                 <lightning-textarea label="Description" value={editTemplateDesc} onchange={handleEditDescChange} class="slds-var-m-top_medium"></lightning-textarea>
                             </div>
 
-                            <!-- Test/Sample Record -->
-                            <div class="slds-box slds-theme_shade slds-var-m-top_large slds-var-m-horizontal_small" style="border-radius: 8px;">
-                                <h4 class="slds-text-title_bold slds-var-m-bottom_x-small">Sample Record for Previews</h4>
-                                <p class="slds-text-body_small slds-text-color_weak slds-var-m-bottom_medium">Set a record to use for sample generation and bulk preview. This lets you see what your document will look like before running a bulk job.</p>
-                                <lightning-record-picker
-                                    label="Sample Record"
-                                    object-api-name={editTemplateObject}
-                                    value={editTemplateTestRecordId}
-                                    onchange={handleEditTestRecordChange}
-                                    placeholder="Search for a record...">
-                                </lightning-record-picker>
-                                <template if:true={editTemplateTestRecordId}>
-                                    <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_small">ID: {editTemplateTestRecordId}</p>
-                                </template>
-                            </div>
                         </lightning-tab>
 
                         <!-- Tab 2: Query Configuration -->
@@ -242,9 +253,9 @@
                                  <!-- Manual Mode -->
                                  <template if:true={isManualQuery}>
                                      <div class="slds-box slds-theme_shade" style="border-radius: 8px;">
-                                         <lightning-textarea 
-                                            label="SOQL Query Fields" 
-                                            value={editTemplateQuery} 
+                                         <lightning-textarea
+                                            label="SOQL Query Fields"
+                                            value={editTemplateQuery}
                                             onchange={handleQueryStringChange}
                                             class="slds-text-font_monospace"
                                             style="min-height: 200px;">
@@ -362,18 +373,33 @@
                                         </div>
                                     </template>
                                 </div>
+
+                                <!-- Generate Sample -->
+                                <div class="slds-box slds-theme_shade slds-var-m-top_medium" style="border-radius: 8px;">
+                                    <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+                                        <div>
+                                            <h3 class="slds-text-heading_small">Generate Sample</h3>
+                                            <p class="slds-text-body_small slds-text-color_weak">Generate a sample document using the record selected above.</p>
+                                        </div>
+                                        <lightning-button label="Generate" icon-name="utility:page" variant="brand" onclick={handleTestGenerate} disabled={editTemplateTestRecordIdEmpty}></lightning-button>
+                                    </div>
+                                    <template if:true={isGeneratingPreview}>
+                                        <div class="slds-var-m-top_medium slds-is-relative" style="height: 40px;">
+                                            <lightning-spinner alternative-text="Generating..." size="small"></lightning-spinner>
+                                        </div>
+                                    </template>
+                                </div>
                              </div>
                         </lightning-tab>
                     </lightning-tabset>
                 </div>
                 <footer class="slds-modal__footer slds-theme_default">
-                    <div class="slds-grid slds-grid_align-spread">
-                        <div class="slds-col">
-                            <lightning-button label="Generate Sample" icon-name="utility:page" onclick={handleTestGenerate} disabled={editTemplateTestRecordIdEmpty}></lightning-button>
-                        </div>
+                    <div class="slds-grid slds-grid_align-end">
                         <div class="slds-col">
                            <lightning-button variant="neutral" label="Cancel" onclick={closeEditModal}></lightning-button>
-                           <lightning-button variant="brand" label="Save Details" onclick={handleSaveOnly} class="slds-var-m-left_small"></lightning-button>
+                           <template if:true={hasVersions}>
+                               <lightning-button variant="brand" label="Save Details" onclick={handleSaveOnly} class="slds-var-m-left_small"></lightning-button>
+                           </template>
                            <lightning-button variant="brand-outline" label="Save as New Version" onclick={handleSaveAndClose} class="slds-var-m-left_small"></lightning-button>
                         </div>
                     </div>
@@ -404,10 +430,10 @@
                         <div class="slds-col slds-size_1-of-3">
                             <p class="slds-text-body_small slds-text-color_weak">Status</p>
                             <p>
-                                <template if:true={previewVersion.Is_Active__c}>
+                                <template if:true={isPreviewVersionActive}>
                                     <lightning-badge label="Active" class="slds-theme_success"></lightning-badge>
                                 </template>
-                                <template if:false={previewVersion.Is_Active__c}>
+                                <template if:false={isPreviewVersionActive}>
                                     <lightning-badge label="Inactive"></lightning-badge>
                                 </template>
                             </p>
@@ -441,7 +467,7 @@
                 </div>
                 <footer class="slds-modal__footer slds-theme_default">
                     <lightning-button label="Close" onclick={closePreviewModal} class="slds-var-m-right_small"></lightning-button>
-                    <lightning-button label="Activate This Version" variant="brand" onclick={handleRestoreFromPreview} disabled={previewVersion.Is_Active__c}></lightning-button>
+                    <lightning-button label="Activate This Version" variant="brand" onclick={handleRestoreFromPreview} disabled={isPreviewVersionActive}></lightning-button>
                 </footer>
             </div>
         </section>

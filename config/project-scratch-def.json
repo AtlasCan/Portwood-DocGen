@@ -1,5 +1,6 @@
 {
-  "orgName": "davemoudy company",
+  "orgName": "Portwood Global DocGen",
+  "namespace": "portwoodglobal",
   "edition": "Developer",
   "features": ["EnableSetPasswordInApi"],
   "settings": {

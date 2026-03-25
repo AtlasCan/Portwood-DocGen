@@ -127,7 +127,7 @@ public with sharing class DocGenHtmlRenderer {
         Integer cursor = 0;
         while ((cursor = xml.indexOf('<w:hdr', cursor)) != -1) {
             Integer tagEnd = xml.indexOf('>', cursor);
-            if (tagEnd == -1) break;
+            if (tagEnd == -1) { break; }
             Integer hdrEnd = findClosingTag(xml, cursor, 'w:hdr');
             if (hdrEnd != -1) {
                 combinedContent += xml.substring(tagEnd + 1, hdrEnd);
@@ -160,7 +160,7 @@ public with sharing class DocGenHtmlRenderer {
         cursor = 0;
         while ((cursor = xml.indexOf('<w:ftr', cursor)) != -1) {
             Integer tagEnd = xml.indexOf('>', cursor);
-            if (tagEnd == -1) break;
+            if (tagEnd == -1) { break; }
             Integer ftrEnd = findClosingTag(xml, cursor, 'w:ftr');
             if (ftrEnd != -1) {
                 combinedContent += xml.substring(tagEnd + 1, ftrEnd);
@@ -680,7 +680,7 @@ public with sharing class DocGenHtmlRenderer {
             Integer tSearch = cursor;
             while (tSearch < rXml.length()) {
                 Integer candidate = rXml.indexOf('<w:t', tSearch);
-                if (candidate == -1) break;
+                if (candidate == -1) { break; }
                 Integer afterTag = candidate + 4;
                 if (afterTag < rXml.length()) {
                     String ch = rXml.substring(afterTag, afterTag + 1);
@@ -698,7 +698,7 @@ public with sharing class DocGenHtmlRenderer {
             if (nextTab != -1 && (nextPos == -1 || nextTab < nextPos)) { nextPos = nextTab; type = 'tab'; }
             if (nextDrawing != -1 && (nextPos == -1 || nextDrawing < nextPos)) { nextPos = nextDrawing; type = 'drawing'; }
             
-            if (nextPos == -1) break;
+            if (nextPos == -1) { break; }
             
             if (type == 't') {
                 Integer tagEnd = rXml.indexOf('>', nextPos);
@@ -711,7 +711,7 @@ public with sharing class DocGenHtmlRenderer {
                         } else {
                             // Check for caps in rPr
                             if (String.isNotBlank(rPr)) {
-                                if (rPr.contains('<w:caps/>') || rPr.contains('<w:caps ')) text = text.toUpperCase();
+                                if (rPr.contains('<w:caps/>') || rPr.contains('<w:caps ')) { text = text.toUpperCase(); }
                                 if (rPr.contains('<w:smallCaps/>') || rPr.contains('<w:smallCaps ')) {
                                     text = text.toUpperCase();
                                     if (!style.contains('font-variant:small-caps')) {
@@ -747,7 +747,7 @@ public with sharing class DocGenHtmlRenderer {
             }
         }
 
-        if (String.isBlank(runContent)) return '';
+        if (String.isBlank(runContent)) { return ''; }
 
         if (String.isNotBlank(style)) {
             return '<span style="' + style + '">' + openTags + runContent + closeTags + '</span>';

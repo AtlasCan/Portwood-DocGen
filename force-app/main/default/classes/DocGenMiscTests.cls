@@ -91,8 +91,8 @@ private class DocGenMiscTests {
             String orgUrl = DocGenSetupController.getOrgUrl();
             Test.stopTest();
 
-            System.assertNotEquals(null, orgUrl);
-            System.assert(orgUrl.length() > 0);
+            System.assertNotEquals(null, orgUrl, 'Org URL should not be null');
+            System.assert(orgUrl.length() > 0, 'Org URL should not be empty');
         }
     }
 
@@ -104,7 +104,7 @@ private class DocGenMiscTests {
             DocGen_Settings__c settings = DocGenSetupController.getSettings();
             Test.stopTest();
 
-            System.assertNotEquals(null, settings);
+            System.assertNotEquals(null, settings, 'Settings should not be null');
         }
     }
 
@@ -117,7 +117,7 @@ private class DocGenMiscTests {
             Test.stopTest();
 
             DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
-            System.assertEquals('https://example.my.site.com', settings.Experience_Site_Url__c);
+            System.assertEquals('https://example.my.site.com', settings.Experience_Site_Url__c, 'Experience Site URL should match saved value');
         }
     }
 
@@ -132,7 +132,7 @@ private class DocGenMiscTests {
             Test.stopTest();
 
             DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
-            System.assertEquals('https://second.my.site.com', settings.Experience_Site_Url__c);
+            System.assertEquals('https://second.my.site.com', settings.Experience_Site_Url__c, 'Experience Site URL should be updated to second value');
         }
     }
 
@@ -150,9 +150,9 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', 'Name, AccountSource');
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
-            System.assertEquals('Misc Test Account', result.get('Name'));
-            System.assertEquals('Web', result.get('AccountSource'));
+            System.assertNotEquals(null, result, 'Result should not be null for valid fields');
+            System.assertEquals('Misc Test Account', result.get('Name'), 'Name should match test account');
+            System.assertEquals('Web', result.get('AccountSource'), 'AccountSource should match test account');
         }
     }
 
@@ -203,8 +203,8 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', 'Name, Owner.Name');
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
-            System.assertEquals('Misc Test Account', result.get('Name'));
+            System.assertNotEquals(null, result, 'Result should not be null for relationship field query');
+            System.assertEquals('Misc Test Account', result.get('Name'), 'Name should match test account');
             System.assert(result.containsKey('Owner'), 'Should contain Owner relationship data');
         }
     }
@@ -219,8 +219,8 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', 'Name, TotallyFakeField__xyz');
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
-            System.assertEquals('Misc Test Account', result.get('Name'));
+            System.assertNotEquals(null, result, 'Result should not be null even with non-existent field');
+            System.assertEquals('Misc Test Account', result.get('Name'), 'Name should still be returned with non-existent field');
         }
     }
 
@@ -269,9 +269,9 @@ private class DocGenMiscTests {
         );
         Test.stopTest();
 
-        System.assertEquals(1, responses.size());
-        System.assertNotEquals(null, responses[0].errorMessage);
-        System.assertEquals(null, responses[0].contentDocumentId);
+        System.assertEquals(1, responses.size(), 'Should return exactly 1 response');
+        System.assertNotEquals(null, responses[0].errorMessage, 'Error message should be populated on failure');
+        System.assertEquals(null, responses[0].contentDocumentId, 'ContentDocumentId should be null on error');
     }
 
     @IsTest
@@ -279,8 +279,8 @@ private class DocGenMiscTests {
         DocGenFlowAction.Response res = new DocGenFlowAction.Response();
         res.contentDocumentId = null;
         res.errorMessage = 'test error';
-        System.assertEquals(null, res.contentDocumentId);
-        System.assertEquals('test error', res.errorMessage);
+        System.assertEquals(null, res.contentDocumentId, 'ContentDocumentId should be settable to null');
+        System.assertEquals('test error', res.errorMessage, 'Error message should match assigned value');
     }
 
     // =========================================================================
@@ -290,14 +290,14 @@ private class DocGenMiscTests {
     @IsTest
     static void testDocGenExceptionConstruction() {
         DocGenException ex = new DocGenException('Test error message');
-        System.assertEquals('Test error message', ex.getMessage());
+        System.assertEquals('Test error message', ex.getMessage(), 'Exception message should match constructor arg');
 
         DocGenException exCause = new DocGenException('Wrapped error', new DmlException());
-        System.assertEquals('Wrapped error', exCause.getMessage());
-        System.assertNotEquals(null, exCause.getCause());
+        System.assertEquals('Wrapped error', exCause.getMessage(), 'Wrapped exception message should match');
+        System.assertNotEquals(null, exCause.getCause(), 'Cause should not be null for wrapped exception');
 
         DocGenException exDefault = new DocGenException();
-        System.assertNotEquals(null, exDefault);
+        System.assertNotEquals(null, exDefault, 'Default constructor should create non-null exception');
     }
 
     // =========================================================================
@@ -313,11 +313,11 @@ private class DocGenMiscTests {
         Test.startTest();
         try {
             DocGenService.processDocument(tpl.Id, acc.Id);
-            System.assert(false, 'Expected exception');
+            System.assert(false, 'Expected exception for invalid DOCX');
         } catch (DocGenException e) {
-            System.assert(e.getMessage().length() > 0);
+            System.assert(e.getMessage().length() > 0, 'DocGenException message should not be empty');
         } catch (Exception e) {
-            System.assert(e.getMessage().length() > 0);
+            System.assert(e.getMessage().length() > 0, 'Exception message should not be empty');
         }
         Test.stopTest();
     }
@@ -329,9 +329,9 @@ private class DocGenMiscTests {
         Test.startTest();
         try {
             DocGenService.processDocument(null, acc.Id);
-            System.assert(false, 'Expected exception');
+            System.assert(false, 'Expected exception for null template');
         } catch (Exception e) {
-            System.assert(e.getMessage().length() > 0);
+            System.assert(e.getMessage().length() > 0, 'Exception message should not be empty for null template');
         }
         Test.stopTest();
     }
@@ -343,9 +343,9 @@ private class DocGenMiscTests {
         Test.startTest();
         try {
             DocGenService.generateDocument(tpl.Id, null);
-            System.assert(false, 'Expected exception');
+            System.assert(false, 'Expected exception for null record');
         } catch (Exception e) {
-            System.assert(e.getMessage().length() > 0);
+            System.assert(e.getMessage().length() > 0, 'Exception message should not be empty for null record');
         }
         Test.stopTest();
     }
@@ -371,10 +371,10 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result);
-        System.assertNotEquals(null, result.get('blob'));
-        System.assertNotEquals(null, result.get('title'));
-        System.assertEquals('Word', result.get('templateType'));
+        System.assertNotEquals(null, result, 'processDocument result should not be null');
+        System.assertNotEquals(null, result.get('blob'), 'Document blob should not be null');
+        System.assertNotEquals(null, result.get('title'), 'Document title should not be null');
+        System.assertEquals('Word', result.get('templateType'), 'Template type should be Word');
     }
 
     @IsTest
@@ -414,7 +414,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Merged runs document blob should not be null');
     }
 
     @IsTest
@@ -434,7 +434,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for section tag test');
     }
 
     @IsTest
@@ -458,7 +458,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for HTML field value test');
     }
 
     @IsTest
@@ -500,7 +500,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for image tag test');
     }
 
     @IsTest
@@ -519,7 +519,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for image size tag test');
     }
 
     @IsTest
@@ -538,7 +538,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for closing tag only test');
     }
 
     @IsTest
@@ -557,7 +557,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for unmatched section test');
     }
 
     @IsTest
@@ -600,7 +600,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for header and footer test');
     }
 
     @IsTest
@@ -621,7 +621,7 @@ private class DocGenMiscTests {
         Id docId = DocGenService.generateDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, docId);
+        System.assertNotEquals(null, docId, 'Document ID should not be null for PDF format test');
     }
 
     // =========================================================================
@@ -652,7 +652,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for child subquery test');
     }
 
     @IsTest
@@ -678,7 +678,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for table row loop test');
     }
 
     @IsTest
@@ -700,7 +700,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for nested dot path test');
     }
 
     @IsTest
@@ -737,7 +737,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for base64 image field test');
     }
 
     @IsTest
@@ -761,7 +761,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for HTML rich text test');
     }
 
     @IsTest
@@ -801,8 +801,8 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
-        System.assertEquals('PowerPoint', result.get('templateType'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for PowerPoint test');
+        System.assertEquals('PowerPoint', result.get('templateType'), 'Template type should be PowerPoint');
     }
 
     @IsTest
@@ -842,8 +842,8 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', 'Name, (SELECT FirstName, LastName FROM Contacts)');
         Test.stopTest();
 
-        System.assertNotEquals(null, result);
-        System.assertEquals('Misc Test Account', result.get('Name'));
+        System.assertNotEquals(null, result, 'Result should not be null for subquery test');
+        System.assertEquals('Misc Test Account', result.get('Name'), 'Name should match for subquery test');
         System.assert(result.containsKey('Contacts'), 'Should contain Contacts subquery');
     }
 
@@ -857,8 +857,8 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', 'Name, ZZZInvalidField');
         Test.stopTest();
 
-        System.assertNotEquals(null, result);
-        System.assertEquals('Misc Test Account', result.get('Name'));
+        System.assertNotEquals(null, result, 'Result should not be null for auto-append test');
+        System.assertEquals('Misc Test Account', result.get('Name'), 'Name should match for auto-append test');
     }
 
     @IsTest
@@ -870,8 +870,8 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', 'Name, FakeRel__r.Field');
         Test.stopTest();
 
-        System.assertNotEquals(null, result);
-        System.assertEquals('Misc Test Account', result.get('Name'));
+        System.assertNotEquals(null, result, 'Result should not be null for invalid relationship test');
+        System.assertEquals('Misc Test Account', result.get('Name'), 'Name should match for invalid relationship test');
     }
 
     @IsTest
@@ -883,8 +883,8 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', 'ZZZFake1, ZZZFake2');
         Test.stopTest();
 
-        System.assertNotEquals(null, result);
-        System.assertNotEquals(null, result.get('Id'));
+        System.assertNotEquals(null, result, 'Result should not be null for all-fields-invalid test');
+        System.assertNotEquals(null, result.get('Id'), 'Id should be returned as fallback');
     }
 
     @IsTest
@@ -896,8 +896,8 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', 'Name, , AccountSource');
         Test.stopTest();
 
-        System.assertNotEquals(null, result);
-        System.assertEquals('Misc Test Account', result.get('Name'));
+        System.assertNotEquals(null, result, 'Result should not be null for blank field part test');
+        System.assertEquals('Misc Test Account', result.get('Name'), 'Name should match for blank field part test');
     }
 
     @IsTest
@@ -915,7 +915,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', 'Name, BillingAddress');
         Test.stopTest();
 
-        System.assertNotEquals(null, result);
+        System.assertNotEquals(null, result, 'Result should not be null for address field test');
         System.assert(result.containsKey('BillingAddress'), 'Should contain BillingAddress compound field');
     }
 
@@ -949,7 +949,7 @@ private class DocGenMiscTests {
         );
         Test.stopTest();
 
-        System.assertEquals(1, responses.size());
+        System.assertEquals(1, responses.size(), 'Should return exactly one response for success path');
         System.assertNotEquals(null, responses[0].contentDocumentId, 'Should have a document ID on success');
         System.assertEquals(null, responses[0].errorMessage, 'Should not have error on success');
     }
@@ -1006,7 +1006,7 @@ private class DocGenMiscTests {
         Test.stopTest();
 
         System.assertNotEquals(null, result.get('blob'), 'Should return a PDF blob');
-        System.assertNotEquals(null, result.get('title'));
+        System.assertNotEquals(null, result.get('title'), 'Title should not be null for PDF blob test');
     }
 
     @IsTest
@@ -1044,7 +1044,7 @@ private class DocGenMiscTests {
             DocGenService.generatePdfBlob(tpl.Id, acc.Id);
         } catch (DocGenException e) {
             caught = true;
-            System.assert(e.getMessage().contains('only supported for Word'));
+            System.assert(e.getMessage().contains('only supported for Word'), 'Exception should mention Word-only support');
         }
         Test.stopTest();
         System.assert(caught, 'Should throw for PowerPoint PDF generation');
@@ -1068,9 +1068,9 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.generatePdfBlob(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for PDF blob with title format');
         String title = (String) result.get('title');
-        System.assert(title.contains('Misc Test Account'));
+        System.assert(title.contains('Misc Test Account'), 'PDF title should contain account name');
     }
 
     @IsTest
@@ -1095,7 +1095,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.generatePdfBlob(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for PDF blob with image');
     }
 
     // =========================================================================
@@ -1120,7 +1120,7 @@ private class DocGenMiscTests {
         Id docId = DocGenService.generateDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, docId);
+        System.assertNotEquals(null, docId, 'Document ID should not be null for PDF save test');
         ContentVersion savedCv = [SELECT PathOnClient FROM ContentVersion WHERE ContentDocumentId = :docId LIMIT 1];
         System.assert(savedCv.PathOnClient.endsWith('.pdf'), 'Saved file should be a PDF');
     }
@@ -1162,7 +1162,7 @@ private class DocGenMiscTests {
         Id docId = DocGenService.generateDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, docId);
+        System.assertNotEquals(null, docId, 'Document ID should not be null for PPTX save test');
         ContentVersion savedCv = [SELECT PathOnClient FROM ContentVersion WHERE ContentDocumentId = :docId LIMIT 1];
         System.assert(savedCv.PathOnClient.endsWith('.pptx'), 'Saved file should be a PPTX');
     }
@@ -1192,7 +1192,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for truthy conditional section');
     }
 
     @IsTest
@@ -1214,7 +1214,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for null conditional section');
     }
 
     // =========================================================================
@@ -1240,7 +1240,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for date format tag test');
     }
 
     @IsTest
@@ -1260,7 +1260,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for colon in non-date field');
     }
 
     // =========================================================================
@@ -1288,7 +1288,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for HTML span/br strip test');
     }
 
     // =========================================================================
@@ -1318,7 +1318,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for field with img tag test');
     }
 
     @IsTest
@@ -1343,7 +1343,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for image tag data URI test');
     }
 
     @IsTest
@@ -1367,7 +1367,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for blank image value test');
     }
 
     @IsTest
@@ -1392,7 +1392,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for image tag with dimensions');
     }
 
     // =========================================================================
@@ -1426,7 +1426,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for raw base64 image test');
     }
 
     @IsTest
@@ -1458,7 +1458,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for ContentVersion ID image test');
     }
 
     // =========================================================================
@@ -1488,7 +1488,7 @@ private class DocGenMiscTests {
         Test.stopTest();
 
         // Image could not be resolved, but document should still generate
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for refid URL image test');
     }
 
     @IsTest
@@ -1512,7 +1512,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for servlet URL image test');
     }
 
     // =========================================================================
@@ -1539,7 +1539,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for three-segment merge test');
     }
 
     @IsTest
@@ -1558,7 +1558,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for no-tags document');
     }
 
     // =========================================================================
@@ -1581,7 +1581,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for unclosed brace test');
     }
 
     @IsTest
@@ -1599,7 +1599,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for empty body test');
     }
 
     @IsTest
@@ -1618,7 +1618,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for null field value test');
     }
 
     @IsTest
@@ -1640,7 +1640,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for XML special chars test');
     }
 
     // =========================================================================
@@ -1663,7 +1663,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for case-insensitive field test');
     }
 
     @IsTest
@@ -1685,7 +1685,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for deep nested null path');
     }
 
     // =========================================================================
@@ -1711,8 +1711,8 @@ private class DocGenMiscTests {
         Test.stopTest();
 
         String title = (String) result.get('title');
-        System.assert(title.contains('Misc Test Account'));
-        System.assert(title.contains('Web'));
+        System.assert(title.contains('Misc Test Account'), 'Title should contain account name for mixed fields');
+        System.assert(title.contains('Web'), 'Title should contain account source for mixed fields');
         System.assert(title.contains('--'), 'Missing field should be replaced with empty string');
     }
 
@@ -1745,7 +1745,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for multi-row table expansion');
     }
 
     // =========================================================================
@@ -1772,7 +1772,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for nested sections test');
     }
 
     // =========================================================================
@@ -1801,7 +1801,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for section outside TR test');
     }
 
     // =========================================================================
@@ -1855,7 +1855,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for existing content types test');
     }
 
     // =========================================================================
@@ -1885,7 +1885,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for multiple image tags test');
     }
 
     // =========================================================================
@@ -1933,8 +1933,8 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
-        System.assertEquals('PowerPoint', result.get('templateType'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for multiple slides test');
+        System.assertEquals('PowerPoint', result.get('templateType'), 'Template type should be PowerPoint for multi-slide');
     }
 
     // =========================================================================
@@ -1960,7 +1960,7 @@ private class DocGenMiscTests {
         Id docId = DocGenService.generateDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, docId);
+        System.assertNotEquals(null, docId, 'Document ID should not be null for null title fallback');
     }
 
     // =========================================================================
@@ -1988,7 +1988,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for img tag with refid');
     }
 
     @IsTest
@@ -2012,7 +2012,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for img tag with sfc URL');
     }
 
     // =========================================================================
@@ -2048,7 +2048,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for ContentDocument ID test');
     }
 
     // =========================================================================
@@ -2081,7 +2081,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id, resolvedImages);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for resolved images test');
     }
 
     // =========================================================================
@@ -2103,8 +2103,8 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.generatePdfBlob(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
-        System.assertNotEquals(null, result.get('title'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for valid PDF blob test');
+        System.assertNotEquals(null, result.get('title'), 'Title should not be null for valid PDF blob test');
     }
 
 
@@ -2130,7 +2130,7 @@ private class DocGenMiscTests {
         Id docId = DocGenService.generateDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, docId);
+        System.assertNotEquals(null, docId, 'Document ID should not be null for PDF save test');
     }
 
     // =========================================================================
@@ -2156,8 +2156,8 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocumentAsHtmlWithImageMap(tpl.Id, acc.Id, imageMap);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('html'));
-        System.assertEquals('PDF', result.get('outputFormat'));
+        System.assertNotEquals(null, result.get('html'), 'HTML should not be null for image map test');
+        System.assertEquals('PDF', result.get('outputFormat'), 'Output format should be PDF');
     }
 
     // =========================================================================
@@ -2237,7 +2237,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for rich text formatting tags');
     }
 
     @IsTest
@@ -2260,7 +2260,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for strong/em tags test');
     }
 
     // =========================================================================
@@ -2287,7 +2287,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for rich text Salesforce URL img');
     }
 
     // =========================================================================
@@ -2314,7 +2314,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for HTTPS URL image tag');
     }
 
     // =========================================================================
@@ -2356,7 +2356,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for PowerPoint image tag skip');
     }
 
     // =========================================================================
@@ -2397,7 +2397,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for PowerPoint HTML stripped');
     }
 
     // =========================================================================
@@ -2419,8 +2419,8 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.generatePdfBlob(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
-        System.assertNotEquals(null, result.get('title'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for PDF download test');
+        System.assertNotEquals(null, result.get('title'), 'Title should not be null for PDF download test');
     }
 
     // =========================================================================
@@ -2445,7 +2445,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for alternate DateTime format');
     }
 
     // =========================================================================
@@ -2490,7 +2490,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for existing template image');
     }
 
     // =========================================================================
@@ -2505,7 +2505,7 @@ private class DocGenMiscTests {
             throw new DocGenException('Test throw');
         } catch (DocGenException e) {
             caught = true;
-            System.assertEquals('Test throw', e.getMessage());
+            System.assertEquals('Test throw', e.getMessage(), 'Thrown exception message should match');
         }
         Test.stopTest();
         System.assert(caught, 'Should catch thrown DocGenException');
@@ -2934,21 +2934,21 @@ private class DocGenMiscTests {
         System.runAs(u) {
             Test.startTest();
             // V1: plain string
-            System.assertEquals(1, DocGenDataRetriever.getConfigVersion('Name, Industry'));
-            System.assertEquals(1, DocGenDataRetriever.getConfigVersion(''));
-            System.assertEquals(1, DocGenDataRetriever.getConfigVersion(null));
+            System.assertEquals(1, DocGenDataRetriever.getConfigVersion('Name, Industry'), 'Plain string should be V1');
+            System.assertEquals(1, DocGenDataRetriever.getConfigVersion(''), 'Empty string should be V1');
+            System.assertEquals(1, DocGenDataRetriever.getConfigVersion(null), 'Null should be V1');
 
             // V2: JSON without explicit version
-            System.assertEquals(2, DocGenDataRetriever.getConfigVersion('{"baseObject":"Account","baseFields":["Name"]}'));
+            System.assertEquals(2, DocGenDataRetriever.getConfigVersion('{"baseObject":"Account","baseFields":["Name"]}'), 'JSON without v field should be V2');
 
             // V2: JSON with v:2
-            System.assertEquals(2, DocGenDataRetriever.getConfigVersion('{"v":2,"baseObject":"Opportunity"}'));
+            System.assertEquals(2, DocGenDataRetriever.getConfigVersion('{"v":2,"baseObject":"Opportunity"}'), 'JSON with v:2 should be V2');
 
             // V3: JSON with v:3
-            System.assertEquals(3, DocGenDataRetriever.getConfigVersion('{"v":3,"root":"Account","nodes":[]}'));
+            System.assertEquals(3, DocGenDataRetriever.getConfigVersion('{"v":3,"root":"Account","nodes":[]}'), 'JSON with v:3 should be V3');
 
             // Malformed JSON falls back to V1
-            System.assertEquals(1, DocGenDataRetriever.getConfigVersion('{not valid json'));
+            System.assertEquals(1, DocGenDataRetriever.getConfigVersion('{not valid json'), 'Malformed JSON should fall back to V1');
             Test.stopTest();
         }
     }
@@ -3022,7 +3022,7 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', v2Config);
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
+            System.assertNotEquals(null, result, 'Result should not be null for comment rejection test');
             System.assert(!result.containsKey('Contacts'), 'Comment in WHERE should skip child');
         }
     }
@@ -3043,7 +3043,7 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', v2Config);
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
+            System.assertNotEquals(null, result, 'Result should not be null for block comment rejection');
             System.assert(!result.containsKey('Contacts'), 'Block comment in WHERE should skip child');
         }
     }
@@ -3064,7 +3064,7 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', v2Config);
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
+            System.assertNotEquals(null, result, 'Result should not be null for non-numeric LIMIT test');
             System.assert(!result.containsKey('Contacts'), 'Non-numeric LIMIT should skip child');
         }
     }
@@ -3085,7 +3085,7 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', v2Config);
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
+            System.assertNotEquals(null, result, 'Result should not be null for DML keyword rejection');
             System.assert(!result.containsKey('Contacts'), 'DML keyword in WHERE should skip child');
         }
     }
@@ -3106,7 +3106,7 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', v2Config);
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
+            System.assertNotEquals(null, result, 'Result should not be null for SELECT injection rejection');
             System.assert(!result.containsKey('Contacts'), 'SELECT in WHERE clause should skip child');
         }
     }
@@ -3216,7 +3216,7 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', v3Config);
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
+            System.assertNotEquals(null, result, 'Result should not be null for V3 with clauses');
             Map<String, Object> contactsData = (Map<String, Object>) result.get('Contacts');
             List<Object> records = (List<Object>) contactsData.get('records');
             System.assert(records.size() <= 2, 'LIMIT 2 should cap results at 2');
@@ -3749,7 +3749,7 @@ private class DocGenMiscTests {
             DocGenService.renderPreviewHtml(tpl.Id, acc.Id);
         } catch (DocGenException e) {
             caught = true;
-            System.assert(e.getMessage().contains('only supported for Word'));
+            System.assert(e.getMessage().contains('only supported for Word'), 'Preview should mention Word-only support');
         }
         Test.stopTest();
         System.assert(caught, 'Should throw for PowerPoint preview');
@@ -4038,7 +4038,7 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', v3Config);
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
+            System.assertNotEquals(null, result, 'Result should not be null for DML keyword in V3 WHERE');
         }
     }
 
@@ -4177,9 +4177,9 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', 'Name, Description');
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
+            System.assertNotEquals(null, result, 'Result should not be null for location field test');
             // Description is null — should not be in the map (or null)
-            System.assertEquals('Misc Test Account', result.get('Name'));
+            System.assertEquals('Misc Test Account', result.get('Name'), 'Name should match for location field test');
         }
     }
 
@@ -4205,7 +4205,7 @@ private class DocGenMiscTests {
             Map<String, Object> result = DocGenDataRetriever.getRecordData(acc.Id, 'Account', v2Config);
             Test.stopTest();
 
-            System.assertNotEquals(null, result);
+            System.assertNotEquals(null, result, 'Result should not be null for V2 child clauses test');
             System.assert(result.containsKey('Contacts'), 'Should contain Contacts');
         }
     }
@@ -4238,8 +4238,7 @@ private class DocGenMiscTests {
                 DocGenSetupController.saveSettings('https://test.my.site.com');
             } catch (AuraHandledException e) {
                 caught = true;
-                System.assert(e.getMessage().contains('Insufficient') || e.getMessage().length() > 0,
-                    'Should indicate insufficient privileges');
+                System.assert(e.getMessage().contains('Insufficient') || e.getMessage().length() > 0, 'Should indicate insufficient privileges');
             }
             Test.stopTest();
 
@@ -4259,7 +4258,7 @@ private class DocGenMiscTests {
             Test.stopTest();
 
             DocGen_Settings__c settings = DocGen_Settings__c.getOrgDefaults();
-            System.assertEquals(null, settings.Experience_Site_Url__c, 'Should save null URL');
+            System.assertEquals(null, settings.Experience_Site_Url__c, 'Should accept null URL value');
         }
     }
 
@@ -4280,7 +4279,7 @@ private class DocGenMiscTests {
                 DocGenService.mergeTemplateForSignature(tpl.Id, acc.Id);
             } catch (DocGenException e) {
                 caught = true;
-                System.assert(e.getMessage().contains('Signatures have been removed'));
+                System.assert(e.getMessage().contains('Signatures have been removed'), 'Should mention signatures removed');
             }
             Test.stopTest();
 
@@ -4397,7 +4396,7 @@ private class DocGenMiscTests {
             DocGenService.processDocumentAsHtmlWithImageMap(tpl.Id, acc.Id, new Map<String, String>());
         } catch (DocGenException e) {
             caught = true;
-            System.assert(e.getMessage().contains('only supported for Word'));
+            System.assert(e.getMessage().contains('only supported for Word'), 'HTML image map should mention Word-only support');
         }
         Test.stopTest();
 
@@ -4531,7 +4530,7 @@ private class DocGenMiscTests {
                 DocGenService.extractAndSaveTemplateImages(null, null);
             } catch (Exception e) {
                 // Expected: May throw AuraHandledException from getTemplateFileContent
-                System.assertNotEquals(null, e.getMessage(), 'Exception message should be populated');
+                System.assertNotEquals(null, e.getMessage(), 'Exception message should be populated for null template');
             }
             Test.stopTest();
         }
@@ -4611,7 +4610,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id, resolvedImages);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for amp-encoded resolved images');
     }
 
     // =========================================================================
@@ -4702,7 +4701,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for rich text multi-paragraph');
     }
 
     // =========================================================================
@@ -4737,7 +4736,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.generateDocumentParts(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('allXmlParts'));
+        System.assertNotEquals(null, result.get('allXmlParts'), 'XML parts should not be null for image CV ID parts');
         Map<String, String> imageCvIdMap = (Map<String, String>) result.get('imageCvIdMap');
         System.assert(imageCvIdMap != null, 'Should return imageCvIdMap');
     }
@@ -4818,7 +4817,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for rich text img with data URI dims');
     }
 
     // =========================================================================
@@ -4978,7 +4977,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.generateDocumentParts(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('allXmlParts'));
+        System.assertNotEquals(null, result.get('allXmlParts'), 'XML parts should not be null for passthrough media');
         Map<String, String> imageBase64Map = (Map<String, String>) result.get('imageBase64Map');
         System.assert(imageBase64Map != null, 'Should return imageBase64Map');
         System.assert(imageBase64Map.containsKey('word/media/logo.png'), 'Should include passthrough media');
@@ -5086,7 +5085,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for rich text empty paragraphs');
     }
 
     // =========================================================================
@@ -5146,7 +5145,7 @@ private class DocGenMiscTests {
         Map<String, Object> result = DocGenService.processDocument(tpl.Id, acc.Id);
         Test.stopTest();
 
-        System.assertNotEquals(null, result.get('blob'));
+        System.assertNotEquals(null, result.get('blob'), 'Blob should not be null for non-image rels test');
     }
 
 }

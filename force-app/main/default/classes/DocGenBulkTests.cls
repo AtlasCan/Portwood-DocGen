@@ -65,13 +65,13 @@ private class DocGenBulkTests {
 
             // Retrieve
             List<DocGen_Saved_Query__c> queries = DocGenBulkController.getSavedQueries(t.Id);
-            System.assertEquals(1, queries.size());
-            System.assertEquals('My Query', queries[0].Name);
+            System.assertEquals(1, queries.size(), 'Should have 1 saved query');
+            System.assertEquals('My Query', queries[0].Name, 'Saved query name should match');
 
             // Delete
             DocGenBulkController.deleteQuery(queries[0].Id);
             queries = DocGenBulkController.getSavedQueries(t.Id);
-            System.assertEquals(0, queries.size());
+            System.assertEquals(0, queries.size(), 'Should have 0 saved queries after delete');
         }
     }
 
@@ -165,7 +165,7 @@ private class DocGenBulkTests {
             DocGen_Job__c status = DocGenBulkController.getJobStatus(job.Id);
             Test.stopTest();
 
-            System.assertEquals('Queued', status.Status__c);
+            System.assertEquals('Queued', status.Status__c, 'Job status should be Queued');
         }
     }
 
