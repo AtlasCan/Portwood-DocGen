@@ -1,47 +1,66 @@
 /**
  * Invocable action for starting bulk document generation from a Flow.
+ * Exposes the full bulk generation pipeline: filtering, batch size,
+ * combined PDF, and individual file options.
  */
 public with sharing class DocGenBulkFlowAction {
 
-    /**
-     * Input parameters for the bulk document generation Flow action.
-     */
     public class Request {
-        @InvocableVariable(label='Template ID' required=true)
+        @InvocableVariable(label='Template ID' required=true description='The DocGen Template record ID')
         public Id templateId;
 
-        @InvocableVariable(label='Query Condition' description='Optional SOQL WHERE clause (e.g. Type = \'Customer\')')
+        @InvocableVariable(label='WHERE Condition' description='Optional SOQL WHERE clause to filter records (e.g. Industry = \'Technology\')')
         public String queryCondition;
+
+        @InvocableVariable(label='Job Label' description='A friendly label for this job (shown in Job History)')
+        public String jobLabel;
+
+        @InvocableVariable(label='Combined PDF Only' description='Recommended. Produce one merged PDF with all records. Uses minimal heap. Default: true')
+        public Boolean combinedPdfOnly;
+
+        @InvocableVariable(label='Also Keep Individual Files' description='Generate a separate PDF per record in addition to the combined PDF. Uses more heap.')
+        public Boolean keepIndividualFiles;
+
+        @InvocableVariable(label='Batch Size' description='Records per batch transaction. Use 1 for complex templates, 10-50 for simple ones. Default: 1')
+        public Integer batchSize;
     }
 
-    /**
-     * Output results from the bulk document generation Flow action.
-     */
     public class Response {
         @InvocableVariable(label='Job ID')
         public Id jobId;
 
         @InvocableVariable(label='Error Message')
         public String errorMessage;
+
+        @InvocableVariable(label='Success')
+        public Boolean success;
     }
 
-    /**
-     * Starts a bulk document generation batch job for each request.
-     * @param requests List of Request objects containing templateId and optional queryCondition
-     * @return List of Response objects containing jobId or errorMessage
-     */
-    @InvocableMethod(label='Generate Bulk Documents' description='Starts a batch job to generate documents for multiple records based on a template and condition.')
+    @InvocableMethod(label='Generate Bulk Documents' description='Starts a batch job to generate documents for multiple records. Supports combined PDF, individual files, batch sizing, and WHERE filters.')
     public static List<Response> generateBulkDocuments(List<Request> requests) {
         List<Response> responses = new List<Response>();
 
         for (Request req : requests) {
             Response res = new Response();
             try {
-                // Leverage existing Bulk Controller logic
-                Id jobId = DocGenBulkController.submitJob(req.templateId, req.queryCondition, null, false, 1, false);
+                // Default: combined PDF only (most efficient)
+                Boolean mergeOnly = (req.combinedPdfOnly != false && req.keepIndividualFiles != true);
+                Boolean mergePdf = mergeOnly || (req.keepIndividualFiles == true);
+                Integer batchSize = (req.batchSize != null && req.batchSize > 0) ? req.batchSize : 1;
+
+                Id jobId = DocGenBulkController.submitJob(
+                    req.templateId,
+                    req.queryCondition,
+                    req.jobLabel,
+                    mergePdf,
+                    batchSize,
+                    mergeOnly
+                );
                 res.jobId = jobId;
+                res.success = true;
             } catch (Exception e) {
                 res.errorMessage = e.getMessage();
+                res.success = false;
             }
             responses.add(res);
         }
