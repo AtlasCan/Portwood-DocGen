@@ -74,6 +74,11 @@ public with sharing class DocGenDataRetriever {
             Map<String, Object> jsonConfig = (Map<String, Object>) JSON.deserializeUntyped(fieldsConfig.trim());
             Object versionObj = jsonConfig.get('v');
             Integer version = (versionObj != null) ? Integer.valueOf(String.valueOf(versionObj)) : 2;
+
+            // V4: Custom Apex Data Provider
+            if (version == 4) {
+                return getRecordDataV4(recordId, jsonConfig);
+            }
             if (version >= 3) {
                 return getRecordDataV3(recordId, jsonConfig);
             }
@@ -1325,5 +1330,41 @@ public with sharing class DocGenDataRetriever {
             }
         }
         return clause;
+    }
+
+    /**
+     * V4: Custom Apex Data Provider.
+     * Config format: {"v":4,"provider":"MyClassName"}
+     * Instantiates the named class (must implement DocGenDataProvider),
+     * calls getData(recordId), and returns the result.
+     */
+    private static Map<String, Object> getRecordDataV4(Id recordId, Map<String, Object> config) {
+        String providerClassName = (String) config.get('provider');
+        if (String.isBlank(providerClassName)) {
+            throw new DocGenException('V4 config requires a "provider" class name.');
+        }
+
+        // Resolve class — try plain name first, then with package namespace
+        Type providerType = Type.forName(providerClassName);
+        if (providerType == null) {
+            providerType = Type.forName('portwoodglobal', providerClassName);
+        }
+        if (providerType == null) {
+            throw new DocGenException('Apex class "' + providerClassName + '" not found. Ensure it exists and implements DocGenDataProvider.');
+        }
+
+        Object instance = providerType.newInstance();
+        if (!(instance instanceof DocGenDataProvider)) {
+            throw new DocGenException('Class "' + providerClassName + '" must implement the DocGenDataProvider interface.');
+        }
+
+        DocGenDataProvider provider = (DocGenDataProvider) instance;
+        Map<String, Object> data = provider.getData(recordId);
+
+        if (data == null) {
+            throw new DocGenException('Data provider "' + providerClassName + '" returned null.');
+        }
+
+        return data;
     }
 }
