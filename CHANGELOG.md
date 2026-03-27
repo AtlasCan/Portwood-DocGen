@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.3 — "Clickable Hyperlinks in Rich Text PDFs" (Portwood DocGen)
+
+- **Clickable Hyperlinks in PDF** — Rich text `<a href="...">` tags now render as real clickable links in PDF output. Previously, hyperlinks from rich text fields were rendered as styled text (blue + underline) but were not clickable. Now they generate proper `<a>` tags in the HTML passed to `Blob.toPdf()`.
+- **Anchor Tag Parsing** — New `extractAttribute()` helper parses `href` from rich text anchor tags. Handles quoted and unquoted attributes, `&amp;` decoding.
+- **Custom URL Attribute for DOCX→PDF Bridge** — Rich text links embed a `w:docgen-url` attribute on `w:hyperlink` elements during XML processing, which the HTML renderer reads to produce clickable `<a>` tags without needing relationship file lookups.
+
 ## v1.1.2 — "Image Sizing, Error Diagnostics & Multiline Text" (Portwood DocGen)
 
 Huge thanks to **@Henk3000** for PR #47 — ImageRenderSpec, ahe() helper, multiline text preservation, error diagnostics for malformed tags, and smart container expansion for numbered lists.

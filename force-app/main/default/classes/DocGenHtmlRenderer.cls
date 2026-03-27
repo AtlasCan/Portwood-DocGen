@@ -747,7 +747,21 @@ public with sharing class DocGenHtmlRenderer {
 
                 if (String.isBlank(innerContent)) { return ''; }
 
-        // Wrap in styled span to indicate link (blue + underline)
+        // Check for direct URL from rich text (custom attribute set by DocGenService)
+        String directUrl = null;
+        Integer urlAttr = hlXml.indexOf('w:docgen-url="');
+        if (urlAttr != -1) {
+            Integer urlStart = urlAttr + 14;
+            Integer urlEnd = hlXml.indexOf('"', urlStart);
+            if (urlEnd != -1) {
+                directUrl = hlXml.substring(urlStart, urlEnd);
+            }
+        }
+
+        if (String.isNotBlank(directUrl)) {
+            return '<a href="' + directUrl + '" style="color:#0563C1;text-decoration:underline">' + innerContent + '</a>';
+        }
+        // No URL available (template hyperlink without rels) — render as styled text
         return '<span style="color:#0563C1;text-decoration:underline">' + innerContent + '</span>';
     }
 

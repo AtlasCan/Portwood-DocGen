@@ -1995,6 +1995,30 @@ public with sharing class DocGenService {
                 isUnderline = true;
             } else if (tag.startsWith('</u>')) {
                 isUnderline = false;
+            } else if (tag.startsWith('<a ') || tag.startsWith('<a>')) {
+                // Extract href from anchor tag
+                String anchorTag = html.substring(nextTag, tagEnd);
+                String href = extractAttribute(anchorTag, 'href');
+                // Find the closing </a> and get inner text
+                Integer closeA = html.indexOfIgnoreCase('</a>', tagEnd);
+                if (closeA != -1) {
+                    String linkText = html.substring(tagEnd, closeA);
+                    linkText = linkText.replaceAll('<[^>]+>', '').trim();
+                    if (String.isBlank(linkText)) { linkText = href; }
+                    if (String.isNotBlank(href)) {
+                        // Build w:hyperlink with direct URL attribute for PDF rendering
+                        result += '<w:hyperlink w:docgen-url="' + href.escapeXml() + '">' +
+                            '<w:r><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr>' +
+                            '<w:t xml:space="preserve">' + linkText.escapeXml() + '</w:t></w:r>' +
+                            '</w:hyperlink>';
+                    } else {
+                        result += buildRun(linkText, isBold, isItalic, true);
+                    }
+                    cursor = closeA + 4; // skip past </a>
+                    continue;
+                }
+            } else if (tag.startsWith('</a')) {
+                // Already handled above; skip
             } else if (tag.startsWith('<img')) {
                 // Extract image from <img> tag
                 String imgTag = html.substring(nextTag, tagEnd);
@@ -2003,7 +2027,7 @@ public with sharing class DocGenService {
                     result += imgResult;
                 }
             }
-            // Skip other tags (spans, anchors, etc.) — just process their text content
+            // Skip other tags (spans, etc.) — just process their text content
 
             cursor = tagEnd;
         }
@@ -2034,6 +2058,33 @@ public with sharing class DocGenService {
      */
     private static String stripTags(String text) {
         return text.replaceAll('<[^>]+>', '');
+    }
+
+    /**
+     * Extracts an attribute value from an HTML tag string.
+     * e.g. extractAttribute('<a href="https://example.com">', 'href') => 'https://example.com'
+     */
+    private static String extractAttribute(String tag, String attrName) {
+        Integer attrIdx = tag.indexOfIgnoreCase(attrName + '=');
+        if (attrIdx == -1) { return null; }
+        Integer valStart = attrIdx + attrName.length() + 1;
+        if (valStart >= tag.length()) { return null; }
+        String quote = tag.substring(valStart, valStart + 1);
+        if (quote == '"' || quote == '\'') {
+            valStart++;
+            Integer valEnd = tag.indexOf(quote, valStart);
+            if (valEnd != -1) {
+                return tag.substring(valStart, valEnd).replace('&amp;', '&');
+            }
+        }
+        // Unquoted attribute — read until space or >
+        Integer valEnd = tag.indexOf(' ', valStart);
+        Integer tagEnd = tag.indexOf('>', valStart);
+        if (valEnd == -1 || (tagEnd != -1 && tagEnd < valEnd)) { valEnd = tagEnd; }
+        if (valEnd != -1) {
+            return tag.substring(valStart, valEnd).replace('&amp;', '&');
+        }
+        return null;
     }
 
     /**
