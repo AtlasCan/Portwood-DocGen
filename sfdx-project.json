@@ -1,8 +1,8 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.1.4 — Bulk Runner UX, Community Hub & Batch Heap Analysis",
-      "versionNumber": "1.1.4.NEXT",
+      "versionName": "1.1.5 — Flow Action Visibility, Null Parent Lookup Fix & Landing Page CMDT",
+      "versionNumber": "1.1.5.NEXT",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen",

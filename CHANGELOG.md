@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.1.5 — "Flow Action Visibility, Null Parent Lookup Fix & Landing Page CMDT" (Portwood DocGen)
+
+- **Flow Actions Visible in Subscriber Orgs** — `DocGenFlowAction` and `DocGenBulkFlowAction` changed from `public` to `global`. In namespaced packages, `@InvocableMethod` and `@InvocableVariable` members must be `global` to appear in the subscriber org's Flow Builder. Fixes #49.
+- **Null Parent Lookup Fix** — Null parent lookups in child loops (e.g., `{ReportsTo__r.Name}`) no longer incorrectly render the child record's own `Name` field. They now correctly render as blank. The `resolveValue()` base-object-name skip logic now excludes relationship fields ending in `__r`. Fixes #48.
+- **Landing Page CMDT** — Install links on the VF landing page are now driven by `DocGen_Landing_Config__mdt` instead of hardcoded constants. Updating install links for a new release only requires deploying an updated CMDT record — no Apex changes needed.
+- **507/507 Apex tests**, 79% coverage, 0 Critical/High. E2E 23/23.
+
 ## v1.1.4 — "Bulk Runner UX, Community Hub & Batch Heap Analysis" (Portwood DocGen)
 
 - **Bulk Runner Output Mode** — Replaced confusing checkbox toggles with a single dropdown: "Individual Files" (one PDF per record, unlimited scale), "Print-Ready Packet" (single merged PDF), or "Combined + Individual" (both). Clear labels, clear behavior.

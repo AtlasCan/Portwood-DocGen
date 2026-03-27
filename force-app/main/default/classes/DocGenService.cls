@@ -1506,7 +1506,7 @@ public with sharing class DocGenService {
                     if (!found) {
                         // If first segment doesn't match, it may be the base object name
                         // (e.g., "Contact" in {!Contact.FirstName}). Skip it and continue.
-                        if (i == 0 && parts.size() > 1) {
+                        if (i == 0 && parts.size() > 1 && !part.endsWithIgnoreCase('__r')) {
                             continue;
                         }
                         return null;

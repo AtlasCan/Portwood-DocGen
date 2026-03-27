@@ -340,6 +340,34 @@ try {
 }
 
 // =====================================================================
+// 10. NULL PARENT LOOKUP IN LOOPS TEST (Issue #48)
+// =====================================================================
+
+// Test 23: Null parent lookup in child records should render blank, not the child's Name
+// Simulate a child record with a null parent relationship (e.g., ReportsTo__r is null)
+Map<String, Object> childWithNullParent = new Map<String, Object>{
+    'FirstName' => 'Alice',
+    'LastName' => 'Johnson',
+    'Name' => 'Alice Johnson'
+};
+// No 'ReportsTo__r' key — simulates a null parent lookup
+Map<String, Object> parentWithChildren = new Map<String, Object>{
+    'Name' => 'Test Account',
+    'Contacts' => new Map<String, Object>{
+        'records' => new List<Object>{ childWithNullParent }
+    }
+};
+String nullParentXml = '<w:t>{#Contacts}</w:t><w:t>{ReportsTo__r.Name}</w:t><w:t>{/Contacts}</w:t>';
+String nullParentResult = DocGenService.processXmlForTest(nullParentXml, parentWithChildren);
+// Should NOT contain 'Alice Johnson' (the child's own Name)
+if (!nullParentResult.contains('Alice Johnson') && !nullParentResult.contains('Alice')) {
+    pass++;
+} else {
+    fail++;
+    System.debug('FAIL T23: Null parent lookup rendered child Name instead of blank: ' + nullParentResult);
+}
+
+// =====================================================================
 // RESULTS
 // =====================================================================
 
@@ -354,7 +382,8 @@ System.debug('  T7 Description CV, T8 Legacy V1, T9 Image CV format,');
 System.debug('  T10 Image CV access, T11 Doc generation, T12 Doc not empty,');
 System.debug('  T13 Image render size, T14 Junction stitching, T15 COUNT,');
 System.debug('  T16 SUM, T17 SUM:currency, T18 AVG, T19 MIN, T20 MAX,');
-System.debug('  T21 V4 provider doc gen, T22 V4 missing class error');
+System.debug('  T21 V4 provider doc gen, T22 V4 missing class error,');
+System.debug('  T23 Null parent lookup in loop');
 System.debug('  (Sample template tests: run scripts/e2e-sample-templates.apex)');
 
 // =====================================================================
