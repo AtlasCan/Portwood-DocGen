@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.8.1 — Patch: V1 Object Name Resolution
+## v1.9.0 — V1 Object Name Resolution
 
 - **fix: V1 subquery object name fallback** — When a V1 config uses the object API name (e.g., `FROM Short_Code__c`) instead of the relationship name (`FROM Short_Codes__r`), the parser now auto-resolves it by matching against the parent object's child relationships. Fixes configs generated via Manual Query mode with custom objects.
 
