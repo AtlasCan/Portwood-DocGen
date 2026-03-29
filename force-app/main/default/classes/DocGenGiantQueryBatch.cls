@@ -173,9 +173,15 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                     txtIdx = wtEnd + 6;
                 }
 
-                // Strip barcode markers to plain text value
+                // Strip barcode markers to plain text value (no regex — Apex regex too complex for 10K rows)
                 if (txt.contains('##BARCODE:')) {
-                    txt = txt.replaceAll('##BARCODE:[^:]*:[^:]*:([^#]*)##', '$1');
+                    Integer bcStart = txt.indexOf('##BARCODE:');
+                    Integer bcEnd = txt.indexOf('##', bcStart + 10);
+                    if (bcEnd != -1) {
+                        String marker = txt.substring(bcStart + 10, bcEnd); // type:size:VALUE
+                        String val = marker.substringAfterLast(':');
+                        txt = txt.substring(0, bcStart) + val + txt.substring(bcEnd + 2);
+                    }
                 }
 
                 row += '<td class="c' + colNum + '">' + txt + '</td>';
