@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.10.0 — Giant Query Flow Action
+
+- **feat: Generate Document (Auto Giant Query)** — New `DocGenGiantQueryFlowAction` invocable action. Scouts child counts automatically — under 2,000 rows generates synchronously, over 2,000 launches async Giant Query batch. PDF saved to record when complete. Returns `isGiantQuery` flag and `jobId` for Screen Flow status tracking.
+- **Use case: Customer portals** — Screen Flows on Experience Cloud can offer "Download All Transactions" regardless of dataset size.
+
 ## v1.9.0 — V1 Object Name Resolution
 
 - **fix: V1 subquery object name fallback** — When a V1 config uses the object API name (e.g., `FROM Short_Code__c`) instead of the relationship name (`FROM Short_Codes__r`), the parser now auto-resolves it by matching against the parent object's child relationships. Fixes configs generated via Manual Query mode with custom objects.

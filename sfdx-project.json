@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.9.0 — V1 Object Name Resolution",
-      "versionNumber": "1.9.0.NEXT",
-      "ancestorId": "04tal000006PFQDAA4",
+      "versionName": "1.10.0 — Giant Query Flow Action",
+      "versionNumber": "1.10.0.NEXT",
+      "ancestorId": "04tal000006PFRpAAO",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
