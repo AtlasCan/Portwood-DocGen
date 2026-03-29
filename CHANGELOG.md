@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.6.0 — "Sample Flows" (Portwood DocGen Managed)
+
+Sample Flows demonstrating DocGen Flow action integration. Proper upgrade chain from v1.5.0.
+
+- **DocGen: Generate Account Summary** — Screen Flow for Account record page. Resolves default template via `Is_Default__c`, generates PDF, saves to Files. Launch as Quick Action or App Page button.
+- **DocGen: Welcome Pack on New Contact** — Record-Triggered Flow (After Save, Create). Auto-generates welcome document and creates follow-up Task for Contact Owner.
+- **Flow Entry Criteria** — Record-triggered flow includes entry criteria to satisfy Code Analyzer (0 High).
+- **Ancestor Chain** — v1.6.0 → v1.5.0 → v1.4.0. Seamless upgrades.
+- **615 Apex tests**, 76% coverage, 24/24 E2E, 0 Critical, 0 High.
+
 ## v1.5.0 — "Giant Query PDF" (Portwood DocGen Managed)
 
 Same features as v1.3.0/v1.4.0 with critical fixes and proper package ancestor chain for upgrades.
