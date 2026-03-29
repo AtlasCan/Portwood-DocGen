@@ -18,6 +18,9 @@ String uid = String.valueOf(Math.mod(Math.abs(Crypto.getRandomInteger()), 100000
 // 1. CREATE TEST DATA
 // =====================================================================
 
+// Detect State/Country Picklists (enabled by default in new dev orgs; off in scratch orgs)
+Boolean statePicklistEnabled = Schema.SObjectType.Account.fields.getMap().containsKey('billingcountrycode');
+
 Account acc = new Account(
     Name = 'E2E-' + uid,
     Industry = 'Technology',
@@ -25,9 +28,14 @@ Account acc = new Account(
     Website = 'www.test.com',
     BillingStreet = '100 Test Dr',
     BillingCity = 'San Francisco',
-    BillingState = 'CA',
     BillingPostalCode = '94105'
 );
+if (statePicklistEnabled) {
+    acc.put('BillingStateCode', 'CA');
+    acc.put('BillingCountryCode', 'US');
+} else {
+    acc.put('BillingState', 'CA');
+}
 Database.insert(acc, dml);
 
 List<Contact> cons = new List<Contact>{
