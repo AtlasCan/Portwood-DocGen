@@ -21,6 +21,14 @@
                      <template lwc:if={loadingMessage}>
                          <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_small">{loadingMessage}</p>
                      </template>
+                     <template lwc:if={showProgressBar}>
+                         <div class="progress-bar-container slds-var-m-top_small">
+                             <div class="progress-bar-track">
+                                 <div class="progress-bar-fill" style={progressBarStyle}></div>
+                             </div>
+                             <p class="progress-bar-label">{progressPercent}%</p>
+                         </div>
+                     </template>
                  </div>
             </template>
 

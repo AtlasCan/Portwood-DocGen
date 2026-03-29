@@ -363,15 +363,33 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             }
 
             // Giant Query path: create Job, extract loop body, launch batch
-            // Get template XML for loop extraction
-            String base64File = DocGenTemplateManager.getTemplateFileContent(templateId);
-            Blob templateBlob = EncodingUtil.base64Decode(base64File);
-            Compression.ZipReader reader = new Compression.ZipReader(templateBlob);
+            // Use pre-decomposed XML to get document.xml — avoids ZIP decompression heap cost
+            List<DocGen_Template_Version__c> activeVersions = [
+                SELECT Id FROM DocGen_Template_Version__c
+                WHERE Template__c = :templateId AND Is_Active__c = true
+                WITH SYSTEM_MODE LIMIT 1
+            ];
             String documentXml = null;
-            for (Compression.ZipEntry entry : reader.getEntries()) {
-                if (entry.getName() == 'word/document.xml') {
-                    documentXml = reader.extract(entry.getName()).toString();
-                    break;
+            if (!activeVersions.isEmpty()) {
+                String xmlKey = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_word__document.xml';
+                List<ContentVersion> xmlCvs = [
+                    SELECT VersionData FROM ContentVersion
+                    WHERE Title = :xmlKey WITH SYSTEM_MODE LIMIT 1 // NOPMD — internal pre-decomposed part
+                ];
+                if (!xmlCvs.isEmpty()) {
+                    documentXml = xmlCvs[0].VersionData.toString();
+                }
+            }
+            // Fallback: decompress ZIP if pre-decomposed parts unavailable
+            if (documentXml == null) {
+                String base64File = DocGenTemplateManager.getTemplateFileContent(templateId);
+                Blob templateBlob = EncodingUtil.base64Decode(base64File);
+                Compression.ZipReader reader = new Compression.ZipReader(templateBlob);
+                for (Compression.ZipEntry entry : reader.getEntries()) {
+                    if (entry.getName() == 'word/document.xml') {
+                        documentXml = reader.extract(entry.getName()).toString();
+                        break;
+                    }
                 }
             }
             if (documentXml == null) {
@@ -382,6 +400,8 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             if (loopParts == null) {
                 throw new DocGenException('Could not find loop for relationship: ' + giantRelationship);
             }
+
+            String outputFormat = template.Output_Format__c != null ? template.Output_Format__c : 'PDF';
 
             // Create Job record
             DocGen_Job__c job = new DocGen_Job__c(
@@ -397,11 +417,11 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             );
             insert job; // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
 
-            // Launch batch
+            // Launch batch — shell PDF generation happens in start() with fresh heap
             DocGenGiantQueryBatch batch = new DocGenGiantQueryBatch(
                 job.Id, templateId, recordId, giantNodeConfig,
                 loopParts.get('innerXml'),
-                template.Output_Format__c != null ? template.Output_Format__c : 'PDF'
+                outputFormat
             );
             Database.executeBatch(batch, 1); // scope size 1: one page descriptor per execute
 
@@ -409,7 +429,8 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 'jobId' => job.Id,
                 'isGiantQuery' => true,
                 'childCounts' => counts,
-                'giantRelationship' => giantRelationship
+                'giantRelationship' => giantRelationship,
+                'outputFormat' => outputFormat
             };
         } catch (DocGenException e) {
             throw DocGenService.ahe(e);
@@ -452,17 +473,38 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
     @AuraEnabled
     public static Map<String, Object> getGiantQueryFragments(Id jobId) {
         String prefix = 'docgen_giant_' + jobId + '_';
+        String shellTitle = 'docgen_giant_' + jobId + '_shell';
         List<ContentVersion> fragments = [
             SELECT Id, Title FROM ContentVersion
-            WHERE Title LIKE :(prefix + '%') WITH SYSTEM_MODE ORDER BY Title // NOPMD — internal fragment lookup
+            WHERE Title LIKE :(prefix + '%') AND Title != :shellTitle
+            WITH SYSTEM_MODE ORDER BY Title // NOPMD — internal fragment lookup
         ];
         List<String> fragmentIds = new List<String>();
         for (ContentVersion cv : fragments) {
             fragmentIds.add(cv.Id);
         }
+
+        // Look up the final assembled PDF if it exists (single-part result)
+        String finalTitle = 'docgen_giant_' + jobId + '_final';
+        List<ContentVersion> finalCvs = [
+            SELECT Id FROM ContentVersion
+            WHERE Title = :finalTitle WITH SYSTEM_MODE LIMIT 1 // NOPMD — internal lookup
+        ];
+
+        // Look up PDF parts if multiple chunks were rendered
+        String partPrefix = 'docgen_giant_' + jobId + '_part_';
+        List<ContentVersion> partCvs = [
+            SELECT Id FROM ContentVersion
+            WHERE Title LIKE :(partPrefix + '%') WITH SYSTEM_MODE ORDER BY Title // NOPMD
+        ];
+        List<String> partIds = new List<String>();
+        for (ContentVersion cv : partCvs) { partIds.add(cv.Id); }
+
         return new Map<String, Object>{
             'fragmentIds' => fragmentIds,
-            'fragmentCount' => fragments.size()
+            'fragmentCount' => fragments.size(),
+            'finalPdfCvId' => finalCvs.isEmpty() ? null : finalCvs[0].Id,
+            'partPdfCvIds' => partIds
         };
     }
 
@@ -501,6 +543,80 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
         }
         if (!docIds.isEmpty()) {
             delete [SELECT Id FROM ContentDocument WHERE Id IN :docIds]; // NOPMD ApexCRUDViolation — cleaning up Giant Query fragments
+        }
+    }
+
+    /**
+     * Launches a Giant Query PDF batch using client-provided child node config.
+     * Works for ALL config versions (V1/V2/V3) — the scout already resolved the
+     * child node metadata, so we don't need to parse the query config here.
+     * Only loads the document XML (pre-decomposed) to extract the loop body.
+     * @param templateId The DocGen_Template__c record ID
+     * @param recordId The parent record ID
+     * @param giantRelationship The child relationship name with >2000 records
+     * @param childNodeConfigJson JSON-serialized child node config from scout
+     * @return Map with jobId, isGiantQuery, outputFormat
+     */
+    @AuraEnabled
+    public static Map<String, Object> launchGiantQueryPdfBatch(Id templateId, Id recordId, String giantRelationship, String childNodeConfigJson) {
+        try {
+            if (templateId == null) { throw new DocGenException('Template ID is missing.'); }
+            if (recordId == null) { throw new DocGenException('Record ID is missing.'); }
+
+            Map<String, Object> childNodeConfig = (Map<String, Object>) JSON.deserializeUntyped(childNodeConfigJson);
+
+            // Get document XML from pre-decomposed parts (no ZIP decompression)
+            List<DocGen_Template_Version__c> activeVersions = [
+                SELECT Id FROM DocGen_Template_Version__c
+                WHERE Template__c = :templateId AND Is_Active__c = true
+                WITH SYSTEM_MODE LIMIT 1
+            ];
+            String documentXml = null;
+            if (!activeVersions.isEmpty()) {
+                String xmlKey = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_word__document.xml';
+                List<ContentVersion> xmlCvs = [
+                    SELECT VersionData FROM ContentVersion
+                    WHERE Title = :xmlKey WITH SYSTEM_MODE LIMIT 1 // NOPMD — internal pre-decomposed part
+                ];
+                if (!xmlCvs.isEmpty()) {
+                    documentXml = xmlCvs[0].VersionData.toString();
+                }
+            }
+            if (documentXml == null) {
+                throw new DocGenException('Pre-decomposed template parts not found. Please re-save the template.');
+            }
+
+            Map<String, String> loopParts = DocGenService.extractLoopBody(documentXml, giantRelationship);
+            documentXml = null; // free
+            if (loopParts == null) {
+                throw new DocGenException('Could not find loop for relationship: ' + giantRelationship);
+            }
+
+            // Create Job record
+            DocGen_Job__c job = new DocGen_Job__c(
+                Status__c = 'Draft',
+                Template__c = templateId,
+                Label__c = 'Giant Query PDF',
+                Parent_Record_Id__c = String.valueOf(recordId)
+            );
+            insert job; // NOPMD ApexCRUDViolation — package-internal
+
+            // Launch batch — shell PDF + table prop extraction happens in start() with fresh heap
+            DocGenGiantQueryBatch batch = new DocGenGiantQueryBatch(
+                job.Id, templateId, recordId, childNodeConfig,
+                loopParts.get('innerXml'), 'PDF'
+            );
+            Database.executeBatch(batch, 1);
+
+            return new Map<String, Object>{
+                'jobId' => job.Id,
+                'isGiantQuery' => true,
+                'outputFormat' => 'PDF'
+            };
+        } catch (DocGenException e) {
+            throw DocGenService.ahe(e);
+        } catch (Exception e) {
+            throw DocGenService.ahe(e, 'Error launching Giant Query PDF batch.');
         }
     }
 

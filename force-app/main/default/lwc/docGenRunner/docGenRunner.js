@@ -16,6 +16,7 @@ import generateDocumentPartsGiantQuery from '@salesforce/apex/DocGenController.g
 import cleanupGiantQueryFragments from '@salesforce/apex/DocGenController.cleanupGiantQueryFragments';
 import getChildRecordPage from '@salesforce/apex/DocGenController.getChildRecordPage';
 import scoutChildCounts from '@salesforce/apex/DocGenController.scoutChildCounts';
+import launchGiantQueryPdfBatch from '@salesforce/apex/DocGenController.launchGiantQueryPdfBatch';
 import { NavigationMixin } from 'lightning/navigation';
 import { downloadBase64 as downloadBase64Util } from 'c/docGenUtils';
 import { buildDocx } from './docGenZipWriter';
@@ -35,6 +36,8 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     @track error = '';
     @track loadingMessage = '';
     @track isGiantQueryMode = false;
+    @track progressPercent = 0;
+    @track showProgressBar = false;
 
     @track appMode = 'generate'; // generate, packet, mergeOnly, mergeChildren
 
@@ -96,6 +99,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     }
 
     get showMergeOption() { return this.templateOutputFormat === 'PDF'; }
+    get progressBarStyle() { return `width: ${this.progressPercent}%`; }
     get hasRecordPdfs() { return this.recordPdfOptions.length > 0; }
 
     get isGenerateDisabled() { return !this.selectedTemplateId || this.isLoading; }
@@ -299,6 +303,11 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             if (giantRel) {
                 this.isGiantQueryMode = true;
                 this.outputMode = 'download';
+                const isPdf = this.templateOutputFormat === 'PDF';
+                if (isPdf) {
+                    await this._assembleGiantQueryPdf(giantRel[0], counts, childNodes[giantRel[0]]);
+                    return;
+                }
                 if (isWord) {
                     await this._assembleGiantQueryDocxClientSide(giantRel[0], counts, childNodes[giantRel[0]]);
                     return;
@@ -306,7 +315,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
                 this.isLoading = false;
                 this.loadingMessage = '';
                 this.error = `This record has ${giantRel[1].toLocaleString()} ${giantRel[0]} records. ` +
-                    'For datasets over 2,000 rows, please generate as DOCX (Word) output.';
+                    'For datasets over 2,000 rows, please generate as DOCX (Word) or PDF output.';
                 return;
             }
         } catch (e) {
@@ -848,6 +857,103 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
             this.isLoading = false;
             this.loadingMessage = '';
             this.isGiantQueryMode = false;
+        }
+    }
+
+    /**
+     * Giant Query PDF: launches server batch that renders XML fragments, then
+     * assembles into a single PDF server-side via Blob.toPdf() in finish().
+     * Client just polls, fetches the final PDF, and downloads.
+     * @param {string} giantRelationship - The child relationship name
+     * @param {Object} childCounts - Map of relationship name to record count
+     * @param {Object} childNodeConfig - Child node config from scout
+     */
+    async _assembleGiantQueryPdf(giantRelationship, childCounts, childNodeConfig) {
+        this.isLoading = true;
+        this.error = null;
+        try {
+            const totalRecords = childCounts ? childCounts[giantRelationship] || 0 : 0;
+
+            if (!childNodeConfig) {
+                throw new Error('Child node configuration not available for ' + giantRelationship);
+            }
+
+            // 1. Launch batch
+            this.showProgressBar = true;
+            this.progressPercent = 0;
+            this.loadingMessage = 'Starting PDF generation...';
+            const giantResult = await launchGiantQueryPdfBatch({
+                templateId: this.selectedTemplateId,
+                recordId: this.recordId,
+                giantRelationship,
+                childNodeConfigJson: JSON.stringify(childNodeConfig)
+            });
+            if (!giantResult.isGiantQuery || !giantResult.jobId) {
+                throw new Error('Giant Query batch failed to launch.');
+            }
+            const jobId = giantResult.jobId;
+
+            // 2. Poll until completed — server assembles the final PDF in finish()
+            this.loadingMessage = `Processing ${totalRecords.toLocaleString()} records... Do not leave this page.`;
+            let status = 'Harvesting';
+            while (status !== 'Completed' && status !== 'Failed') {
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise(resolve => { setTimeout(resolve, 3000); }); // NOSONAR — intentional poll delay
+                // eslint-disable-next-line no-await-in-loop
+                const jobStatus = await getGiantQueryJobStatus({ jobId });
+                status = jobStatus.status;
+                if (status === 'Failed') {
+                    throw new Error('PDF generation failed: ' + (jobStatus.label || 'Unknown error'));
+                }
+                const done = jobStatus.successCount || 0;
+                const total = jobStatus.totalRecords || 0;
+                if (total > 0) {
+                    const totalBatches = Math.ceil(total / 50);
+                    this.progressPercent = Math.min(95, Math.round((done / totalBatches) * 95));
+                    this.loadingMessage = `Generating PDF (batch ${done}/${totalBatches})... Do not leave this page.`;
+                }
+            }
+
+            // 3. Fetch result — single part is saved to record, multiple parts need client merge
+            this.progressPercent = 97;
+            this.loadingMessage = 'Finalizing PDF... Do not leave this page.';
+            const fragResult = await getGiantQueryFragments({ jobId });
+            const finalCvId = fragResult.finalPdfCvId;
+            const partIds = fragResult.partPdfCvIds || [];
+
+            if (finalCvId) {
+                // Single PDF — already saved to record
+                this.progressPercent = 100;
+                this.showToast('Success', `PDF saved to record — ${totalRecords.toLocaleString()} ${giantRelationship} rows.`, 'success');
+            } else if (partIds.length > 0) {
+                // Multiple parts — fetch and merge client-side
+                const pdfParts = [];
+                for (let i = 0; i < partIds.length; i++) {
+                    this.loadingMessage = `Merging PDF parts (${i + 1}/${partIds.length})... Do not leave this page.`;
+                    // eslint-disable-next-line no-await-in-loop
+                    const partB64 = await getContentVersionBase64({ contentVersionId: partIds[i] });
+                    if (partB64) { pdfParts.push(this._base64ToUint8Array(partB64)); }
+                }
+                this.loadingMessage = 'Assembling final PDF...';
+                const mergedPdf = mergePdfs(pdfParts);
+                const mergedBase64 = this._uint8ArrayToBase64(mergedPdf);
+                const fileSizeMB = (mergedBase64.length * 0.75 / 1048576).toFixed(1);
+                this.downloadBase64(mergedBase64, 'Document.pdf', 'application/pdf');
+                this.progressPercent = 100;
+                this.showToast('Success', `PDF downloaded (${fileSizeMB}MB) — ${totalRecords.toLocaleString()} ${giantRelationship} rows.`, 'success');
+                // Clean up parts
+                try { await cleanupGiantQueryFragments({ jobId }); } catch (e) { /* non-fatal */ }
+            } else {
+                throw new Error('PDF generation completed but no output found.');
+            }
+        } catch (e) {
+            this.error = 'Giant Query PDF Error: ' + (e.body ? e.body.message : e.message || 'Unknown error');
+        } finally {
+            this.isLoading = false;
+            this.loadingMessage = '';
+            this.isGiantQueryMode = false;
+            this.showProgressBar = false;
+            this.progressPercent = 0;
         }
     }
 
