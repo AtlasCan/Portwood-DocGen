@@ -1093,6 +1093,19 @@ public with sharing class DocGenDataRetriever {
                 return;
             }
         }
+
+        // Fallback: user may have typed the object name (Short_Code__c) instead of the
+        // relationship name (Short_Codes__r). Find the child relationship by object name
+        // and correct the spec's relationshipName so the SOQL subquery uses the right FROM.
+        for (Schema.ChildRelationship cr : parentType.getDescribe().getChildRelationships()) {
+            if (cr.getRelationshipName() != null &&
+                    String.valueOf(cr.getChildSObject()).equalsIgnoreCase(spec.relationshipName)) {
+                spec.childObjectApiName = String.valueOf(cr.getChildSObject());
+                spec.parentIdField = String.valueOf(cr.getField());
+                spec.relationshipName = cr.getRelationshipName();
+                return;
+            }
+        }
     }
 
     /**
@@ -1427,15 +1440,19 @@ public with sharing class DocGenDataRetriever {
         if (parentDescribe == null) { return; }
 
         Map<String, Schema.ChildRelationship> relMap = new Map<String, Schema.ChildRelationship>();
+        Map<String, Schema.ChildRelationship> objMap = new Map<String, Schema.ChildRelationship>();
         for (Schema.ChildRelationship cr : parentDescribe.getChildRelationships()) {
             if (cr.getRelationshipName() != null) {
                 relMap.put(cr.getRelationshipName().toLowerCase(), cr);
+                objMap.put(String.valueOf(cr.getChildSObject()).toLowerCase(), cr);
             }
         }
 
         while (m.find()) {
             String relName = m.group(1);
             Schema.ChildRelationship cr = relMap.get(relName.toLowerCase());
+            // Fallback: user may have typed the object name instead of relationship name
+            if (cr == null) { cr = objMap.get(relName.toLowerCase()); }
             if (cr == null) { continue; }
 
             String childObject = String.valueOf(cr.getChildSObject());
