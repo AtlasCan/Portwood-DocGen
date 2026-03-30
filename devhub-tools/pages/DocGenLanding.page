@@ -372,16 +372,16 @@
     <!-- Hero -->
     <section class="hero">
         <div class="badge-row">
-            <span class="badge green">100% Free</span>
-            <span class="badge">Zero Dependencies</span>
+            <span class="badge green">Free to Start</span>
             <span class="badge">100% Native Salesforce</span>
+            <span class="badge">Your Data Never Leaves Your Org</span>
             <span class="badge green">Open Source</span>
             <apex:outputPanel rendered="{!installCount > 0}">
                 <span class="badge green">Proudly serving {!installCount} org{!IF(installCount > 1, 's', '')}</span>
             </apex:outputPanel>
         </div>
         <h1>Document Generation<br/>for <span>Salesforce</span></h1>
-        <p>Generate PDFs and Word docs from any record. Merge tags, child loops, images, barcodes, QR codes, and aggregates. PowerPoint and Excel coming soon.</p>
+        <p>Generate polished PDFs and Word documents from any Salesforce record. Pull in related records, images, barcodes, totals, and more — all from a simple Word template.</p>
         <div class="hero-actions">
             <a href="{!installLinkProd}" class="btn btn-primary">Install Free</a>
             <a href="{!installLinkSandbox}" class="btn btn-secondary">Install in Sandbox</a>
@@ -397,33 +397,33 @@
         <div class="feature-grid">
             <div class="feature-card">
                 <div class="feature-icon">&#128196;</div>
-                <h3>Multi-Format Output</h3>
-                <p>PDF and Word today. PowerPoint and Excel coming soon. Use your own branded templates — just add merge tags and upload.</p>
+                <h3>PDF &amp; Word Output</h3>
+                <p>Generate professional PDFs and Word documents from your own branded Word templates. Just add placeholder tags and upload.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">&#128257;</div>
-                <h3>Visual Query Builder</h3>
-                <p>Point-and-click field selection with unlimited depth relationships. No SOQL required.</p>
+                <h3>Point-and-Click Setup</h3>
+                <p>Visual query builder lets you pick fields and related records without writing any code. Works with any standard or custom object.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">&#128248;</div>
-                <h3>Images, Barcodes &amp; QR</h3>
-                <p>Embed images from ContentVersion fields, generate Code 128 barcodes and QR codes — all in PDF.</p>
+                <h3>Images &amp; Barcodes</h3>
+                <p>Embed logos, photos, and images from your Salesforce records. Add Code 128 barcodes and QR codes to PDFs.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">&#9889;</div>
-                <h3>Flow &amp; Apex Integration</h3>
-                <p>Invocable actions for single and bulk generation. Custom Apex Data Providers for computed fields and external data.</p>
+                <h3>Automate with Flows</h3>
+                <p>Trigger document generation from Salesforce Flows — auto-generate invoices, contracts, or reports when records change. Sample Flows included.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">&#128218;</div>
                 <h3>Bulk Generation</h3>
-                <p>Generate thousands of documents in the background. Combined PDF mode for maximum efficiency.</p>
+                <p>Generate documents for hundreds of records at once from list views or reports. Perfect for batch invoicing, statements, and mail merges.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">&#128274;</div>
-                <h3>Secure &amp; Governor-Safe</h3>
-                <p>Zero-heap PDF rendering, pre-decomposed templates, USER_MODE queries. 0 Critical, 0 High on Code Analyzer.</p>
+                <h3>Secure &amp; Reliable</h3>
+                <p>100% native — your data never leaves Salesforce. Respects all sharing rules and field-level security. Tested at scale with 10,000+ row documents.</p>
             </div>
         </div>
     </section>
@@ -431,7 +431,7 @@
     <!-- Comparison -->
     <section class="compare-section">
         <h2>How DocGen Compares</h2>
-        <p class="compare-subtitle">The only free, fully native document generator for Salesforce.</p>
+        <p class="compare-subtitle">See how DocGen stacks up against paid alternatives.</p>
         <div class="compare-table-wrap">
             <table class="compare-table">
                 <thead>
@@ -449,7 +449,7 @@
                 <tbody>
                     <tr>
                         <td>Price</td>
-                        <td class="col-docgen cmp-yes">Free</td>
+                        <td class="col-docgen cmp-yes">Free / $10/user</td>
                         <td>~$25-50/user/mo</td>
                         <td>~$15-30/user/mo</td>
                         <td>Industries license req'd</td>
@@ -519,7 +519,7 @@
                     </tr>
                     <tr>
                         <td>PPTX Output</td>
-                        <td class="col-docgen cmp-partial">Coming Soon</td>
+                        <td class="col-docgen cmp-no">No</td>
                         <td class="cmp-yes">Yes</td>
                         <td class="cmp-no">No</td>
                         <td class="cmp-no">No</td>
@@ -529,7 +529,7 @@
                     </tr>
                     <tr>
                         <td>Images in Documents</td>
-                        <td class="col-docgen cmp-yes">Zero-heap</td>
+                        <td class="col-docgen cmp-yes">Yes</td>
                         <td class="cmp-yes">Yes</td>
                         <td class="cmp-partial">Limited</td>
                         <td class="cmp-partial">Limited</td>
@@ -539,7 +539,7 @@
                     </tr>
                     <tr>
                         <td>Rich Text Fields</td>
-                        <td class="col-docgen cmp-yes">Full HTML</td>
+                        <td class="col-docgen cmp-yes">Yes</td>
                         <td class="cmp-partial">Partial</td>
                         <td class="cmp-yes">Yes</td>
                         <td class="cmp-partial">Limited</td>
@@ -548,18 +548,18 @@
                         <td class="cmp-partial">Partial</td>
                     </tr>
                     <tr>
-                        <td>Unlimited Depth Queries</td>
+                        <td>Multi-Level Related Records</td>
                         <td class="col-docgen cmp-yes">Yes</td>
                         <td class="cmp-partial">Limited</td>
                         <td class="cmp-partial">Limited</td>
-                        <td class="cmp-yes">Via DataRaptor</td>
+                        <td class="cmp-yes">Yes</td>
                         <td class="cmp-partial">Limited</td>
                         <td class="cmp-no">No</td>
                         <td class="cmp-partial">Limited</td>
                     </tr>
                     <tr>
-                        <td>Junction Object Support</td>
-                        <td class="col-docgen cmp-yes">Native</td>
+                        <td>Many-to-Many Relationships</td>
+                        <td class="col-docgen cmp-yes">Yes</td>
                         <td class="cmp-partial">Complex</td>
                         <td class="cmp-no">No</td>
                         <td class="cmp-partial">Manual</td>
@@ -578,7 +578,7 @@
                         <td class="cmp-yes">Yes</td>
                     </tr>
                     <tr>
-                        <td>Child Records per Document</td>
+                        <td>Related Records per Document</td>
                         <td class="col-docgen cmp-yes">50,000+</td>
                         <td class="cmp-partial">~500</td>
                         <td class="cmp-partial">~500</td>
@@ -598,14 +598,14 @@
                         <td class="cmp-no">No</td>
                     </tr>
                     <tr>
-                        <td>Vendor Outage Risk</td>
-                        <td class="col-docgen cmp-yes">None</td>
-                        <td class="cmp-no">Yes</td>
-                        <td class="cmp-yes">None</td>
-                        <td class="cmp-partial">Possible</td>
-                        <td class="cmp-yes">None</td>
-                        <td class="cmp-no">Yes</td>
-                        <td class="cmp-no">Yes</td>
+                        <td>Works When Vendor Is Down</td>
+                        <td class="col-docgen cmp-yes">Yes</td>
+                        <td class="cmp-no">No</td>
+                        <td class="cmp-yes">Yes</td>
+                        <td class="cmp-partial">Partial</td>
+                        <td class="cmp-yes">Yes</td>
+                        <td class="cmp-no">No</td>
+                        <td class="cmp-no">No</td>
                     </tr>
                 </tbody>
             </table>
@@ -651,7 +651,7 @@
             <a href="{!installLinkProd}" class="btn btn-primary">Install in Production</a>
             <a href="{!installLinkSandbox}" class="btn btn-secondary" style="color: #1a1a2e; border-color: #cbd5e1;">Install in Sandbox</a>
         </div>
-        <div class="install-code">sf package install --package 04tal000006PGR7AAO --wait 10 --target-org your-org</div>
+        <div class="install-code">sf package install --package 04tal000006PH2DAAW --wait 10 --target-org your-org</div>
         <p style="margin-top: 1.5rem; font-size: 0.9rem;">Then: Assign <strong>DocGen Admin</strong> permission set &bull; Open the <strong>DocGen</strong> app</p>
     </section>
 
@@ -666,7 +666,7 @@
             <a href="/DocGenPrivacy">Privacy Policy</a>
         </div>
         <p>Built by <a href="https://portwoodglobalsolutions.com">Portwood Global Solutions</a></p>
-        <p style="margin-top: 0.5rem; font-size: 0.8rem;">Apache 2.0 License &bull; AppExchange listing coming soon</p>
+        <p style="margin-top: 0.5rem; font-size: 0.8rem;">Apache 2.0 License</p>
     </footer>
 
     <script>

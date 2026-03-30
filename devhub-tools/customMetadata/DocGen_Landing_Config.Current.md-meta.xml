@@ -4,10 +4,10 @@
     <protected>false</protected>
     <values>
         <field>Package_Version_Id__c</field>
-        <value xsi:type="xsd:string">04tal000006PGR7AAO</value>
+        <value xsi:type="xsd:string">04tal000006PH2DAAW</value>
     </values>
     <values>
         <field>Version_Label__c</field>
-        <value xsi:type="xsd:string">1.11.0</value>
+        <value xsi:type="xsd:string">1.12.0</value>
     </values>
 </CustomMetadata>

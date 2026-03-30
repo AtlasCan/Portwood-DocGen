@@ -348,4 +348,159 @@ private class DocGenGiantQueryTest {
             Test.stopTest();
         }
     }
+
+    // =========================================================================
+    // Giant Query Flow Action Tests
+    // =========================================================================
+
+    @IsTest
+    static void testGiantQueryFlowActionSyncPath() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            Account acc = [SELECT Id FROM Account LIMIT 1];
+            TestDataFactory.attachRealDocxToTestTemplate();
+
+            DocGenGiantQueryFlowAction.Request req = new DocGenGiantQueryFlowAction.Request();
+            req.templateId = tpl.Id;
+            req.recordId = acc.Id;
+            req.saveToRecord = false;
+
+            Test.startTest();
+            List<DocGenGiantQueryFlowAction.Response> responses =
+                DocGenGiantQueryFlowAction.generateDocument(new List<DocGenGiantQueryFlowAction.Request>{ req });
+            Test.stopTest();
+
+            System.assertEquals(1, responses.size(), 'Should return one response');
+            DocGenGiantQueryFlowAction.Response res = responses[0];
+            // With <2K child records, should take sync path
+            System.assertEquals(false, res.isGiantQuery, 'Should not be giant query for small dataset');
+            System.assert(res.success, 'Should succeed: ' + res.errorMessage);
+        }
+    }
+
+    @IsTest
+    static void testGiantQueryFlowActionNullTemplate() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            Account acc = [SELECT Id FROM Account LIMIT 1];
+
+            DocGenGiantQueryFlowAction.Request req = new DocGenGiantQueryFlowAction.Request();
+            req.templateId = null;
+            req.recordId = acc.Id;
+
+            Test.startTest();
+            List<DocGenGiantQueryFlowAction.Response> responses =
+                DocGenGiantQueryFlowAction.generateDocument(new List<DocGenGiantQueryFlowAction.Request>{ req });
+            Test.stopTest();
+
+            System.assertEquals(false, responses[0].success, 'Should fail with null template');
+            System.assertNotEquals(null, responses[0].errorMessage, 'Should have error message');
+        }
+    }
+
+    @IsTest
+    static void testGiantQueryFlowActionInvalidRecord() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            TestDataFactory.attachRealDocxToTestTemplate();
+
+            DocGenGiantQueryFlowAction.Request req = new DocGenGiantQueryFlowAction.Request();
+            req.templateId = tpl.Id;
+            req.recordId = UserInfo.getUserId(); // wrong object type
+            req.saveToRecord = false;
+
+            Test.startTest();
+            List<DocGenGiantQueryFlowAction.Response> responses =
+                DocGenGiantQueryFlowAction.generateDocument(new List<DocGenGiantQueryFlowAction.Request>{ req });
+            Test.stopTest();
+
+            System.assertEquals(false, responses[0].success, 'Should fail with wrong record type');
+        }
+    }
+
+    @IsTest
+    static void testGiantQueryFlowActionResponseFields() {
+        // Verify all response fields are accessible
+        DocGenGiantQueryFlowAction.Response res = new DocGenGiantQueryFlowAction.Response();
+        res.contentDocumentId = null;
+        res.contentVersionId = null;
+        res.jobId = null;
+        res.isGiantQuery = false;
+        res.errorMessage = null;
+        res.success = true;
+        System.assert(res.success, 'Response fields should be settable');
+    }
+
+    // =========================================================================
+    // Giant Query Assembler Tests
+    // =========================================================================
+
+    @IsTest
+    static void testAssemblerWithNoFragments() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            Account acc = [SELECT Id FROM Account LIMIT 1];
+            DocGen_Job__c job = new DocGen_Job__c(
+                Template__c = tpl.Id,
+                Status__c = 'Harvesting',
+                Parent_Record_Id__c = String.valueOf(acc.Id)
+            );
+            insert job; // NOPMD
+
+            Test.startTest();
+            System.enqueueJob(new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts'));
+            Test.stopTest();
+
+            DocGen_Job__c result = [SELECT Status__c, Label__c FROM DocGen_Job__c WHERE Id = :job.Id];
+            System.assertEquals('Failed', result.Status__c, 'Should fail with no fragments');
+        }
+    }
+
+    @IsTest
+    static void testAssemblerWithFragments() {
+        User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
+        System.runAs(u) {
+            DocGen_Template__c tpl = [SELECT Id FROM DocGen_Template__c LIMIT 1];
+            Account acc = [SELECT Id FROM Account LIMIT 1];
+
+            // Create template version + pre-baked HTML
+            DocGen_Template_Version__c ver = [SELECT Id FROM DocGen_Template_Version__c WHERE Is_Active__c = true LIMIT 1];
+            String htmlTitle = 'docgen_tmpl_html_' + ver.Id;
+            ContentVersion htmlCv = new ContentVersion(
+                Title = htmlTitle,
+                PathOnClient = htmlTitle + '.html',
+                VersionData = Blob.valueOf('<html><head><style>td{border:1px solid}</style></head><body><table><tr><td>{#Contacts}{FirstName}{/Contacts}</td></tr></table></body></html>')
+            );
+            insert htmlCv; // NOPMD
+
+            DocGen_Job__c job = new DocGen_Job__c(
+                Template__c = tpl.Id,
+                Status__c = 'Harvesting',
+                Parent_Record_Id__c = String.valueOf(acc.Id)
+            );
+            insert job; // NOPMD
+
+            // Create some HTML fragments
+            String prefix = 'docgen_giant_' + job.Id + '_';
+            List<ContentVersion> frags = new List<ContentVersion>();
+            for (Integer i = 0; i < 3; i++) {
+                frags.add(new ContentVersion(
+                    Title = prefix + String.valueOf(i).leftPad(5, '0'),
+                    PathOnClient = prefix + i + '.html',
+                    VersionData = Blob.valueOf('<tr><td>Row ' + i + '</td></tr>')
+                ));
+            }
+            insert frags; // NOPMD
+
+            Test.startTest();
+            System.enqueueJob(new DocGenGiantQueryAssembler(job.Id, tpl.Id, acc.Id, 'Contacts'));
+            Test.stopTest();
+
+            DocGen_Job__c result = [SELECT Status__c FROM DocGen_Job__c WHERE Id = :job.Id];
+            System.assertEquals('Completed', result.Status__c, 'Assembler should complete');
+        }
+    }
 }
