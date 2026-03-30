@@ -32,8 +32,6 @@ public with sharing class DocGenHtmlRenderer {
     // Styles XML from template — set before calling convertToHtml for style resolution
     public static String stylesXml;
 
-    // Content width in inches — set during convertToHtml for RTL line break calculation
-    private static Decimal contentWidthInches = 6.5; // default: letter - 1in margins
 
     // Unit conversions
     private static final Decimal HALF_POINTS_TO_PT = 0.5;     // half-points → pt (÷2)
@@ -133,7 +131,6 @@ public with sharing class DocGenHtmlRenderer {
 
         // Build dynamic page CSS from document dimensions + styles
         Map<String, Decimal> pageDims = parsePageDimensions(documentXml);
-        contentWidthInches = pageDims.get('contentWidth');
         String cellPadding = resolveDefaultCellPadding();
         String dynamicPageCss = '@page { size: ' + pageDims.get('pageWidth') + 'in ' + pageDims.get('pageHeight') + 'in; ' +
             'margin: ' + pageDims.get('marginTop') + 'in ' + pageDims.get('marginRight') + 'in ' +
@@ -508,29 +505,6 @@ public with sharing class DocGenHtmlRenderer {
             return pageBreakDiv + '<p' + (String.isNotBlank(style) ? ' style="' + style + '"' : '') + '>&nbsp;</p>';
         }
 
-        // RTL: insert manual line breaks so FS doesn't wrap incorrectly
-        if (isRtl) {
-            // Extract font size from paragraph: try pPr default run props, then first run's rPr
-            Decimal pFontSize = 11; // default
-            String pRpr = String.isNotBlank(pPr) ? extractElement(pPr, 'w:rPr') : null;
-            String szVal = String.isNotBlank(pRpr) ? extractAttr(pRpr, 'w:sz', 'w:val') : null;
-            if (szVal == null) {
-                // Try szCs (complex script size) for RTL
-                szVal = String.isNotBlank(pRpr) ? extractAttr(pRpr, 'w:szCs', 'w:val') : null;
-            }
-            if (szVal == null) {
-                // Try first run's font size
-                String firstRPr = extractElement(pXml, 'w:rPr');
-                szVal = String.isNotBlank(firstRPr) ? extractAttr(firstRPr, 'w:sz', 'w:val') : null;
-                if (szVal == null) {
-                    szVal = String.isNotBlank(firstRPr) ? extractAttr(firstRPr, 'w:szCs', 'w:val') : null;
-                }
-            }
-            if (szVal != null && szVal.isNumeric()) {
-                pFontSize = Integer.valueOf(szVal) * 0.5; // half-points to points
-            }
-            content = wrapRtlParagraph(content, pFontSize);
-        }
 
         // Heading
         if (headingLevel > 0) {
@@ -707,63 +681,39 @@ public with sharing class DocGenHtmlRenderer {
         while (cursor < pXml.length()) {
             Integer runStart = pXml.indexOf('<w:r>', cursor);
             Integer runStart2 = pXml.indexOf('<w:r ', cursor);
-
-            // Also check for drawing elements outside runs
             Integer drawingStart = pXml.indexOf('<w:drawing>', cursor);
             Integer drawingStart2 = pXml.indexOf('<w:drawing ', cursor);
-
-            // Also check for hyperlinks
             Integer hyperlinkStart = pXml.indexOf('<w:hyperlink', cursor);
 
-            // Find the earliest element
             Integer nextRun = -1;
-                        if (runStart != -1 && runStart2 != -1) { nextRun = Math.min(runStart, runStart2); }
-                        else if (runStart != -1) { nextRun = runStart; }
-                        else if (runStart2 != -1) { nextRun = runStart2; }
+            if (runStart != -1 && runStart2 != -1) { nextRun = Math.min(runStart, runStart2); }
+            else if (runStart != -1) { nextRun = runStart; }
+            else if (runStart2 != -1) { nextRun = runStart2; }
 
             Integer nextDrawing = -1;
-                        if (drawingStart != -1 && drawingStart2 != -1) { nextDrawing = Math.min(drawingStart, drawingStart2); }
-                        else if (drawingStart != -1) { nextDrawing = drawingStart; }
-                        else if (drawingStart2 != -1) { nextDrawing = drawingStart2; }
+            if (drawingStart != -1 && drawingStart2 != -1) { nextDrawing = Math.min(drawingStart, drawingStart2); }
+            else if (drawingStart != -1) { nextDrawing = drawingStart; }
+            else if (drawingStart2 != -1) { nextDrawing = drawingStart2; }
 
-            // Find earliest of run, drawing, hyperlink
             Integer nextElement = -1;
             String elementType = '';
-
             if (nextRun != -1) { nextElement = nextRun; elementType = 'run'; }
-            if (nextDrawing != -1 && (nextElement == -1 || nextDrawing < nextElement)) {
-                nextElement = nextDrawing; elementType = 'drawing';
-            }
-            if (hyperlinkStart != -1 && (nextElement == -1 || hyperlinkStart < nextElement)) {
-                nextElement = hyperlinkStart; elementType = 'hyperlink';
-            }
-
-                        if (nextElement == -1) { break; }
+            if (nextDrawing != -1 && (nextElement == -1 || nextDrawing < nextElement)) { nextElement = nextDrawing; elementType = 'drawing'; }
+            if (hyperlinkStart != -1 && (nextElement == -1 || hyperlinkStart < nextElement)) { nextElement = hyperlinkStart; elementType = 'hyperlink'; }
+            if (nextElement == -1) { break; }
 
             if (elementType == 'run') {
                 Integer runEnd = findClosingTag(pXml, nextRun, 'w:r');
-                if (runEnd != -1) {
-                    parts.add(processRun(pXml.substring(nextRun, runEnd), images));
-                    cursor = runEnd;
-                } else {
-                    cursor = nextRun + 1;
-                }
+                if (runEnd != -1) { parts.add(processRun(pXml.substring(nextRun, runEnd), images)); cursor = runEnd; }
+                else { cursor = nextRun + 1; }
             } else if (elementType == 'drawing') {
                 Integer drawEnd = findClosingTag(pXml, nextDrawing, 'w:drawing');
-                if (drawEnd != -1) {
-                    parts.add(processDrawing(pXml.substring(nextDrawing, drawEnd), images));
-                    cursor = drawEnd;
-                } else {
-                    cursor = nextDrawing + 1;
-                }
+                if (drawEnd != -1) { parts.add(processDrawing(pXml.substring(nextDrawing, drawEnd), images)); cursor = drawEnd; }
+                else { cursor = nextDrawing + 1; }
             } else if (elementType == 'hyperlink') {
                 Integer hlEnd = findClosingTag(pXml, hyperlinkStart, 'w:hyperlink');
-                if (hlEnd != -1) {
-                    parts.add(processHyperlink(pXml.substring(hyperlinkStart, hlEnd), images));
-                    cursor = hlEnd;
-                } else {
-                    cursor = hyperlinkStart + 1;
-                }
+                if (hlEnd != -1) { parts.add(processHyperlink(pXml.substring(hyperlinkStart, hlEnd), images)); cursor = hlEnd; }
+                else { cursor = hyperlinkStart + 1; }
             }
         }
 
@@ -1303,102 +1253,6 @@ public with sharing class DocGenHtmlRenderer {
      * English merge field values in RTL runs are left untouched.
      * Mixed content (Hebrew + English in one run) reverses RTL segments only.
      */
-    /**
-     * Pre-wraps reversed RTL paragraph content by splitting into line-width chunks
-     * from the END of the string, then reversing chunk order.
-     *
-     * Since the text is fully reversed, the beginning of the sentence is at the END
-     * of the string. By splitting from the end and putting the last chunk first,
-     * the sentence beginning appears on line 1 (top) when rendered right-aligned.
-     *
-     * @param html The paragraph's inner HTML (reversed RTL content)
-     * @param fontSizePt The paragraph's font size in points (default 11)
-     * @return HTML with <br/> inserted so each line is short enough to avoid FS wrapping
-     */
-    private static String wrapRtlParagraph(String html, Decimal fontSizePt) {
-        if (String.isBlank(html)) { return html; }
-        if (fontSizePt == null || fontSizePt <= 0) { fontSizePt = 11; }
-
-        Decimal contentWidthPt = contentWidthInches * 72;
-        // Average character width ratio varies by script and font:
-        // - Latin (Arial): ~0.5x font size
-        // - Hebrew (Arial Unicode MS): ~0.45x font size
-        // - Arabic: ~0.4x font size
-        // Use 0.45 as a reasonable middle ground for RTL text
-        Decimal avgCharWidth = fontSizePt * 0.45;
-        Integer charsPerLine = (Integer)(contentWidthPt / avgCharWidth);
-        if (charsPerLine < 30) { charsPerLine = 30; }
-
-        // Count visible characters (skip HTML tags)
-        Integer visibleChars = 0;
-        Boolean inTag = false;
-        for (Integer i = 0; i < html.length(); i++) {
-            String ch = html.substring(i, i + 1);
-            if (ch == '<') { inTag = true; }
-            else if (ch == '>') { inTag = false; }
-            else if (!inTag) { visibleChars++; }
-        }
-
-        // If fits on one line, no wrapping needed
-        if (visibleChars <= charsPerLine) { return html; }
-
-        // Find space positions (word boundaries) in the visible text, mapped to HTML positions
-        List<Integer> spaceHtmlPositions = new List<Integer>();
-        inTag = false;
-        for (Integer i = 0; i < html.length(); i++) {
-            String ch = html.substring(i, i + 1);
-            if (ch == '<') { inTag = true; }
-            else if (ch == '>') { inTag = false; }
-            else if (!inTag && ch == ' ') {
-                spaceHtmlPositions.add(i);
-            }
-        }
-
-        if (spaceHtmlPositions.isEmpty()) { return html; }
-
-        // Calculate break points FROM THE END: find the space closest to
-        // each charsPerLine boundary counting backwards from the last visible char
-        List<Integer> breakPositions = new List<Integer>();
-        Integer charsFromEnd = 0;
-        inTag = false;
-        // Walk backwards through HTML to find break points
-        for (Integer i = html.length() - 1; i >= 0; i--) {
-            String ch = html.substring(i, i + 1);
-            if (ch == '>') { inTag = true; }
-            else if (ch == '<') { inTag = false; }
-            else if (!inTag) {
-                charsFromEnd++;
-                if (charsFromEnd >= charsPerLine && ch == ' ') {
-                    breakPositions.add(i);
-                    charsFromEnd = 0;
-                }
-            }
-        }
-
-        if (breakPositions.isEmpty()) { return html; }
-
-        // Split HTML at break positions and reverse the chunk order
-        // breakPositions are from end-to-start, so they're already in the order we need
-        List<String> chunks = new List<String>();
-        Integer prevPos = 0;
-        // Sort break positions ascending
-        List<Integer> sorted = new List<Integer>(breakPositions);
-        sorted.sort();
-
-        for (Integer bp : sorted) {
-            chunks.add(html.substring(prevPos, bp));
-            prevPos = bp + 1; // skip the space
-        }
-        chunks.add(html.substring(prevPos));
-
-        // Reverse chunk order: last chunk (beginning of sentence) comes first
-        List<String> reversed = new List<String>();
-        for (Integer i = chunks.size() - 1; i >= 0; i--) {
-            reversed.add(chunks[i]);
-        }
-
-        return String.join(reversed, '<br/>');
-    }
 
     private static Boolean isRtlCodePoint(Integer cp) {
         return (cp >= 1424 && cp <= 1535) ||   // Hebrew (U+0590-U+05FF)

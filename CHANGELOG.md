@@ -1,14 +1,37 @@
 # Changelog
 
+## v1.12.0 — RTL Support + Giant Query 28K+ + Custom Object Fix
+
+Major release: RTL language support for PDF output, Giant Query scaling to 28K+ rows, custom object query builder fix, V1 object name resolution, Giant Query Flow action, and install tracker improvements.
+
+### RTL Language Support (Hebrew, Arabic)
+- **RTL text rendering** — Detects `<w:bidi/>` and `<w:rtl/>` in DOCX XML. Reverses Hebrew/Arabic text for correct right-to-left display in `Blob.toPdf()`. English merge field values are preserved.
+- **RTL paragraph alignment** — Right-aligns paragraphs when document default style or paragraph properties specify `<w:bidi/>`.
+- **RTL table layout** — Tables with `<w:bidiVisual/>` render columns right-to-left.
+- **RTL run ordering** — Multiple runs within an RTL paragraph display in correct right-to-left order.
+- **Complex Script font** — Uses Arial Unicode MS (built into `Blob.toPdf()`) for Hebrew/Arabic glyphs. Detects `w:cs` font attribute.
+- **Bidi-aware indentation** — Falls back to `w:start`/`w:end` when `w:left`/`w:right` absent.
+- **Known limitation**: Long paragraphs that wrap to multiple lines may have continuation lines starting from the left instead of the right. This is a Flying Saucer (PDF engine) limitation — it does not implement the Unicode Bidirectional Algorithm. Will be addressed in a future release.
+
+### Giant Query (from v1.8.0-v1.9.0)
+- **28K+ row scaling** — Single-pass fragment assembly, no Queueable chaining.
+- **Reduced HTML size** — `td:nth-child(N)` CSS instead of per-cell classes.
+- **Parent merge tag fix** — Validates dot-notation fields against base object schema.
+- **V1 object name resolution** — Auto-resolves object names to relationship names in subqueries.
+
+### Query Builder (from v1.7.0)
+- **Custom object label fix** — Fixed `_createNode` pluralizing API names (`__c` → `__cs`).
+- **Schema-based lookup fields** — Report import uses describe instead of hardcoded `parentObj + 'Id'`.
+- **Dynamic child discovery** — Report import for custom object report types.
+
+### Other
+- **Giant Query Flow Action** — `DocGenGiantQueryFlowAction` invocable: auto-detects large datasets, sync under 2K rows, async batch over 2K. Customer portal ready.
+- **Install tracker** — Net-new notifications only, per-row Account actions, fuzzy org name matching.
+- **PPTX/XLSX** — Marked as "Coming Soon" on landing page (not battle-tested).
+
 ## v1.11.0 — RTL Language Support (Hebrew/Arabic)
 
-PDF output now renders right-to-left languages correctly.
-
-- **feat: RTL paragraph support** — Detects `<w:bidi/>` in DOCX paragraph properties, applies `direction:rtl` CSS and `dir="rtl"` HTML attribute. Hebrew and Arabic paragraphs render right-to-left with correct alignment.
-- **feat: RTL run-level support** — Detects `<w:rtl/>` on text runs for mixed-direction paragraphs. Uses Complex Script font (`w:cs`) mapped to Arial Unicode MS for proper glyph rendering.
-- **feat: Bidi-aware indentation** — Paragraph indentation now falls back to `w:start`/`w:end` attributes when `w:left`/`w:right` are absent (standard in RTL DOCX files).
-- **Supported languages**: Hebrew, Arabic, Farsi, Urdu, and other RTL scripts.
-- **Font**: Arial Unicode MS (built into `Blob.toPdf()` engine) — no custom font upload needed.
+(Superseded by v1.12.0)
 
 ## v1.10.0 — Giant Query Flow Action
 

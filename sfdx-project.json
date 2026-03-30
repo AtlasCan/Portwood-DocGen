@@ -1,9 +1,9 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.11.0 — RTL Language Support (Hebrew/Arabic)",
-      "versionNumber": "1.11.0.NEXT",
-      "ancestorId": "04tal000006PFWfAAO",
+      "versionName": "1.12.0 — RTL Support + Giant Query 28K+ + Custom Object Fix",
+      "versionNumber": "1.12.0.NEXT",
+      "ancestorId": "04tal000006PGR7AAO",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
