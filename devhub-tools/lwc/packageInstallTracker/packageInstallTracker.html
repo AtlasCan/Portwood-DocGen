@@ -1,6 +1,7 @@
 <template>
     <lightning-card title="Package Install Tracker" icon-name="standard:dashboard">
         <div slot="actions">
+            <lightning-button label="Sync &amp; Create Accounts" variant="brand" onclick={handleSyncNow} class="slds-var-m-right_small"></lightning-button>
             <lightning-button label={versionToggleLabel} variant="neutral" onclick={handleToggleVersions} class="slds-var-m-right_small"></lightning-button>
             <lightning-button-icon icon-name="utility:refresh" alternative-text="Refresh" onclick={handleRefresh}></lightning-button-icon>
         </div>
@@ -95,7 +96,7 @@
                 </template>
             </template>
 
-            <p class="slds-text-body_small slds-text-color_weak slds-m-top_medium slds-text-align_center">Auto-refreshes every 60 seconds. New installs trigger a notification.</p>
+            <p class="slds-text-body_small slds-text-color_weak slds-m-top_medium slds-text-align_center">Auto-refreshes every 60 seconds. Only net-new installs trigger a notification. Accounts sync every 6 hours or on demand.</p>
         </div>
     </lightning-card>
 </template>

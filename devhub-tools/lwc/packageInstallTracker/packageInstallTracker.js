@@ -4,6 +4,8 @@ import getSubscribers from '@salesforce/apex/PackageInstallTracker.getSubscriber
 import getStats from '@salesforce/apex/PackageInstallTracker.getStats';
 import getVersions from '@salesforce/apex/PackageInstallTracker.getVersions';
 import sendInstallNotification from '@salesforce/apex/PackageInstallTracker.sendInstallNotification';
+import syncNow from '@salesforce/apex/DocGenSubscriberSync.syncNow';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 
 const COLUMNS = [
     { label: 'Org Name', fieldName: 'orgName', sortable: true },
@@ -41,7 +43,8 @@ export default class PackageInstallTracker extends LightningElement {
     sortBy = 'installedDate';
     sortDirection = 'desc';
     _pollTimer;
-    _lastSubscriberCount = 0;
+    _knownOrgKeys = new Set();
+    _initialized = false;
     showVersions = false;
 
     @wire(getPackages)
@@ -64,13 +67,17 @@ export default class PackageInstallTracker extends LightningElement {
     wiredSubscribers({ data, error }) {
         this.isLoading = false;
         if (data) {
-            const newCount = data.length;
-            // Detect new installs
-            if (this._lastSubscriberCount > 0 && newCount > this._lastSubscriberCount) {
-                const newest = data[0]; // Sorted by SystemModstamp DESC
-                this._sendNotification(newest);
+            // Detect genuinely NEW orgs (not upgrades or re-syncs)
+            if (this._initialized) {
+                for (const s of data) {
+                    if (s.orgKey && s.installedStatus === 'Installed' && !this._knownOrgKeys.has(s.orgKey)) {
+                        this._sendNotification(s);
+                    }
+                }
             }
-            this._lastSubscriberCount = newCount;
+            // Track all known org keys
+            this._knownOrgKeys = new Set(data.map(s => s.orgKey));
+            this._initialized = true;
 
             this.subscribers = data.map(s => ({
                 ...s,
@@ -148,7 +155,8 @@ export default class PackageInstallTracker extends LightningElement {
 
     handlePackageChange(event) {
         this.isLoading = true;
-        this._lastSubscriberCount = 0;
+        this._knownOrgKeys = new Set();
+        this._initialized = false;
         this.selectedPackageId = event.detail.value;
     }
 
@@ -168,6 +176,27 @@ export default class PackageInstallTracker extends LightningElement {
             return va > vb ? dir : va < vb ? -dir : 0;
         });
         this.subscribers = data;
+    }
+
+    handleSyncNow() {
+        this.isLoading = true;
+        syncNow()
+            .then(() => {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Sync Complete',
+                    message: 'Subscriber orgs synced and Accounts created.',
+                    variant: 'success'
+                }));
+                this.handleRefresh();
+            })
+            .catch(err => {
+                this.dispatchEvent(new ShowToastEvent({
+                    title: 'Sync Failed',
+                    message: err.body ? err.body.message : err.message,
+                    variant: 'error'
+                }));
+                this.isLoading = false;
+            });
     }
 
     handleRefresh() {
