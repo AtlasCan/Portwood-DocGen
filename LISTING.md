@@ -120,12 +120,17 @@ Free — all features, all users, no limits.
 - License: Apache 2.0
 - Current version: 1.12.0
 
-## Support
+## Support Description
 
-- Slack community: https://portwoodglobalsolutions.com/DocGenCommunity
+Community support via Slack and GitHub — free for all users.
+
+Join the DocGen Slack community for real-time help from the team and other admins. Post questions, share screenshots, and get answers fast. Bug reports and feature requests are tracked on GitHub Issues.
+
+- Slack: https://portwoodglobalsolutions.com/DocGenCommunity
 - GitHub Issues: https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues
-- Website: https://portwoodglobalsolutions.com
 - Email: hello@portwoodglobalsolutions.com
+
+Professional implementation services, custom template design, and hands-on setup assistance are available from Portwood Global Solutions. Contact us for details.
 
 ## Terms & Conditions
 
