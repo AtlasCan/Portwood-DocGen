@@ -1,4 +1,4 @@
-# Portwood DocGen — Security Review Submission (v1.2.0)
+# Portwood DocGen — Security Review Submission (v1.12.0)
 
 ## Describe Your Solution
 
@@ -12,10 +12,12 @@ Key technical details:
 - All classes use "with sharing" to enforce sharing rules
 - No external endpoints are called — all processing is on-platform
 - Custom objects: DocGen_Template__c, DocGen_Template_Version__c, DocGen_Job__c, DocGen_Saved_Query__c
+- Custom setting: DocGen_Settings__c (hierarchy, global/user-level configuration)
 - Two permission sets control access: DocGen Admin (full CRUD) and DocGen User (read templates, create jobs)
-- 507 Apex tests, 77% org-wide coverage, 0 Critical/0 High on Code Analyzer (recommended rules)
+- 615 Apex tests, 76% org-wide coverage, 0 Critical/0 High on Code Analyzer (recommended rules)
+- 24 E2E integration tests passing
 - Package namespace: portwoodglobal
-- Package type: Unlocked 2GP
+- Package type: Managed 2GP
 
 ## Web App / Web Services Frameworks and Languages
 
@@ -35,18 +37,24 @@ No. The app includes a full user interface built with Lightning Web Components (
 
 ## Salesforce Platform Technology
 
-- **Lightning Web Components (LWC):** docGenRunner, docGenAdmin, docGenCommandHub, docGenBulkRunner, docGenColumnBuilder, docGenQueryBuilder, docGenFilterBuilder, docGenSharing, docGenTitleEditor, docGenSetupWizard
-- **Apex Classes:** DocGenController, DocGenService, DocGenDataRetriever, DocGenHtmlRenderer, DocGenBatch, DocGenBulkController, DocGenFlowAction, DocGenBulkFlowAction, DocGenMergeJob, DocGenTemplateManager, DocGenSetupController, BarcodeGenerator, DocGenDataProvider (interface), DocGenException
+- **Lightning Web Components (LWC):** docGenRunner, docGenAdmin, docGenCommandHub, docGenBulkRunner, docGenColumnBuilder, docGenQueryBuilder, docGenFilterBuilder, docGenSharing, docGenTitleEditor, docGenSetupWizard, docGenAdminGuide, docGenUtils
+- **Apex Classes:**
+  - Controllers: DocGenController, DocGenBulkController, DocGenSetupController
+  - Core Engine: DocGenService, DocGenDataRetriever, DocGenHtmlRenderer, DocGenTemplateManager
+  - Giant Query: DocGenGiantQueryBatch, DocGenGiantQueryAssembler, DocGenGiantQueryStitchJob, DocGenGiantQueryFlowAction
+  - Batch/Async: DocGenBatch, DocGenMergeJob
+  - Flow Actions: DocGenFlowAction, DocGenBulkFlowAction, DocGenGiantQueryFlowAction
+  - Utilities: BarcodeGenerator, DocGenDataProvider (interface), DocGenException
+  - Client-side JS: docGenPdfMerger.js (PDF merge), docGenZipWriter.js (DOCX/XLSX assembly)
 - **Custom Objects:** DocGen_Template__c, DocGen_Template_Version__c, DocGen_Job__c, DocGen_Saved_Query__c
+- **Custom Settings:** DocGen_Settings__c (hierarchy — global/user-level configuration)
 - **Custom Fields on Standard Objects:** Product2.Product_Image__c (optional, for product image merge tags)
-- **Invocable Actions:** DocGenFlowAction (single generation), DocGenBulkFlowAction (bulk generation) — both @InvocableMethod with global access for Flow/Process Builder visibility
-- **Batch Apex:** DocGenBatch (implements Database.Batchable, Database.Stateful, Database.AllowsCallouts)
-- **Queueable:** DocGenMergeJob (PDF merging with Finalizer)
-- **Custom Tabs:** DocGen Command Hub, Job History, Template Manager, Bulk Generation, Setup, Admin Guide
+- **Invocable Actions:** DocGenFlowAction (single generation), DocGenBulkFlowAction (bulk generation), DocGenGiantQueryFlowAction (giant query generation) — all @InvocableMethod with global access for Flow/Process Builder visibility
+- **Batch Apex:** DocGenBatch (implements Database.Batchable, Database.Stateful, Database.AllowsCallouts), DocGenGiantQueryBatch
+- **Queueable:** DocGenMergeJob (PDF merging with Finalizer), DocGenGiantQueryAssembler, DocGenGiantQueryStitchJob
+- **Custom Tabs:** DocGen Command Hub, Job History, Template Manager, Bulk Generation, Setup, Admin Guide, DocGen Template, DocGen Template Version
 - **Custom App:** DocGen (Lightning app with all tabs)
 - **Permission Sets:** DocGen Admin, DocGen User
-- **Custom Settings:** None in the distributed package
-- **Custom Metadata Types:** None in the distributed package
 - **Visualforce Pages:** None in the distributed package
 - **Aura Components:** None — all LWC
 

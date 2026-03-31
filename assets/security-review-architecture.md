@@ -14,11 +14,12 @@ Portwood DocGen is a 100% native Salesforce application. All processing occurs w
 │  │   Components  │    │  & Services  │    │  (Templates, │  │
 │  │   (UI Layer)  │    │  (Logic)     │    │   Jobs, etc) │  │
 │  └──────────────┘    └──────┬───────┘    └──────────────┘  │
-│                             │                               │
-│                     ┌───────▼───────┐                       │
-│                     │ ContentVersion│                       │
-│                     │ (Documents)   │                       │
-│                     └───────────────┘                       │
+│         │                   │                               │
+│  ┌──────▼──────┐    ┌──────▼───────┐                       │
+│  │  Client-Side │    │ ContentVersion│                      │
+│  │  JS (ZIP,    │    │ (Documents)   │                      │
+│  │   PDF Merge) │    └───────────────┘                      │
+│  └─────────────┘                                            │
 │                                                             │
 │  No external callouts. No data leaves this boundary.        │
 └─────────────────────────────────────────────────────────────┘
@@ -33,9 +34,19 @@ Portwood DocGen is a 100% native Salesforce application. All processing occurs w
 3. `DocGenDataRetriever` queries record data using SOQL with `WITH USER_MODE` — only fields the user has access to are returned
 4. `DocGenService.mergeTemplate()` loads the template file from ContentVersion, parses XML, and replaces merge tags with record data
 5. For PDF output: merged XML is converted to HTML by `DocGenHtmlRenderer`, then rendered to PDF via `Blob.toPdf()`
-6. For DOCX/XLSX/PPTX output: merged XML is assembled client-side via JavaScript (LWC) and downloaded directly to the browser
+6. For DOCX output: merged XML parts are returned to the client; `docGenZipWriter.js` assembles the final DOCX in the browser
 7. Generated document is saved as a new ContentVersion linked to the source record via ContentDocumentLink
-8. All processing stays within Apex heap/CPU limits — no async callouts, no external processing
+8. All server-side processing stays within Apex heap/CPU limits — no async callouts, no external processing
+
+### Giant Query (Large Documents)
+
+For records with 2,000+ child records, the Giant Query engine automatically activates:
+
+1. `DocGenGiantQueryBatch` harvests child records in cursor-paginated batches (500 rows/page)
+2. For PDF: `DocGenGiantQueryAssembler` runs as a Queueable chain, progressively building HTML and rendering via `Blob.toPdf()`
+3. For DOCX: child data is returned to the client in pages; `docGenZipWriter.js` assembles the final document
+4. `DocGenGiantQueryStitchJob` handles post-processing and record linking
+5. Supports 50,000+ child records per document
 
 ### Bulk Generation
 
@@ -49,10 +60,18 @@ Portwood DocGen is a 100% native Salesforce application. All processing occurs w
 
 ### Flow Integration
 
-1. Admins add `DocGenFlowAction` or `DocGenBulkFlowAction` as a Flow action
+1. Admins add `DocGenFlowAction`, `DocGenBulkFlowAction`, or `DocGenGiantQueryFlowAction` as a Flow action
 2. The Flow passes record ID and template ID as input variables
 3. The invocable method calls the same generation pipeline used by the UI
 4. Output (ContentVersion ID) is returned to the Flow for downstream use
+
+### PDF Merging
+
+1. User selects PDFs to merge via the DocGen Runner UI (drag-and-drop ordering)
+2. Each PDF is fetched in its own Apex call (fresh 6 MB heap per call)
+3. `docGenPdfMerger.js` merges PDFs client-side — parsing object graphs, renumbering references, flattening page trees
+4. Five merge modes: Generate & Merge, Document Packets, Merge Only, Child Record PDFs, Bulk Merge
+5. No server-side size limits on download; save to record up to ~3 MB
 
 ## Authentication
 
@@ -83,14 +102,19 @@ The app does not implement any custom authentication. All operations execute in 
 | Generated documents | ContentVersion | Linked to source record via CDL | Inherits record sharing |
 | Bulk job records | DocGen_Job__c | Sharing rules + permission set | Status, counts, errors |
 | Saved queries | DocGen_Saved_Query__c | Sharing rules + permission set | Reusable filter conditions |
+| App settings | DocGen_Settings__c | Hierarchy Custom Setting | Global/user-level config |
 | Record data | Standard/custom objects | WITH USER_MODE enforced | Read-only, never modified |
 
-**No customer data is stored in custom settings, static resources, or any location outside of standard Salesforce objects.**
+**No customer data is stored in static resources or any location outside of standard Salesforce objects.**
+
+## Subscriber Data
+
+As a managed package publisher, Salesforce automatically provides limited subscriber information through the PackageSubscriber system object. This is a standard Salesforce platform feature for all managed packages. The data includes: org ID, org name, org type, install status, package version installed, and Salesforce instance name. This data is used to track install counts and provide support. It does not include any data from within the subscriber's org.
 
 ## Basic Usage Instructions
 
 ### Installation
-1. Install the package: `sf package install --package 04tal000006PEM5AAO --wait 10 --target-org <your-org>`
+1. Install the package: `sf package install --package 04tal000006PH2DAAW --wait 10 --target-org <your-org>`
 2. Assign the **DocGen Admin** permission set to administrators
 3. Assign the **DocGen User** permission set to end users
 4. Enable the **Blob.toPdf() Release Update** in Setup (required for PDF generation)
@@ -118,6 +142,12 @@ The app does not implement any custom authentication. All operations execute in 
 
 ### Flow Integration
 1. In Flow Builder, add an Action element
-2. Search for "Generate Document" (DocGenFlowAction)
+2. Search for "Generate Document" (DocGenFlowAction) or "Generate Giant Query Document" (DocGenGiantQueryFlowAction)
 3. Set the Template ID and Record ID inputs
 4. The output includes the generated ContentVersion ID for downstream use
+
+## Community & Support
+
+- **Slack:** https://portwoodglobalsolutions.com/DocGenCommunity — real-time help, feature requests, template sharing
+- **GitHub Issues:** https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues — bug reports, tracked feature requests
+- **Professional services:** Implementation, custom templates, and hands-on setup from Portwood Global Solutions
