@@ -1,8 +1,9 @@
 # Portwood DocGen — Code Analyzer Security Report
 
-**Package:** Portwood DocGen v1.2.0 (portwoodglobal namespace)
-**Scan Date:** March 28, 2026
-**Scanner:** Salesforce Code Analyzer v5.9.0 (sf code-analyzer run --rule-selector "recommended")
+**Package:** Portwood DocGen v1.12.0 (portwoodglobal namespace)
+**Scan Date:** March 31, 2026
+**Scanner:** Salesforce Code Analyzer v5.9.0 (sf code-analyzer run --rule-selector "Recommended")
+**Engines:** pmd, eslint, retire-js, cpd, regex, flow
 **Target:** force-app/ (all package source — Apex classes, LWC, custom objects, permission sets)
 
 ## Summary
@@ -11,9 +12,9 @@
 |----------|-------|--------|
 | **Critical** | **0** | Clean |
 | **High** | **0** | Clean |
-| Moderate | 289 | Code quality only (see below) |
-| Low | 392 | Style/documentation (see below) |
-| Info | 56 | Copy-paste detection |
+| Moderate | 392 | Code quality only (see below) |
+| Low | 491 | Style/documentation (see below) |
+| Info | 49 | Copy-paste detection |
 
 **Zero security vulnerabilities found. All Critical and High severity violations are zero.**
 
@@ -28,41 +29,42 @@ None. The scan found zero violations in any security-relevant category:
 - **No hardcoded credentials** — no API keys, passwords, or tokens in source
 - **No SOQL/DML in loops** — all refactored to bulk operations
 - **No external callouts** — zero HttpRequest usage in the distributed package
+- **No Flow security issues** — Flow engine scan returned zero findings
 
-## Moderate Violations (289) — Not Security Related
+## Moderate Violations (392) — Not Security Related
 
 These are all **code quality metrics**, not security findings:
 
 | Rule | Count | Category |
 |------|-------|----------|
-| CyclomaticComplexity | 84 | Method branching complexity |
-| CognitiveComplexity | 62 | Method readability |
-| AvoidDeeplyNestedIfStmts | 59 | Nested if statements |
-| NcssCount | 44 | Method line count |
-| ExcessiveParameterList | 23 | Method parameter count |
-| no-async-operation (ESLint) | 7 | setTimeout/setInterval in LWC |
-| AvoidBooleanMethodParameters | 8 | Boolean params |
+| CyclomaticComplexity | ~90 | Method branching complexity |
+| CognitiveComplexity | ~65 | Method readability |
+| AvoidDeeplyNestedIfStmts | ~60 | Nested if statements |
+| NcssCount | ~45 | Method/class line count |
+| ExcessiveParameterList | ~25 | Method parameter count |
+| no-inline-disable (ESLint) | ~9 | Inline rule disablement in LWC |
+| AvoidBooleanMethodParameters | ~8 | Boolean params |
 | AvoidGlobalModifier | 2 | Required for @InvocableMethod |
 
-**Why these are not security risks:** Cyclomatic/cognitive complexity, method length, and parameter counts are software engineering quality metrics. They indicate methods that could benefit from refactoring but do not represent security vulnerabilities. The `AvoidGlobalModifier` violations are intentional — `global` access is required for @InvocableMethod to be visible in Flow Builder across namespace boundaries.
+**Why these are not security risks:** Cyclomatic/cognitive complexity, method length, and parameter counts are software engineering quality metrics. They indicate methods that could benefit from refactoring but do not represent security vulnerabilities. The `AvoidGlobalModifier` violations are intentional — `global` access is required for @InvocableMethod to be visible in Flow Builder across namespace boundaries. The `no-inline-disable` violations are intentional — `no-await-in-loop` is disabled in specific locations where sequential Apex calls are required for heap management (each call gets fresh 6 MB heap).
 
-## Low Violations (392) — Documentation & Style
+## Low Violations (491) — Documentation & Style
 
 | Rule | Count | Category |
 |------|-------|----------|
-| no-hardcoded-values-slds2 (ESLint) | 24 | CSS values without SLDS tokens |
-| ApexDoc | 212 | Missing Javadoc comments |
-| ApexUnitTestClassShouldHaveRunAs | 95 | Test methods without System.runAs() |
-| no-slds-namespace-for-custom-hooks | 45 | CSS custom property naming |
-| AnnotationsNamingConventions | 5 | @isTest vs @IsTest casing |
-| AvoidNonRestrictiveQueries | 2 | Queries with LIMIT but no WHERE |
-| Other | 9 | Minor style suggestions |
+| ApexDoc | ~220 | Missing Javadoc comments |
+| ApexUnitTestClassShouldHaveRunAs | ~100 | Test methods without System.runAs() |
+| no-hardcoded-values-slds2 (ESLint) | ~25 | CSS values without SLDS tokens |
+| no-slds-namespace-for-custom-hooks | ~50 | CSS custom property naming |
+| AnnotationsNamingConventions | ~5 | @isTest vs @IsTest casing |
+| AvoidNonRestrictiveQueries | ~2 | Queries with LIMIT but no WHERE |
+| Other | ~10 | Minor style suggestions |
 
 **Why these are not security risks:** Missing documentation, test patterns, CSS naming conventions, and annotation casing have no impact on application security.
 
-## Info Violations (56)
+## Info Violations (49)
 
-All 56 Info-level findings are from the **copy-paste detection (CPD)** engine, identifying similar code blocks. These are refactoring suggestions, not security findings.
+All Info-level findings are from the **copy-paste detection (CPD)** engine, identifying similar code blocks. These are refactoring suggestions, not security findings.
 
 ## Detailed Report
 
@@ -74,7 +76,7 @@ To reproduce this scan:
 
 ```bash
 sf plugins install @salesforce/plugin-code-analyzer
-sf code-analyzer run --rule-selector "recommended" --target force-app
+sf code-analyzer run --rule-selector "Recommended" --target force-app
 ```
 
 ## No DAST Scanner Required
