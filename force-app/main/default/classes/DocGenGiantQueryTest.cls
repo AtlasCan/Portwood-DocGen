@@ -42,10 +42,14 @@ private class DocGenGiantQueryTest {
         );
         insert tpl;
 
-        // Create Template Version (active) — required by attachRealDocxToTestTemplate and assembler tests
+        // Create a valid DOCX file and link to template
+        ContentVersion docxCv = TestDataFactory.createValidDocxFile(tpl.Id, TestDataFactory.buildSimpleDocXml());
+
+        // Create Template Version (active) with the DOCX content version
         DocGen_Template_Version__c ver = new DocGen_Template_Version__c(
             Template__c = tpl.Id,
             Is_Active__c = true,
+            Content_Version_Id__c = docxCv.Id,
             Query_Config__c = v3Config,
             Type__c = 'Word',
             Base_Object_API__c = 'Account'
