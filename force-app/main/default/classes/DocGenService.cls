@@ -384,7 +384,7 @@ public with sharing class DocGenService {
             List<DocGen_Template_Version__c> activeVersions = [
                 SELECT Id FROM DocGen_Template_Version__c
                 WHERE Template__c = :templateId AND Is_Active__c = true
-                WITH SYSTEM_MODE LIMIT 1
+                WITH USER_MODE LIMIT 1
             ];
             if (activeVersions.isEmpty()) {
                 return null;
@@ -394,7 +394,7 @@ public with sharing class DocGenService {
             List<ContentVersion> xmlCvs = [
                 SELECT Id, Title, VersionData FROM ContentVersion
                 WHERE Title LIKE :(xmlPrefix + '%')
-                WITH SYSTEM_MODE
+                WITH USER_MODE
             ];
 
             if (xmlCvs.isEmpty()) {
@@ -799,7 +799,7 @@ public with sharing class DocGenService {
         List<DocGen_Template_Version__c> activeVersions = [
             SELECT Id FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH SYSTEM_MODE LIMIT 1
+            WITH USER_MODE LIMIT 1
         ];
         if (activeVersions.isEmpty()) {
             throw new DocGenException('No active template version found.');
@@ -814,7 +814,7 @@ public with sharing class DocGenService {
 
         List<ContentVersion> xmlCvs = [
             SELECT Title, VersionData FROM ContentVersion
-            WHERE Title IN (:docKey, :stylesKey) WITH SYSTEM_MODE // NOPMD — internal pre-decomposed parts
+            WHERE Title IN (:docKey, :stylesKey) WITH USER_MODE // NOPMD — internal pre-decomposed parts
         ];
         for (ContentVersion cv : xmlCvs) {
             if (cv.Title == docKey) {
@@ -911,7 +911,7 @@ public with sharing class DocGenService {
         // Get parent-only record data (strip all children from config)
         List<DocGen_Template__c> templates = [
             SELECT Base_Object_API__c, Query_Config__c, Type__c, Document_Title_Format__c
-            FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
+            FROM DocGen_Template__c WHERE Id = :templateId WITH USER_MODE LIMIT 1
         ];
         DocGen_Template__c template = templates[0];
 
@@ -950,12 +950,12 @@ public with sharing class DocGenService {
         List<DocGen_Template_Version__c> activeVersions = [
             SELECT Id FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH SYSTEM_MODE LIMIT 1
+            WITH USER_MODE LIMIT 1
         ];
         String xmlPrefix = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_';
         List<ContentVersion> xmlCvs = [
             SELECT Title, VersionData FROM ContentVersion
-            WHERE Title LIKE :(xmlPrefix + '%') WITH SYSTEM_MODE // NOPMD
+            WHERE Title LIKE :(xmlPrefix + '%') WITH USER_MODE // NOPMD
         ];
 
         String rawDocumentXml = null;
@@ -1032,7 +1032,7 @@ public with sharing class DocGenService {
         }
 
         List<DocGen_Template__c> templates = [
-            SELECT Type__c FROM DocGen_Template__c WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
+            SELECT Type__c FROM DocGen_Template__c WHERE Id = :templateId WITH USER_MODE LIMIT 1
         ];
         if (templates.isEmpty()) {
             return;
@@ -1279,14 +1279,14 @@ public with sharing class DocGenService {
         List<DocGen_Template_Version__c> activeVersions = [
             SELECT Id FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH SYSTEM_MODE LIMIT 1
+            WITH USER_MODE LIMIT 1
         ];
         if (!activeVersions.isEmpty()) {
             String prefix = 'docgen_tmpl_img_' + activeVersions[0].Id + '_';
             List<ContentVersion> tmplCvs = [
                 SELECT Id, Title FROM ContentVersion
                 WHERE Title LIKE :(prefix + '%')
-                WITH SYSTEM_MODE
+                WITH USER_MODE
             ];
             for (ContentVersion cv : tmplCvs) {
                 String relId = cv.Title.substring(prefix.length());
@@ -1533,11 +1533,11 @@ public with sharing class DocGenService {
     private static String namespaceImageRelIds(String xml, String partPrefix) {
         String result = xml;
         Integer cursor = 0;
-        String searchToken = 'r:embed="';
+        String embedMarker = 'r:embed="';
         while (cursor < result.length()) {
-            Integer embedStart = result.indexOf(searchToken, cursor);
+            Integer embedStart = result.indexOf(embedMarker, cursor);
             if (embedStart == -1) { break; }
-            Integer valStart = embedStart + searchToken.length();
+            Integer valStart = embedStart + embedMarker.length();
             Integer valEnd = result.indexOf('"', valStart);
             if (valEnd == -1) { break; }
             String relId = result.substring(valStart, valEnd);
@@ -2772,14 +2772,14 @@ public with sharing class DocGenService {
                 if (currentOutputFormat == 'PDF') {
                     // PDF path: only need the URL — Blob.toPdf() fetches images server-side.
                     // Skip loading the blob entirely to save heap.
-                    List<ContentVersion> cvs = [SELECT Id, FileExtension FROM ContentVersion WHERE Id = :spec.fieldValue WITH SYSTEM_MODE LIMIT 1];
+                    List<ContentVersion> cvs = [SELECT Id, FileExtension FROM ContentVersion WHERE Id = :spec.fieldValue WITH USER_MODE LIMIT 1];
                     if (!cvs.isEmpty()) {
                         if (cvs[0].FileExtension != null) { ext = cvs[0].FileExtension.toLowerCase(); }
                         spec.contentVersionImageUrl = '/sfc/servlet.shepherd/version/download/' + cvs[0].Id;
                     }
                 } else {
                     // DOCX path: need the blob for ZIP embedding
-                    List<ContentVersion> cvs = [SELECT Id, VersionData, FileExtension FROM ContentVersion WHERE Id = :spec.fieldValue WITH SYSTEM_MODE LIMIT 1];
+                    List<ContentVersion> cvs = [SELECT Id, VersionData, FileExtension FROM ContentVersion WHERE Id = :spec.fieldValue WITH USER_MODE LIMIT 1];
                     if (!cvs.isEmpty()) {
                         spec.imageBlobData = cvs[0].VersionData;
                         if (cvs[0].FileExtension != null) { ext = cvs[0].FileExtension.toLowerCase(); }
@@ -3152,17 +3152,17 @@ public with sharing class DocGenService {
         try {
             // Try as ContentVersion ID first
             if (fileRef.startsWith('068')) {
-                List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :fileRef WITH SYSTEM_MODE LIMIT 1];
+                List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :fileRef WITH USER_MODE LIMIT 1];
                 if (!cvs.isEmpty()) {
                     return cvs[0].VersionData;
                 }
             }
             // Try as ContentDocument ID
             if (fileRef.startsWith('069')) {
-                List<ContentDocument> docs = [SELECT LatestPublishedVersionId FROM ContentDocument WHERE Id = :fileRef WITH SYSTEM_MODE LIMIT 1];
+                List<ContentDocument> docs = [SELECT LatestPublishedVersionId FROM ContentDocument WHERE Id = :fileRef WITH USER_MODE LIMIT 1];
                 if (!docs.isEmpty() && docs[0].LatestPublishedVersionId != null) {
                     Id latestCvId = docs[0].LatestPublishedVersionId;
-                    List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :latestCvId WITH SYSTEM_MODE LIMIT 1];
+                    List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :latestCvId WITH USER_MODE LIMIT 1];
                     if (!cvs.isEmpty()) {
                         return cvs[0].VersionData;
                     }
@@ -3170,7 +3170,7 @@ public with sharing class DocGenService {
             }
             // Try as a generic ID that could be linked
             if (fileRef.length() >= 15) {
-                List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :fileRef WITH SYSTEM_MODE LIMIT 1];
+                List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :fileRef WITH USER_MODE LIMIT 1];
                 if (!cvs.isEmpty()) {
                     return cvs[0].VersionData;
                 }
@@ -3222,7 +3222,7 @@ public with sharing class DocGenService {
                 insert cvDecision2.getRecords();
                 savedCvId = cvDecision2.getRecords()[0].Id;
 
-                Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH SYSTEM_MODE].ContentDocumentId;
+                Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH USER_MODE].ContentDocumentId;
                 // Try to link the file to the source record — some objects (e.g. Pricebook2) don't support CDLs
                 try {
                     ContentDocumentLink cdl = new ContentDocumentLink(
@@ -3231,7 +3231,8 @@ public with sharing class DocGenService {
                         ShareType = 'V',
                         Visibility = 'AllUsers'
                     );
-                    insert cdl; // NOPMD ApexCRUDViolation - linking generated document to source record
+                    SObjectAccessDecision cdlDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentDocumentLink>{ cdl });
+                    insert cdlDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
                 } catch (DmlException linkErr) {
                     // Intentionally swallowed — object may not support ContentDocumentLink
                     String noop = linkErr.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule
@@ -3241,7 +3242,7 @@ public with sharing class DocGenService {
             throw dml;
         }
 
-        return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH SYSTEM_MODE].ContentDocumentId;
+        return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH USER_MODE].ContentDocumentId;
     }
     /**
      * Extracts an attribute value from an XML tag string.

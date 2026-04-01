@@ -57,7 +57,7 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
                     SELECT Base_Object_API__c, Query_Config__c, Type__c, Output_Format__c
                     FROM DocGen_Template__c
                     WHERE Id = :req.templateId
-                    WITH SYSTEM_MODE LIMIT 1
+                    WITH USER_MODE LIMIT 1
                 ];
                 if (templates.isEmpty()) {
                     throw new DocGenException('Unable to access template. Verify it exists and you have permission.');
@@ -107,7 +107,7 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
                     List<ContentVersion> cvs = [
                         SELECT Id FROM ContentVersion
                         WHERE ContentDocumentId = :docId AND IsLatest = true
-                        WITH SYSTEM_MODE LIMIT 1
+                        WITH USER_MODE LIMIT 1
                     ];
                     if (!cvs.isEmpty()) {
                         res.contentVersionId = cvs[0].Id;
@@ -137,14 +137,14 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
         List<DocGen_Template_Version__c> activeVersions = [
             SELECT Id FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH SYSTEM_MODE LIMIT 1
+            WITH USER_MODE LIMIT 1
         ];
         String documentXml = null;
         if (!activeVersions.isEmpty()) {
             String xmlKey = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_word__document.xml';
             List<ContentVersion> xmlCvs = [
                 SELECT VersionData FROM ContentVersion
-                WHERE Title = :xmlKey WITH SYSTEM_MODE LIMIT 1 // NOPMD — internal pre-decomposed part
+                WHERE Title = :xmlKey WITH USER_MODE LIMIT 1 // NOPMD — internal pre-decomposed part
             ];
             if (!xmlCvs.isEmpty()) {
                 documentXml = xmlCvs[0].VersionData.toString();
@@ -167,7 +167,9 @@ global with sharing class DocGenGiantQueryFlowAction { // NOPMD AvoidGlobalModif
             Label__c = 'Giant Query PDF (Flow)',
             Parent_Record_Id__c = String.valueOf(recordId)
         );
-        insert job; // NOPMD ApexCRUDViolation — package-internal
+        SObjectAccessDecision jobDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Job__c>{ job });
+        insert jobDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+        job.Id = jobDec.getRecords()[0].Id;
 
         childNodeConfig.put('relationshipName', giantRelationship);
 

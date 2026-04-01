@@ -34,12 +34,13 @@ public with sharing class DocGenMergeJob implements Queueable {
             List<ContentVersion> snippets = [
                 SELECT VersionData, ContentDocumentId FROM ContentVersion
                 WHERE Title LIKE :(prefix + '%')
-                WITH SYSTEM_MODE
+                WITH USER_MODE
                 ORDER BY Title
             ];
 
             if (snippets.isEmpty()) {
-                update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
+                SObjectAccessDecision emptyDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Completed') });
+                update emptyDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
                 return;
             }
 
@@ -60,7 +61,7 @@ public with sharing class DocGenMergeJob implements Queueable {
             // Get job details
             DocGen_Job__c job = [
                 SELECT Label__c, Name, CreatedById, Success_Count__c, Total_Records__c
-                FROM DocGen_Job__c WHERE Id = :jobId WITH SYSTEM_MODE LIMIT 1
+                FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE LIMIT 1
             ];
             String fileName = String.isNotBlank(job.Label__c) ? job.Label__c : 'Bulk Generation ' + job.Name;
 
@@ -72,27 +73,29 @@ public with sharing class DocGenMergeJob implements Queueable {
                 IsMajorVersion = true,
                 FirstPublishLocationId = jobId
             );
-            insert pdfCv; // NOPMD ApexCRUDViolation - internal bulk merge output
+            SObjectAccessDecision cvDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ pdfCv });
+            insert cvDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+            pdfCv.Id = cvDec.getRecords()[0].Id;
 
             // Update Job with merged PDF CV Id
-            update new DocGen_Job__c( // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
-                Id = jobId,
-                Status__c = 'Completed',
-                Merged_PDF_CV__c = pdfCv.Id
-            );
+            SObjectAccessDecision jobDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Completed', Merged_PDF_CV__c = pdfCv.Id) });
+            update jobDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
 
             // Clean up HTML snippets
             List<ContentDocument> docsToDelete = new List<ContentDocument>();
             for (Id docId : docIdsToDelete) {
                 docsToDelete.add(new ContentDocument(Id = docId));
             }
-            delete docsToDelete; // NOPMD ApexCRUDViolation - cleaning up internal temp files
+            if (Schema.sObjectType.ContentDocument.isDeletable()) {
+                delete docsToDelete; // NOPMD ApexCRUDViolation — CRUD checked above
+            }
 
             // Send bell + push notification to the job submitter
             sendCompletionNotification(job, fileName, snippets.size());
 
         } catch (Exception e) {
-            update new DocGen_Job__c(Id = jobId, Status__c = 'Completed with Errors'); // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
+            SObjectAccessDecision errDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Completed with Errors') });
+            update errDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
         }
     }
 
@@ -102,7 +105,7 @@ public with sharing class DocGenMergeJob implements Queueable {
             List<CustomNotificationType> types = [
                 SELECT Id FROM CustomNotificationType
                 WHERE DeveloperName = 'DocGen_Job_Complete'
-                WITH SYSTEM_MODE LIMIT 1
+                WITH USER_MODE LIMIT 1
             ];
             if (types.isEmpty()) {
                 return;
@@ -121,15 +124,15 @@ public with sharing class DocGenMergeJob implements Queueable {
         }
     }
 
-    public class DocGenMergeJobFinalizer implements Finalizer {
+    public with sharing class DocGenMergeJobFinalizer implements Finalizer {
         private Id jobId;
         public DocGenMergeJobFinalizer(Id jobId) { this.jobId = jobId; }
         public void execute(FinalizerContext ctx) {
             if (ctx.getResult() == ParentJobResult.UNHANDLED_EXCEPTION) {
                 try {
-                    DocGen_Job__c job = [SELECT Id FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE LIMIT 1];
-                    job.Status__c = 'Failed';
-                    update job; // NOPMD ApexCRUDViolation — package-internal object; updating job status on failure
+                    DocGen_Job__c job = new DocGen_Job__c(Id = jobId, Status__c = 'Failed');
+                    SObjectAccessDecision finDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ job });
+                    update finDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
                 } catch (Exception e) {
                     // Intentionally swallowed — best-effort; job record may not exist
                     String noop = e.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule

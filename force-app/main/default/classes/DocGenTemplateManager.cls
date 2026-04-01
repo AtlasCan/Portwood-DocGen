@@ -16,7 +16,7 @@ public with sharing class DocGenTemplateManager {
             FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId
             AND Is_Active__c = true
-            WITH SYSTEM_MODE
+            WITH USER_MODE
             LIMIT 1
         ];
 

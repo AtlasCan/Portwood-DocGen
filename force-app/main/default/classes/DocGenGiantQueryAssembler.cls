@@ -53,12 +53,13 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             allRows = null;
 
             // Clean up fragments
-            if (!fragDocIds.isEmpty()) {
-                delete [SELECT Id FROM ContentDocument WHERE Id IN :fragDocIds]; // NOPMD
+            if (!fragDocIds.isEmpty() && Schema.sObjectType.ContentDocument.isDeletable()) {
+                delete [SELECT Id FROM ContentDocument WHERE Id IN :fragDocIds]; // NOPMD ApexCRUDViolation — CRUD checked above
             }
 
         } catch (Exception e) {
-            update new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = e.getMessage().left(255)); // NOPMD
+            SObjectAccessDecision failDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = e.getMessage().left(255)) });
+            update failDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
         }
     }
 
@@ -70,12 +71,13 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
      */
     private void renderFinalPdf(String allRows, Id accumDocId) {
         // Clean up the accumulation CV
-        if (accumDocId != null) {
-            delete new ContentDocument(Id = accumDocId); // NOPMD
+        if (accumDocId != null && Schema.sObjectType.ContentDocument.isDeletable()) {
+            delete new ContentDocument(Id = accumDocId); // NOPMD ApexCRUDViolation — CRUD checked above
         }
 
         if (String.isBlank(allRows)) {
-            update new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = 'No data to render'); // NOPMD
+            SObjectAccessDecision noDataDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = 'No data to render') });
+            update noDataDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
             return;
         }
 
@@ -91,7 +93,9 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             String html = injectRowsIntoTemplate(htmlTemplate, rowChunks[0]);
             rowChunks = null;
             // DEBUG: save HTML for inspection before Blob.toPdf()
-            insert new ContentVersion(Title = 'docgen_giant_' + jobId + '_debug_html', PathOnClient = 'debug.html', VersionData = Blob.valueOf(html.substring(0, Math.min(100000, html.length()))), IsMajorVersion = false); // NOPMD
+            ContentVersion debugCv = new ContentVersion(Title = 'docgen_giant_' + jobId + '_debug_html', PathOnClient = 'debug.html', VersionData = Blob.valueOf(html.substring(0, Math.min(100000, html.length()))), IsMajorVersion = false);
+            SObjectAccessDecision dbgDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ debugCv });
+            insert dbgDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
             Blob pdfBlob = Blob.toPdf(html);
             html = null;
 
@@ -101,44 +105,62 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
                 VersionData = pdfBlob,
                 IsMajorVersion = false
             );
-            insert pdfCv; // NOPMD
+            SObjectAccessDecision pdfDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ pdfCv });
+            insert pdfDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+            pdfCv.Id = pdfDec.getRecords()[0].Id;
 
             // Link PDF to the source record
             try {
                 Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :pdfCv.Id].ContentDocumentId;
-                insert new ContentDocumentLink(
+                ContentDocumentLink cdl = new ContentDocumentLink(
                     ContentDocumentId = docId,
                     LinkedEntityId = recordId,
                     ShareType = 'V'
-                ); // NOPMD
+                );
+                SObjectAccessDecision cdlDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentDocumentLink>{ cdl });
+                insert cdlDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
             } catch (Exception linkErr) {
                 String noop = linkErr.getMessage(); // NOPMD EmptyCatchBlock — non-fatal
             }
         } else {
             // Multiple chunks — render each as a separate PDF part for client-side merge
+            // Collect all CVs, bulk insert after loop. PDF blobs are small (~50-200KB each).
+            List<ContentVersion> partCvs = new List<ContentVersion>();
             for (Integer i = 0; i < rowChunks.size(); i++) {
                 String html = injectRowsIntoTemplate(htmlTemplate, rowChunks[i]);
                 rowChunks[i] = null; // free memory
                 // DEBUG: save first chunk's HTML for inspection
                 if (i == 0) {
-                    insert new ContentVersion(Title = 'docgen_giant_' + jobId + '_debug_html', PathOnClient = 'debug.html', VersionData = Blob.valueOf(html.substring(0, Math.min(100000, html.length()))), IsMajorVersion = false); // NOPMD
+                    partCvs.add(new ContentVersion(Title = 'docgen_giant_' + jobId + '_debug_html', PathOnClient = 'debug.html', VersionData = Blob.valueOf(html.substring(0, Math.min(100000, html.length()))), IsMajorVersion = false));
                 }
                 Blob pdfBlob = Blob.toPdf(html);
                 html = null;
 
                 String seq = String.valueOf(i).leftPad(3, '0');
-                ContentVersion partCv = new ContentVersion(
+                partCvs.add(new ContentVersion(
                     Title = 'docgen_giant_' + jobId + '_part_' + seq,
                     PathOnClient = 'docgen_giant_' + jobId + '_part_' + seq + '.pdf',
                     VersionData = pdfBlob,
                     IsMajorVersion = false
-                );
-                insert partCv; // NOPMD
+                ));
                 pdfBlob = null;
+
+                // Heap safety valve — flush if approaching limit
+                if (Limits.getHeapSize() > Limits.getLimitHeapSize() * 0.8 && !partCvs.isEmpty()) {
+                    SObjectAccessDecision flushDec = Security.stripInaccessible(AccessType.CREATABLE, partCvs);
+                    insert flushDec.getRecords();
+                    partCvs.clear();
+                }
+            }
+            // Bulk insert remaining
+            if (!partCvs.isEmpty()) {
+                SObjectAccessDecision partDec = Security.stripInaccessible(AccessType.CREATABLE, partCvs);
+                insert partDec.getRecords();
             }
         }
 
-        update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD
+        SObjectAccessDecision completeDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Completed') });
+        update completeDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
     }
 
     /**
@@ -149,14 +171,14 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         List<DocGen_Template_Version__c> vers = [
             SELECT Id FROM DocGen_Template_Version__c
             WHERE Template__c = :templateId AND Is_Active__c = true
-            WITH SYSTEM_MODE LIMIT 1
+            WITH USER_MODE LIMIT 1
         ];
         String html = null;
         if (!vers.isEmpty()) {
             String htmlTitle = 'docgen_tmpl_html_' + vers[0].Id;
             List<ContentVersion> htmlCvs = [
                 SELECT VersionData FROM ContentVersion
-                WHERE Title = :htmlTitle WITH SYSTEM_MODE LIMIT 1
+                WHERE Title = :htmlTitle WITH USER_MODE LIMIT 1
             ];
             if (!htmlCvs.isEmpty()) {
                 html = htmlCvs[0].VersionData.toString();
@@ -221,7 +243,7 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
         try {
             List<DocGen_Template__c> tpls = [
                 SELECT Base_Object_API__c FROM DocGen_Template__c
-                WHERE Id = :templateId WITH SYSTEM_MODE LIMIT 1
+                WHERE Id = :templateId WITH USER_MODE LIMIT 1
             ];
             if (tpls.isEmpty()) { return html; }
             String baseObj = tpls[0].Base_Object_API__c;
@@ -252,7 +274,7 @@ public with sharing class DocGenGiantQueryAssembler implements Queueable {
             }
             if (!validFields.isEmpty()) {
                 String soql = 'SELECT ' + String.join(validFields, ', ') + ' FROM ' + String.escapeSingleQuotes(baseObj) + ' WHERE Id = :recordId LIMIT 1';
-                List<SObject> recs = Database.query(soql, AccessLevel.SYSTEM_MODE);
+                List<SObject> recs = Database.query(soql, AccessLevel.USER_MODE);
                 if (!recs.isEmpty()) {
                     for (String fn : validFields) {
                         Object val = null;

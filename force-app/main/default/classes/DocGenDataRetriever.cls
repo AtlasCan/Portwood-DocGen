@@ -1460,8 +1460,8 @@ public with sharing class DocGenDataRetriever {
 
             try {
                 String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObject) +
-                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId WITH USER_MODE';
-                Integer cnt = Database.countQuery(countQuery);
+                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
+                Integer cnt = Database.countQuery(countQuery, AccessLevel.USER_MODE);
                 counts.put(relName, cnt);
             } catch (Exception e) {
                 String noop = e.getMessage(); // NOPMD UnusedLocalVariable — skip relationships that fail
@@ -1496,8 +1496,8 @@ public with sharing class DocGenDataRetriever {
                                         String childObjName = String.valueOf(cr.getChildSObject());
                                         String lookupFld = String.valueOf(cr.getField());
                                         String countQ = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObjName) +
-                                            ' WHERE ' + String.escapeSingleQuotes(lookupFld) + ' = :recordId WITH USER_MODE';
-                                        counts.put(rel, Database.countQuery(countQ));
+                                            ' WHERE ' + String.escapeSingleQuotes(lookupFld) + ' = :recordId';
+                                        counts.put(rel, Database.countQuery(countQ, AccessLevel.USER_MODE));
                                     } catch (Exception e) {
                                         String noop = e.getMessage(); // NOPMD UnusedLocalVariable
                                     }
@@ -1539,8 +1539,8 @@ public with sharing class DocGenDataRetriever {
 
             try {
                 String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObject) +
-                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId WITH USER_MODE';
-                Integer cnt = Database.countQuery(countQuery);
+                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
+                Integer cnt = Database.countQuery(countQuery, AccessLevel.USER_MODE);
                 counts.put(relationshipName, cnt);
             } catch (Exception e) {
                 // Intentionally swallowed — skip relationships that fail to count

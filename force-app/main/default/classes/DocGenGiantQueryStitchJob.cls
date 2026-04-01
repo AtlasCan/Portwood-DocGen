@@ -36,7 +36,8 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
     }
 
     public Iterable<String> start(Database.BatchableContext bc) {
-        update new DocGen_Job__c(Id = jobId, Status__c = 'Stitching'); // NOPMD ApexCRUDViolation — package-internal
+        SObjectAccessDecision stitchDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Stitching') });
+        update stitchDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
 
         DocGen_Template__c tmpl = [SELECT Name FROM DocGen_Template__c WHERE Id = :templateId WITH USER_MODE LIMIT 1];
         this.templateName = tmpl.Name;
@@ -45,7 +46,8 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
         Integer fragmentCount = [SELECT COUNT() FROM ContentVersion WHERE Title LIKE :(prefix + '%') WITH USER_MODE];
 
         if (fragmentCount == 0) {
-            update new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = 'No fragments found'); // NOPMD ApexCRUDViolation
+            SObjectAccessDecision noFragDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = 'No fragments found') });
+            update noFragDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
             return new List<String>();
         }
 
@@ -59,6 +61,8 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
     }
 
     public void execute(Database.BatchableContext bc, List<String> scope) {
+        // Collect all part CVs, bulk insert after loop. Each PDF part is ~15KB.
+        List<ContentVersion> partCvs = new List<ContentVersion>();
         for (String groupDescriptor : scope) {
             Integer groupIdx = Integer.valueOf(groupDescriptor.substringAfter(':'));
 
@@ -108,14 +112,18 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
 
             Blob pdfBlob = Blob.toPdf(fullHtml);
 
-            // Save as intermediate part PDF (prefixed for identification in finish)
+            // Collect intermediate part PDF (prefixed for identification in finish)
             String seq = String.valueOf(groupIdx).leftPad(5, '0');
-            ContentVersion partCv = new ContentVersion(
+            partCvs.add(new ContentVersion(
                 Title = 'docgen_part_' + jobId + '_' + seq,
                 PathOnClient = 'docgen_part_' + jobId + '_' + seq + '.pdf',
                 VersionData = pdfBlob
-            );
-            insert partCv; // NOPMD ApexCRUDViolation — intermediate part PDF
+            ));
+        }
+        // Bulk insert all parts
+        if (!partCvs.isEmpty()) {
+            SObjectAccessDecision dec = Security.stripInaccessible(AccessType.CREATABLE, partCvs);
+            insert dec.getRecords();
         }
     }
 
@@ -130,8 +138,8 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
             ]) {
                 fragmentDocIds.add(cv.ContentDocumentId);
             }
-            if (!fragmentDocIds.isEmpty()) {
-                delete [SELECT Id FROM ContentDocument WHERE Id IN :fragmentDocIds]; // NOPMD ApexCRUDViolation — cleaning up HTML fragments
+            if (!fragmentDocIds.isEmpty() && Schema.sObjectType.ContentDocument.isDeletable()) {
+                delete [SELECT Id FROM ContentDocument WHERE Id IN :fragmentDocIds]; // NOPMD ApexCRUDViolation — CRUD checked above
             }
 
             // Load all part PDFs — ~15KB each, 20 parts = ~300KB total, trivially within heap
@@ -142,7 +150,8 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
             ];
 
             if (parts.isEmpty()) {
-                update new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = 'No PDF parts found'); // NOPMD ApexCRUDViolation
+                SObjectAccessDecision noPartsDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = 'No PDF parts found') });
+                update noPartsDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
                 return;
             }
 
@@ -155,10 +164,13 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
                     PathOnClient = docTitle + '.pdf',
                     VersionData = singlePart.VersionData
                 );
-                insert finalCv; // NOPMD ApexCRUDViolation — final document
+                SObjectAccessDecision dec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ finalCv });
+                insert dec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+                finalCv.Id = dec.getRecords()[0].Id;
                 linkToRecord(finalCv.Id);
                 deletePartPdfs(parts);
-                update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation
+                SObjectAccessDecision singleDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Completed') });
+                update singleDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
                 return;
             }
 
@@ -171,32 +183,41 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
             // then mark complete. The client can merge them.
 
             // Save each part linked to the record with clean names
+            // Collect CVs, bulk insert, then bulk link. Parts are ~15KB each — safe to hold in list.
+            List<ContentVersion> finalCvs = new List<ContentVersion>();
             Integer partNum = 1;
             for (ContentVersion part : parts) {
                 String docTitle = templateName + ' - ' + relationshipName;
                 if (parts.size() > 1) {
                     docTitle += ' (Page ' + partNum + ' of ' + parts.size() + ')';
                 }
-                ContentVersion finalCv = new ContentVersion(
+                finalCvs.add(new ContentVersion(
                     Title = docTitle,
                     PathOnClient = docTitle + '.pdf',
                     VersionData = part.VersionData
-                );
-                insert finalCv; // NOPMD ApexCRUDViolation — final document part
-                linkToRecord(finalCv.Id);
+                ));
                 partNum++;
             }
+            SObjectAccessDecision dec2 = Security.stripInaccessible(AccessType.CREATABLE, finalCvs);
+            insert dec2.getRecords();
+
+            // Bulk link all final CVs to the record
+            List<Id> finalCvIds = new List<Id>();
+            for (SObject rec : dec2.getRecords()) { finalCvIds.add(rec.Id); }
+            bulkLinkToRecord(finalCvIds);
 
             // Clean up intermediate part PDFs
             deletePartPdfs(parts);
 
-            update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation
+            SObjectAccessDecision multiDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Completed') });
+            update multiDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
 
         } catch (Exception e) {
             try {
                 DocGen_Job__c failJob = new DocGen_Job__c(Id = jobId, Status__c = 'Failed');
                 failJob.Label__c = ('Stitch finish error: ' + e.getMessage()).left(255);
-                update failJob; // NOPMD ApexCRUDViolation
+                SObjectAccessDecision failDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ failJob });
+                update failDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
             } catch (Exception updateErr) {
                 String noop = updateErr.getMessage(); // NOPMD UnusedLocalVariable
             }
@@ -204,13 +225,24 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
     }
 
     private void linkToRecord(Id contentVersionId) {
+        bulkLinkToRecord(new List<Id>{ contentVersionId });
+    }
+
+    private void bulkLinkToRecord(List<Id> contentVersionIds) {
         try {
-            ContentVersion cv = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :contentVersionId WITH USER_MODE LIMIT 1];
-            insert new ContentDocumentLink( // NOPMD ApexCRUDViolation
-                ContentDocumentId = cv.ContentDocumentId,
-                LinkedEntityId = recordId,
-                ShareType = 'V'
-            );
+            List<ContentVersion> cvs = [SELECT ContentDocumentId FROM ContentVersion WHERE Id IN :contentVersionIds WITH USER_MODE];
+            List<ContentDocumentLink> cdls = new List<ContentDocumentLink>();
+            for (ContentVersion cv : cvs) {
+                cdls.add(new ContentDocumentLink(
+                    ContentDocumentId = cv.ContentDocumentId,
+                    LinkedEntityId = recordId,
+                    ShareType = 'V'
+                ));
+            }
+            if (!cdls.isEmpty()) {
+                SObjectAccessDecision cdlDec = Security.stripInaccessible(AccessType.CREATABLE, cdls);
+                insert cdlDec.getRecords();
+            }
         } catch (Exception e) {
             String noop = e.getMessage(); // NOPMD UnusedLocalVariable — some objects don't support CDL
         }
@@ -221,19 +253,20 @@ public with sharing class DocGenGiantQueryStitchJob implements Database.Batchabl
         for (ContentVersion cv : parts) {
             partDocIds.add(cv.ContentDocumentId);
         }
-        if (!partDocIds.isEmpty()) {
-            delete [SELECT Id FROM ContentDocument WHERE Id IN :partDocIds]; // NOPMD ApexCRUDViolation
+        if (!partDocIds.isEmpty() && Schema.sObjectType.ContentDocument.isDeletable()) {
+            delete [SELECT Id FROM ContentDocument WHERE Id IN :partDocIds]; // NOPMD ApexCRUDViolation — CRUD checked above
         }
     }
 
     /** Kept for backward compatibility with test references. */
-    public class DocGenGiantQueryStitchFinalizer implements Finalizer {
+    public with sharing class DocGenGiantQueryStitchFinalizer implements Finalizer {
         private Id jobId;
         public DocGenGiantQueryStitchFinalizer(Id jobId) { this.jobId = jobId; }
         public void execute(FinalizerContext ctx) {
             if (ctx.getResult() == ParentJobResult.UNHANDLED_EXCEPTION) {
                 try {
-                    update new DocGen_Job__c(Id = jobId, Status__c = 'Failed'); // NOPMD ApexCRUDViolation
+                    SObjectAccessDecision finDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Job__c>{ new DocGen_Job__c(Id = jobId, Status__c = 'Failed') });
+                    update finDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
                 } catch (Exception e) {
                     String noop = e.getMessage(); // NOPMD UnusedLocalVariable
                 }
