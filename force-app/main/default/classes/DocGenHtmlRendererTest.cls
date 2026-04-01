@@ -841,7 +841,13 @@ private class DocGenHtmlRendererTest {
     static void testNumberedList() {
         User u = [SELECT Id FROM User WHERE Id = :UserInfo.getUserId()];
         System.runAs(u) {
-            // w:numPr with even numId = numbered list
+            // Set numbering.xml so the renderer can resolve numId 2 as decimal
+            DocGenHtmlRenderer.numberingXml =
+                '<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+                '<w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/></w:lvl></w:abstractNum>' +
+                '<w:num w:numId="2"><w:abstractNumId w:val="1"/></w:num>' +
+                '</w:numbering>';
+
             String xml = '<?xml version="1.0" encoding="UTF-8"?>' +
                 '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
                 '<w:body>' +
@@ -857,6 +863,8 @@ private class DocGenHtmlRendererTest {
             System.assert(html.contains('<li'), 'Should contain list items');
             System.assert(html.contains('Step One'), 'Should contain first item');
             System.assert(html.contains('</ol>'), 'Should close ordered list');
+
+            DocGenHtmlRenderer.numberingXml = null;
         }
     }
 

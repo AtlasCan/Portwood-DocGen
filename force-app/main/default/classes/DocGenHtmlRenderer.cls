@@ -880,7 +880,7 @@ public with sharing class DocGenHtmlRenderer {
                 if (tagEnd != -1 && rXml.substring(tagEnd - 1, tagEnd) != '/') {
                     Integer tEnd = rXml.indexOf('</w:t>', tagEnd);
                     if (tEnd != -1) {
-                        String text = rXml.substring(tagEnd + 1, tEnd);
+                        String text = unescapeXmlEntities(rXml.substring(tagEnd + 1, tEnd));
                         if (text.contains('##BARCODE:')) {
                             runContent += renderBarcodeHtml(text);
                         } else {
@@ -1600,14 +1600,20 @@ public with sharing class DocGenHtmlRenderer {
             cursor = tEnd + 6; // length of </w:t>
         }
 
-        // Unescape XML entities so downstream escapeHtml4() doesn't double-encode
-        result = result.replace('&amp;', '&');
-        result = result.replace('&lt;', '<');
-        result = result.replace('&gt;', '>');
-        result = result.replace('&apos;', '\'');
-        result = result.replace('&quot;', '"');
+        return unescapeXmlEntities(result);
+    }
 
-        return result;
+    /**
+     * Unescapes standard XML entities so downstream escapeHtml4() doesn't double-encode.
+     */
+    private static String unescapeXmlEntities(String text) {
+        if (String.isBlank(text)) { return text; }
+        text = text.replace('&amp;', '&');
+        text = text.replace('&lt;', '<');
+        text = text.replace('&gt;', '>');
+        text = text.replace('&apos;', '\'');
+        text = text.replace('&quot;', '"');
+        return text;
     }
 
     /**

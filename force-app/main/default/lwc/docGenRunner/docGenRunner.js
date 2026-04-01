@@ -540,7 +540,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     // --- Helpers ---
 
     resetState() {
-        this.selectedTemplateId = '';
+        // Keep selectedTemplateId so it persists when switching back to generate mode
         this.selectedPdfCvIds = [];
         this.packetTemplateIds = [];
         this.mergeOnlyCvIds = [];
