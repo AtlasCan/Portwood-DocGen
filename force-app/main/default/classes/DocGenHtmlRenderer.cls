@@ -174,7 +174,9 @@ public with sharing class DocGenHtmlRenderer {
             'li { margin: 0 0 2pt 0; page-break-inside: avoid; }' +
             'hr { border: none; border-top: 1px solid #000; margin: 6pt 0; }' +
             'sub { vertical-align: sub; font-size: 0.8em; }' +
-            'sup { vertical-align: super; font-size: 0.8em; }';
+            'sup { vertical-align: super; font-size: 0.8em; }' +
+            '.docgen-page-num::after { content: counter(page); }' +
+            '.docgen-page-total::after { content: counter(pages); }';
         String bodyTag = '<body>';
         String dynamicPrefix = '<html><head><style>' + dynamicCss + '</style></head>' + bodyTag;
 
@@ -698,6 +700,12 @@ public with sharing class DocGenHtmlRenderer {
     }
 
     private static String processRuns(String pXml, Map<String, String> images, Boolean isRtlParagraph) {
+        // Resolve Word field codes (PAGE, NUMPAGES) that span multiple runs.
+        // Field structure: <w:fldChar begin/> ... <w:instrText> PAGE </w:instrText> ...
+        // <w:fldChar separate/> ... cached value ... <w:fldChar end/>
+        // Also handles <w:fldSimple w:instr=" PAGE ">...</w:fldSimple>
+        pXml = resolveFieldCodes(pXml);
+
         List<String> parts = new List<String>();
         Integer cursor = 0;
 
@@ -881,7 +889,10 @@ public with sharing class DocGenHtmlRenderer {
                     Integer tEnd = rXml.indexOf('</w:t>', tagEnd);
                     if (tEnd != -1) {
                         String text = unescapeXmlEntities(rXml.substring(tagEnd + 1, tEnd));
-                        if (text.contains('##BARCODE:')) {
+                        if (text.contains('<span class="docgen-page-')) {
+                            // Page counter spans — pass through as raw HTML (injected by resolveFieldCodes)
+                            runContent += text;
+                        } else if (text.contains('##BARCODE:')) {
                             runContent += renderBarcodeHtml(text);
                         } else {
                             // Check for caps in rPr
@@ -1271,6 +1282,138 @@ public with sharing class DocGenHtmlRenderer {
      * Resolves default table cell padding from TableNormal style in stylesXml.
      * Returns CSS padding value (e.g., "0pt 5.4pt").
      */
+    /**
+     * Resolves Word field codes (PAGE, NUMPAGES, fldSimple) within paragraph XML.
+     * Complex fields span multiple <w:r> elements:
+     *   <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+     *   <w:r><w:instrText> PAGE </w:instrText></w:r>
+     *   <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+     *   <w:r><w:t>1</w:t></w:r>  (cached value — discard)
+     *   <w:r><w:fldChar w:fldCharType="end"/></w:r>
+     * Replaces the entire field construct with a single run containing a CSS-driven span.
+     * Flying Saucer resolves counter(page)/counter(pages) at PDF render time.
+     */
+    private static String resolveFieldCodes(String pXml) {
+        // Handle <w:fldSimple w:instr="..."> wrappers first
+        pXml = resolveFldSimple(pXml);
+
+        // Handle complex field codes (fldChar begin/separate/end)
+        if (!pXml.contains('<w:fldChar')) { return pXml; }
+
+        String result = '';
+        Integer cursor = 0;
+        Boolean inField = false;
+        Boolean inFieldResult = false;
+        String fieldInstr = '';
+        Integer fieldStartPos = -1;
+
+        while (cursor < pXml.length()) {
+            Integer nextFldChar = pXml.indexOf('<w:fldChar', cursor);
+            Integer nextInstrText = pXml.indexOf('<w:instrText', cursor);
+
+            if (nextFldChar == -1 && !inField) {
+                result += pXml.substring(cursor);
+                break;
+            }
+
+            if (!inField) {
+                // Look for field begin
+                if (nextFldChar == -1) { result += pXml.substring(cursor); break; }
+                if (pXml.indexOf('fldCharType="begin"', nextFldChar) != -1 &&
+                    pXml.indexOf('fldCharType="begin"', nextFldChar) < pXml.indexOf('>', nextFldChar) + 1) {
+                    // Found field begin — find the enclosing run start
+                    fieldStartPos = pXml.lastIndexOf('<w:r>', nextFldChar);
+                    if (fieldStartPos == -1) { fieldStartPos = pXml.lastIndexOf('<w:r ', nextFldChar); }
+                    if (fieldStartPos == -1 || fieldStartPos < cursor) { fieldStartPos = nextFldChar; }
+                    result += pXml.substring(cursor, fieldStartPos);
+                    inField = true;
+                    inFieldResult = false;
+                    fieldInstr = '';
+                    // Skip past this fldChar tag
+                    Integer tagEnd = pXml.indexOf('>', nextFldChar);
+                    cursor = (tagEnd != -1) ? tagEnd + 1 : nextFldChar + 1;
+                } else {
+                    // Not a begin — pass through
+                    Integer tagEnd = pXml.indexOf('>', nextFldChar);
+                    result += pXml.substring(cursor, (tagEnd != -1) ? tagEnd + 1 : nextFldChar + 1);
+                    cursor = (tagEnd != -1) ? tagEnd + 1 : nextFldChar + 1;
+                }
+            } else {
+                // Inside a field — look for instrText, separate, or end
+                if (nextInstrText != -1 && (nextFldChar == -1 || nextInstrText < nextFldChar)) {
+                    // Capture instruction text
+                    Integer tagEnd = pXml.indexOf('>', nextInstrText);
+                    if (tagEnd != -1) {
+                        Integer closeInstr = pXml.indexOf('</w:instrText>', tagEnd);
+                        if (closeInstr != -1) {
+                            fieldInstr += pXml.substring(tagEnd + 1, closeInstr).trim().toUpperCase();
+                            cursor = closeInstr + '</w:instrText>'.length();
+                        } else { cursor = tagEnd + 1; }
+                    } else { cursor = nextInstrText + 1; }
+                } else if (nextFldChar != -1) {
+                    Integer fldTagEnd = pXml.indexOf('>', nextFldChar);
+                    String fldTag = (fldTagEnd != -1) ? pXml.substring(nextFldChar, fldTagEnd + 1) : '';
+
+                    if (fldTag.contains('fldCharType="separate"')) {
+                        inFieldResult = true;
+                        cursor = (fldTagEnd != -1) ? fldTagEnd + 1 : nextFldChar + 1;
+                    } else if (fldTag.contains('fldCharType="end"')) {
+                        // Field complete — skip to end of enclosing run
+                        Integer runEnd = pXml.indexOf('</w:r>', nextFldChar);
+                        cursor = (runEnd != -1) ? runEnd + 6 : ((fldTagEnd != -1) ? fldTagEnd + 1 : nextFldChar + 1);
+
+                        // Emit replacement based on field instruction
+                        if (fieldInstr.contains('NUMPAGES')) {
+                            result += '<w:r><w:t><span class="docgen-page-total"></span></w:t></w:r>';
+                        } else if (fieldInstr.contains('PAGE')) {
+                            result += '<w:r><w:t><span class="docgen-page-num"></span></w:t></w:r>';
+                        }
+                        // Other field types: silently drop (DATE, TIME, etc. have static cached values)
+                        inField = false;
+                    } else {
+                        // Nested or other fldChar — skip
+                        cursor = (fldTagEnd != -1) ? fldTagEnd + 1 : nextFldChar + 1;
+                    }
+                } else {
+                    // No more fldChar/instrText — malformed field, dump remaining
+                    cursor = pXml.length();
+                    inField = false;
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Handles <w:fldSimple w:instr=" PAGE "> wrapper elements.
+     * Replaces them with a run containing the appropriate CSS counter span.
+     */
+    private static String resolveFldSimple(String pXml) {
+        if (!pXml.contains('<w:fldSimple')) { return pXml; }
+        String result = '';
+        Integer cursor = 0;
+        while (cursor < pXml.length()) {
+            Integer fldStart = pXml.indexOf('<w:fldSimple', cursor);
+            if (fldStart == -1) { result += pXml.substring(cursor); break; }
+            result += pXml.substring(cursor, fldStart);
+            Integer tagEnd = pXml.indexOf('>', fldStart);
+            if (tagEnd == -1) { result += pXml.substring(fldStart); break; }
+            String tag = pXml.substring(fldStart, tagEnd + 1).toUpperCase();
+            Integer closeTag = pXml.indexOf('</w:fldSimple>', tagEnd);
+            if (closeTag == -1) { closeTag = pXml.indexOf('</w:fldSimple>', tagEnd); }
+            if (closeTag == -1) { result += pXml.substring(fldStart); break; }
+
+            if (tag.contains('NUMPAGES')) {
+                result += '<w:r><w:t><span class="docgen-page-total"></span></w:t></w:r>';
+            } else if (tag.contains('PAGE')) {
+                result += '<w:r><w:t><span class="docgen-page-num"></span></w:t></w:r>';
+            }
+            // Skip other fldSimple types
+            cursor = closeTag + '</w:fldSimple>'.length();
+        }
+        return result;
+    }
+
     /**
      * Checks if the document's default paragraph style (Normal) is RTL.
      * In Hebrew/Arabic documents, the Normal style typically has <w:bidi/> in its pPr,

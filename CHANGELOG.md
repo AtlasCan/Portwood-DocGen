@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.20.0 — Dynamic Page Numbers & Bug Fixes
+
+Feature release: dynamic page numbering in PDF headers/footers, closing all community-reported rendering issues.
+
+### Dynamic Page Numbers (#9)
+- **PAGE and NUMPAGES field codes** — Word's `PAGE` and `NUMPAGES` field codes in headers and footers now render as dynamic page numbers in PDF output. Supports both complex field codes (`w:fldChar begin/separate/end`) and simple field wrappers (`w:fldSimple`). Uses CSS `counter(page)` and `counter(pages)` via `::after` pseudo-elements inside Flying Saucer running headers.
+- **Works in both headers and footers** — "Page 1 of 5" style numbering works anywhere in header or footer content, alongside other text and formatting.
+
+### Bug Fixes (Since v1.15.0)
+- **Headers/footers on all pages (#9)** — PDF headers and footers now repeat on every page via Flying Saucer running elements with `@page` margin boxes.
+- **Numbered lists render correctly (#9)** — Replaced odd/even numId heuristic with actual `numbering.xml` lookup (`w:num` → `w:abstractNum` → `w:lvl` → `w:numFmt`).
+- **Font colors from theme references (#9)** — Theme colors (`w:themeColor="accent1"`) now resolve to hex via default Office theme palette (all 16 colors).
+- **Ampersand rendering (#5)** — Fixed double-encoding where `&amp;` in XML became `&amp;amp;` in HTML. Added `unescapeXmlEntities()` before `escapeHtml4()`.
+- **Create Packet button state (#6)** — Template selection persists across mode switches; button no longer requires re-selection.
+
+### Package Chain
+- Ancestor: 1.18.0-2 (04tal000006PW4TAAW)
+- Chain: 1.15.0 → 1.16.0 → 1.17.0 → 1.18.0 → 1.20.0
+
+### Testing
+- **629 Apex tests passing, 0 failures**
+- **76% org-wide code coverage**
+- **24/24 E2E tests passing**
+- **Visual proof PDFs** generated on clean scratch org verifying each fix
+
 ## v1.14.0 — PDF Rendering Fixes + Community Channel + Support Page
 
 Bug fix release addressing community-reported PDF rendering issues, Slack community channel migration, and new Support the Project page.

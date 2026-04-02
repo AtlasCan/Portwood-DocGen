@@ -4,7 +4,7 @@ Generate PDFs and Word docs from any Salesforce record. Merge PDFs, add barcodes
 
 [Join the Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity) | [Website](https://portwoodglobalsolutions.com) | [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap)
 
-[![Version](https://img.shields.io/badge/version-1.15.0-blue.svg)](#install)
+[![Version](https://img.shields.io/badge/version-1.20.0-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![Namespace](https://img.shields.io/badge/namespace-portwoodglobal-purple.svg)](#install)
@@ -328,8 +328,8 @@ sf code-analyzer run --rule-selector "recommended" --target force-app
 
 ### Apex Test Results
 
-- **507 / 507 tests passing** (100% pass rate)
-- **77% org-wide code coverage**
+- **629 / 629 tests passing** (100% pass rate)
+- **76% org-wide code coverage**
 - All tests use `System.runAs()`, assertion messages, and real data
 
 ### E2E Test Results

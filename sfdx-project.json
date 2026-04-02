@@ -1,13 +1,13 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.15.0 — Security Hardening for AppExchange",
-      "versionNumber": "1.15.0.NEXT",
-      "ancestorId": "04tal000006PM3VAAW",
+      "versionName": "1.20.0 — Dynamic Page Numbers & Bug Fixes",
+      "versionNumber": "1.20.0.NEXT",
+      "ancestorId": "04tal000006PW4TAAW",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
-      "versionDescription": "Security hardening for AppExchange review: 0 Checkmarx findings. FLS enforcement via stripInaccessible on all ContentVersion/CDL DML, USER_MODE on all SOQL queries, CRUD checks on all deletes, SOQL injection sanitization, DML bulkification out of loops, sharing declarations on all inner classes. 629 Apex tests passing, 76% coverage, 0 Code Analyzer violations."
+      "versionDescription": "Dynamic page numbering in PDF headers/footers via CSS counter(page)/counter(pages). Resolves Word PAGE and NUMPAGES field codes (both complex fldChar and fldSimple formats). 629 Apex tests passing, 76% coverage, 24/24 E2E tests passing."
     }
   ],
   "name": "Portwood DocGen",
@@ -32,6 +32,9 @@
     "Portwood DocGen Managed@1.12.0-1": "04tal000006PH2DAAW",
     "Portwood DocGen Managed@1.13.0-1": "04tal000006PJqPAAW",
     "Portwood DocGen Managed@1.14.0-1": "04tal000006PM3VAAW",
-    "Portwood DocGen Managed@1.15.0-1": "04tal000006PMUvAAO"
+    "Portwood DocGen Managed@1.15.0-1": "04tal000006PMUvAAO",
+    "Portwood DocGen Managed@1.16.0-1": "04tal000006PNh7AAG",
+    "Portwood DocGen Managed@1.17.0-2": "04tal000006POWjAAO",
+    "Portwood DocGen Managed@1.18.0-2": "04tal000006PW4TAAW"
   }
 }
