@@ -14,26 +14,6 @@
             line-height: 1.7;
         }
 
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            color: #fff;
-            padding: 0.75rem 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        .logo { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.5px; text-decoration: none; color: #fff; }
-        .logo span { color: #60a5fa; }
-        .header-links a {
-            color: #94a3b8; text-decoration: none; margin-left: 1.5rem;
-            font-size: 0.85rem; font-weight: 500;
-        }
-        .header-links a:hover { color: #fff; }
-
         /* Layout */
         .layout {
             display: flex;
@@ -155,14 +135,6 @@
             font-weight: 700; font-size: 0.85rem; line-height: 1.75rem;
         }
 
-        /* Footer */
-        .footer {
-            background: #0f172a; color: #64748b;
-            text-align: center; padding: 2rem;
-            font-size: 0.85rem;
-        }
-        .footer a { color: #60a5fa; text-decoration: none; }
-
         /* Mobile */
         @media (max-width: 900px) {
             .sidebar { display: none; }
@@ -174,15 +146,7 @@
 <body>
 
 <!-- Header -->
-<div class="header">
-    <a href="/DocGenLanding" class="logo">Portwood <span>DocGen</span></a>
-    <div class="header-links">
-        <a href="/DocGenLanding">Home</a>
-        <a href="/DocGenGuide" style="color:#fff;">User Guide</a>
-        <a href="/DocGenRoadmap">Roadmap</a>
-        <a href="/DocGenCommunity">Community</a>
-    </div>
-</div>
+<c:DocGenSiteHeader />
 
 <div class="layout">
 
@@ -671,9 +635,7 @@
 </div><!-- /layout -->
 
 <!-- Footer -->
-<div class="footer">
-    <p>&copy; 2026 <a href="https://portwoodglobalsolutions.com">Portwood Global Solutions</a> &mdash; DocGen is 100% free, open source, and community-driven.</p>
-</div>
+<c:DocGenSiteFooter />
 
 <!-- Scroll spy: highlight active sidebar link -->
 <script>

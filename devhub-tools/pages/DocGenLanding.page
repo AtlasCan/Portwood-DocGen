@@ -13,30 +13,6 @@
             line-height: 1.6;
         }
 
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            color: #fff;
-            padding: 1rem 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .logo {
-            font-size: 1.25rem;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-        .logo span { color: #60a5fa; }
-        .header-links a {
-            color: #94a3b8;
-            text-decoration: none;
-            margin-left: 1.5rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-        .header-links a:hover { color: #fff; }
-
         /* Hero */
         .hero {
             background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
@@ -260,18 +236,6 @@
             margin-bottom: 2.5rem;
         }
 
-        /* Footer */
-        .footer {
-            background: #0f172a;
-            color: #94a3b8;
-            padding: 3rem 2rem;
-            text-align: center;
-        }
-        .footer a { color: #60a5fa; text-decoration: none; }
-        .footer a:hover { text-decoration: underline; }
-        .footer-links { margin-bottom: 1rem; }
-        .footer-links a { margin: 0 1rem; font-size: 0.9rem; }
-
         /* Hero Map */
         .hero-map {
             max-width: 1000px;
@@ -375,8 +339,6 @@
         @media (max-width: 640px) {
             .hero h1 { font-size: 2rem; }
             .hero p { font-size: 1rem; }
-            .header { flex-direction: column; gap: 0.5rem; }
-            .header-links a { margin-left: 0.75rem; }
             .hero-map { margin-left: -2rem; margin-right: -2rem; max-width: none; }
             #docgen-map { height: 260px; border-radius: 0; box-shadow: none; }
             .hero-map-label { font-size: 0.8rem; }
@@ -388,17 +350,7 @@
 <body>
 
     <!-- Header -->
-    <header class="header">
-        <div class="logo">Portwood <span>DocGen</span></div>
-        <nav class="header-links">
-            <a href="/DocGenGuide">User Guide</a>
-            <a href="/DocGenRoadmap">Roadmap</a>
-            <a href="/DocGenCommunity">Community</a>
-            <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen">GitHub</a>
-            <a href="/DocGenSupport" style="color: #fbbf24;">Support the Project</a>
-            <a href="javascript:void(0)" onclick="openInstallModal()" style="color: #60a5fa;">Install</a>
-        </nav>
-    </header>
+    <c:DocGenSiteHeader />
 
     <!-- Hero -->
     <section class="hero">
@@ -759,19 +711,7 @@
     </div>
 
     <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-links">
-            <a href="/DocGenCommunity">Community</a>
-            <a href="/DocGenSupport">Support the Project</a>
-            <a href="/DocGenRoadmap">Roadmap</a>
-            <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen">GitHub</a>
-            <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues">Report a Bug</a>
-            <a href="/DocGenTerms">Terms of Service</a>
-            <a href="/DocGenPrivacy">Privacy Policy</a>
-        </div>
-        <p>Built by <a href="https://portwoodglobalsolutions.com">Portwood Global Solutions</a></p>
-        <p style="margin-top: 0.5rem; font-size: 0.8rem;">Apache 2.0 License</p>
-    </footer>
+    <c:DocGenSiteFooter />
 
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

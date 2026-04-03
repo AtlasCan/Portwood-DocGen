@@ -13,26 +13,6 @@
             line-height: 1.6;
         }
 
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            color: #fff;
-            padding: 1rem 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .logo { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px; text-decoration: none; color: #fff; }
-        .logo span { color: #60a5fa; }
-        .header-links a {
-            color: #94a3b8;
-            text-decoration: none;
-            margin-left: 1.5rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-        .header-links a:hover { color: #fff; }
-
         /* Hero */
         .hero {
             background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
@@ -232,39 +212,17 @@
         .nonprofit-callout h3 { font-size: 1.25rem; font-weight: 800; color: #065f46; margin-bottom: 0.5rem; }
         .nonprofit-callout p { color: #064e3b; font-size: 0.95rem; max-width: 600px; margin: 0 auto; }
 
-        /* Footer */
-        .footer {
-            background: #0f172a;
-            color: #94a3b8;
-            padding: 3rem 2rem;
-            text-align: center;
-        }
-        .footer a { color: #60a5fa; text-decoration: none; }
-        .footer a:hover { text-decoration: underline; }
-        .footer-links { margin-bottom: 1rem; }
-        .footer-links a { margin: 0 1rem; font-size: 0.9rem; }
-
         /* Responsive */
         @media (max-width: 700px) {
             .hero h1 { font-size: 2rem; }
             .tiers { grid-template-columns: 1fr; }
-            .header { flex-direction: column; gap: 0.5rem; }
-            .header-links a { margin-left: 0.75rem; }
         }
     </style>
 </head>
 <body>
 
     <!-- Header -->
-    <header class="header">
-        <a href="/DocGenLanding" class="logo">Portwood <span>DocGen</span></a>
-        <nav class="header-links">
-            <a href="/DocGenLanding">Home</a>
-            <a href="/DocGenGuide">User Guide</a>
-            <a href="/DocGenCommunity">Community</a>
-            <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen">GitHub</a>
-        </nav>
-    </header>
+    <c:DocGenSiteHeader />
 
     <!-- Hero -->
     <section class="hero">
@@ -560,16 +518,7 @@
     </section>
 
     <!-- Footer -->
-    <footer class="footer">
-        <div class="footer-links">
-            <a href="/DocGenLanding">Home</a>
-            <a href="/DocGenCommunity">Community</a>
-            <a href="https://github.com/Portwood-Global-Solutions/Portwood-DocGen">GitHub</a>
-            <a href="/DocGenTerms">Terms of Service</a>
-            <a href="/DocGenPrivacy">Privacy Policy</a>
-        </div>
-        <p>Built by <a href="https://portwoodglobalsolutions.com">Portwood Global Solutions</a></p>
-    </footer>
+    <c:DocGenSiteFooter />
 
 </body>
 </html>
