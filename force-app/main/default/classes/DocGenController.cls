@@ -1285,103 +1285,19 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
 
     // Sample data creation method removed per cleanup request.
 
-    // --- Template Sharing Logic ---
+    // --- Deprecated Sharing Methods (stubs kept for managed package compatibility) ---
 
-    /**
-     * Returns sharing records for a template, excluding the owner share.
-     * @param templateId The DocGen template record ID
-     * @return List of maps with share record details (Id, UserOrGroupId, Name, AccessLevel, RowCause)
-     */
     @AuraEnabled(cacheable=false)
-    public static List<Map<String, String>> getTemplateShares(Id templateId) {
-        List<Map<String, String>> shares = new List<Map<String, String>>();
+    public static List<Map<String, String>> getTemplateShares(Id templateId) { return new List<Map<String, String>>(); }
 
-        List<DocGen_Template__Share> shareRecords = [
-            SELECT Id, UserOrGroupId, UserOrGroup.Name, AccessLevel, RowCause
-            FROM DocGen_Template__Share
-            WHERE ParentId = :templateId AND RowCause != 'Owner'
-            WITH SYSTEM_MODE
-        ];
-
-        for (SObject s : shareRecords) {
-            Map<String, String> row = new Map<String, String>();
-            row.put('Id', (String)s.get('Id'));
-            row.put('UserOrGroupId', (String)s.get('UserOrGroupId'));
-            row.put('UserOrGroupName', (String)s.getSObject('UserOrGroup').get('Name'));
-            row.put('AccessLevel', (String)s.get('AccessLevel'));
-            row.put('RowCause', (String)s.get('RowCause'));
-            shares.add(row);
-        }
-        return shares;
-    }
-
-    /**
-     * Creates a manual sharing record for a template with the specified user or group.
-     * @param templateId The DocGen template record ID
-     * @param userOrGroupId The User or Group ID to share with
-     * @param accessLevel The access level (e.g., 'Read', 'Edit')
-     */
     @AuraEnabled
-    public static void shareTemplate(Id templateId, Id userOrGroupId, String accessLevel) {
-        String shareObject = DocGen_Template__c.SObjectType.getDescribe(SObjectDescribeOptions.DEFERRED).getName().replace('__c', '__Share');
-        SObject share = Schema.getGlobalDescribe().get(shareObject).newSObject();
-        share.put('ParentId', templateId);
-        share.put('UserOrGroupId', userOrGroupId);
-        share.put('AccessLevel', accessLevel);
-        share.put('RowCause', 'Manual');
+    public static void shareTemplate(Id templateId, Id userOrGroupId, String accessLevel) { }
 
-        try {
-            insert share; // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
-        } catch (DmlException e) {
-            throw DocGenService.ahe(e, 'Error sharing template. Please check permissions.');
-        }
-    }
-
-    /**
-     * Removes a manual sharing record from a template.
-     * @param shareId The DocGen_Template__Share record ID to delete
-     */
     @AuraEnabled
-    public static void removeShare(Id shareId) {
-        try {
-            if (!DocGen_Template__Share.SObjectType.getDescribe().isDeletable()) {
-                throw DocGenService.ahe('Insufficient access.');
-            }
-            delete new DocGen_Template__Share(Id = shareId); // NOPMD ApexCRUDViolation - isDeletable() checked above on DocGen_Template__Share
-        } catch (DmlException e) {
-            throw DocGenService.ahe(e, 'Error removing share. Please check permissions.');
-        }
-    }
+    public static void removeShare(Id shareId) { }
 
-    /**
-     * Searches active users and public groups by name for the template sharing UI.
-     * @param searchTerm The search string to match against user/group names
-     * @return List of maps with Id, Name, Type, and Icon for matching users and groups
-     */
-    @AuraEnabled(cacheable=true)
-    public static List<Map<String, String>> searchUsersAndGroups(String searchTerm) {
-        String key = '%' + searchTerm + '%';
-        List<Map<String, String>> results = new List<Map<String, String>>();
-
-        for (User u : [SELECT Id, Name FROM User WHERE Name LIKE :key AND IsActive = TRUE WITH USER_MODE LIMIT 10]) {
-             Map<String, String> row = new Map<String, String>();
-             row.put('Id', u.Id);
-             row.put('Name', u.Name);
-             row.put('Type', 'User');
-             row.put('Icon', 'standard:user');
-             results.add(row);
-        }
-
-        for (Group g : [SELECT Id, Name FROM Group WHERE Name LIKE :key AND Type = 'Regular' WITH USER_MODE LIMIT 10]) {
-             Map<String, String> row = new Map<String, String>();
-             row.put('Id', g.Id);
-             row.put('Name', g.Name);
-             row.put('Type', 'Group');
-             row.put('Icon', 'standard:groups');
-             results.add(row);
-        }
-        return results;
-    }
+    @AuraEnabled
+    public static List<Map<String, String>> searchUsersAndGroups(String searchTerm) { return new List<Map<String, String>>(); }
 
     // --- Rich Text Image Resolution ---
 

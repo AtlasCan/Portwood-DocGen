@@ -67,7 +67,6 @@ const COLUMNS = [
         { label: 'View', name: 'view' },
         { label: 'Edit', name: 'edit' },
         { label: 'Export', name: 'export' },
-        { label: 'Share', name: 'share' },
         { label: 'Delete', name: 'delete' }
     ] } }
 ];
@@ -125,7 +124,7 @@ const VERSION_COLUMNS = [
     editTemplateObject;
     @track editTemplateOutputFormat;
     editTemplateDesc;
-    editTemplateQuery;
+    @track editTemplateQuery;
     editTemplateTestRecordId;
     editTemplateTitleFormat;
     editTemplateIsDefault = false;
@@ -140,6 +139,13 @@ const VERSION_COLUMNS = [
 
     // Edit modal manual query toggle (for backward compat with existing V3 configs)
     @track isManualQuery = false;
+    // Context flag: true when editing in modal, false when in wizard
+    _editContext = false;
+
+    get _activeQuery() { return this._editContext ? this.editTemplateQuery : this.newTemplateQuery; }
+    set _activeQuery(v) { if (this._editContext) { this.editTemplateQuery = v; } else { this.newTemplateQuery = v; } }
+    get _activeObject() { return this._editContext ? this.editTemplateObject : this.newTemplateObject; }
+    get _activeSampleId() { return this._editContext ? this.editTemplateTestRecordId : this.newTemplateSampleRecordId; }
     // Builder 2.0 state
     @track objectOptions = [];
     @track filteredObjectOptions = [];
@@ -370,7 +376,7 @@ const VERSION_COLUMNS = [
 
     handleSuggestionClick(event) {
         const val = event.currentTarget.dataset.value;
-        const text = this.newTemplateQuery || '';
+        const text = this._activeQuery || '';
         const cursor = this._suggestCursor || text.length;
 
         // Find the token boundaries fresh — don't rely on cached values
@@ -402,9 +408,10 @@ const VERSION_COLUMNS = [
             result = prefix + (needSpace ? ' ' : '') + val + ', ' + after;
         }
 
-        this.newTemplateQuery = result;
+        this._activeQuery = result;
         // Native textarea doesn't re-render from tracked property after user input — set DOM directly
-        const ta = this.template.querySelector('textarea');
+        const taSelector = this._editContext ? '.edit-query-textarea' : '.wizard-query-textarea';
+        const ta = this.template.querySelector(taSelector);
         if (ta) { ta.value = result; }
         this.showSuggestions = false;
         this._updateQueryTree();
@@ -413,7 +420,7 @@ const VERSION_COLUMNS = [
         if (val.endsWith('.')) {
             // eslint-disable-next-line @lwc/lwc/no-async-operation
             setTimeout(() => {
-                const ta = this.template.querySelector('textarea');
+                const ta = this.template.querySelector(taSelector);
                 if (ta) {
                     const newPos = prefix.length + (needSpace ? 1 : 0) + val.length;
                     ta.setSelectionRange(newPos, newPos);
@@ -451,11 +458,7 @@ const VERSION_COLUMNS = [
                 defaultLabel: t[F.IsDefault] ? '★' : '',
                 defaultClass: t[F.IsDefault] ? 'slds-text-color_success slds-text-title_bold' : ''
             }));
-            // Auto-install sample templates on first load if org has none
-            if (this.templates.length === 0 && !this._samplesChecked && !this.isInstallingSamples) {
-                this._samplesChecked = true;
-                this.installSampleTemplates();
-            }
+            this._samplesChecked = true;
         } else if (result.error) {
            this.showToast('Error', 'Error loading templates', 'error');
         }
@@ -503,9 +506,15 @@ const VERSION_COLUMNS = [
     renderedCallback() {
         // Sync native textarea DOM value with tracked property after re-render
         if (this.currentWizardStep === '2' && this.newTemplateQuery) {
-            const ta = this.template.querySelector('textarea');
+            const ta = this.template.querySelector('.wizard-query-textarea');
             if (ta && ta.value !== this.newTemplateQuery) {
                 ta.value = this.newTemplateQuery;
+            }
+        }
+        if (this._editContext && this.isEditModalOpen && this.editTemplateQuery) {
+            const ta = this.template.querySelector('.edit-query-textarea');
+            if (ta && ta.value !== this.editTemplateQuery) {
+                ta.value = this.editTemplateQuery;
             }
         }
     }
@@ -532,7 +541,7 @@ const VERSION_COLUMNS = [
              // Clean up trailing commas/whitespace
              let q = (this.newTemplateQuery || '').replace(/[\s,]+$/, '').replace(/^[\s,]+/, '');
              this.newTemplateQuery = q;
-             const ta = this.template.querySelector('textarea');
+             const ta = this.template.querySelector('.wizard-query-textarea');
              if (ta) { ta.value = q; }
 
              if (!q) {
@@ -599,52 +608,37 @@ const VERSION_COLUMNS = [
             const cfg = JSON.parse(configStr);
             if (cfg.v !== 3 || !cfg.nodes) { return configStr; }
 
-            // Build V1-style SOQL field list from V3 tree
             const root = cfg.nodes.find(n => !n.parentNode);
             if (!root) { return configStr; }
 
-            const parts = [];
-
-            // Root fields
-            if (root.fields && root.fields.length) {
-                parts.push(...root.fields);
-            }
-            // Root parent fields (e.g., Owner.Name)
-            if (root.parentFields && root.parentFields.length) {
-                parts.push(...root.parentFields);
-            }
-
-            // Child subqueries
-            const buildSubquery = (parentId) => {
+            // Recursively build subqueries — supports any depth
+            const buildSubqueries = (parentId) => {
                 const children = cfg.nodes.filter(n => n.parentNode === parentId);
+                const subs = [];
                 for (const child of children) {
-                    const subFields = [];
-                    if (child.fields && child.fields.length) {
-                        subFields.push(...child.fields);
-                    }
-                    if (child.parentFields && child.parentFields.length) {
-                        subFields.push(...child.parentFields);
-                    }
-                    let subquery = '(SELECT ' + subFields.join(', ') + ' FROM ' + child.relationshipName;
-                    if (child.where) { subquery += ' WHERE ' + child.where; }
-                    if (child.orderBy) { subquery += ' ORDER BY ' + child.orderBy; }
-                    if (child.limit) { subquery += ' LIMIT ' + child.limit; }
-                    subquery += ')';
-                    parts.push(subquery);
-
-                    // Recurse for grandchildren (nested in comment for clarity)
-                    const grandchildren = cfg.nodes.filter(n => n.parentNode === child.id);
-                    if (grandchildren.length > 0) {
-                        for (const gc of grandchildren) {
-                            const gcFields = [...(gc.fields || []), ...(gc.parentFields || [])];
-                            let gcQuery = '  \u2192 ' + gc.relationshipName + ': ' + gcFields.join(', ');
-                            if (gc.where) { gcQuery += ' WHERE ' + gc.where; }
-                            parts.push(gcQuery);
-                        }
-                    }
+                    const subFields = [
+                        ...(child.fields || []),
+                        ...(child.parentFields || [])
+                    ];
+                    // Recurse: grandchildren become nested subqueries
+                    const nestedSubs = buildSubqueries(child.id);
+                    subFields.push(...nestedSubs);
+                    if (subFields.length === 0) { subFields.push('Id'); }
+                    let sq = '(SELECT ' + subFields.join(', ') + ' FROM ' + child.relationshipName;
+                    if (child.where) { sq += ' WHERE ' + child.where; }
+                    if (child.orderBy) { sq += ' ORDER BY ' + child.orderBy; }
+                    if (child.limit) { sq += ' LIMIT ' + child.limit; }
+                    sq += ')';
+                    subs.push(sq);
                 }
+                return subs;
             };
-            buildSubquery(root.id);
+
+            const parts = [
+                ...(root.fields || []),
+                ...(root.parentFields || []),
+                ...buildSubqueries(root.id)
+            ];
 
             return parts.join(', ');
         } catch {
@@ -662,16 +656,20 @@ const VERSION_COLUMNS = [
     }
 
     _loadSampleData() {
-        if (!this.newTemplateSampleRecordId || !this.newTemplateObject || !this.newTemplateQuery) {
+        const recordId = this._activeSampleId;
+        const objectName = this._activeObject;
+        const query = this._activeQuery;
+        if (!recordId || !objectName || !query) {
             this.sampleRecordData = null;
             return;
         }
         previewRecordData({
-            recordId: this.newTemplateSampleRecordId,
-            baseObject: this.newTemplateObject,
-            queryConfig: this.newTemplateQuery
+            recordId: recordId,
+            baseObject: objectName,
+            queryConfig: query
         }).then(data => {
             this.sampleRecordData = data;
+            this._updateQueryTree();
         }).catch(() => {
             this.sampleRecordData = null;
         });
@@ -719,8 +717,8 @@ const VERSION_COLUMNS = [
 
     // --- Live Query Tree ---
     _updateQueryTree() {
-        const q = (this.newTemplateQuery || '').trim();
-        if (!q || !this.newTemplateObject) { this.queryTreeNodes = []; return; }
+        const q = (this._activeQuery || '').trim();
+        if (!q || !this._activeObject) { this.queryTreeNodes = []; return; }
         try {
             const nodes = [];
             const data = this.sampleRecordData || {};
@@ -771,7 +769,7 @@ const VERSION_COLUMNS = [
 
             nodes.push({
                 id: 'root',
-                label: this.newTemplateObject,
+                label: this._activeObject,
                 icon: 'standard:account',
                 isRoot: true,
                 fields: directFields,
@@ -784,7 +782,7 @@ const VERSION_COLUMNS = [
                 hasChildren: childNodes.length > 0
             });
             this.queryTreeNodes = nodes;
-        } catch (e) {
+        } catch (err) { // eslint-disable-line no-unused-vars
             this.queryTreeNodes = [];
         }
     }
@@ -802,6 +800,18 @@ const VERSION_COLUMNS = [
     handleEditDescChange(event) { this.editTemplateDesc = event.detail.value; }
     handleEditDefaultChange(event) { this.editTemplateIsDefault = event.target.checked; }
 
+    handleQueryTabActive() {
+        // lightning-tab lazy-renders content — sync textarea when query tab first activates
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        setTimeout(() => {
+            const ta = this.template.querySelector('.edit-query-textarea');
+            if (ta && this.editTemplateQuery && ta.value !== this.editTemplateQuery) {
+                ta.value = this.editTemplateQuery;
+            }
+            this._updateQueryTree();
+        }, 50);
+    }
+
     handleManualQueryToggle(event) {
         this.isManualQuery = event.target.checked;
         // Convert V3 JSON to V1 flat string when switching to manual mode (toggle OFF)
@@ -817,6 +827,14 @@ const VERSION_COLUMNS = [
         this.editTemplateQuery = event.target.value;
     }
 
+    handleEditDirectQueryEdit(event) {
+        this.editTemplateQuery = event.target.value;
+        this._updateQueryTree();
+        this._updateSuggestions(event.target);
+        clearTimeout(this._sampleDebounce);
+        this._sampleDebounce = setTimeout(() => { this._loadSampleData(); }, 800);
+    }
+
     handleEditConfigChange(event) {
         this.editTemplateObject = event.detail.objectName;
         this.editTemplateQuery = event.detail.queryConfig;
@@ -824,6 +842,7 @@ const VERSION_COLUMNS = [
 
     handleEditTestRecordChange(event) {
         this.editTemplateTestRecordId = event.detail.recordId;
+        this._loadSampleData();
     }
 
     // Generate a flat tag list from the query config for the tags view
@@ -862,32 +881,50 @@ const VERSION_COLUMNS = [
                 }
             }
 
-            // Legacy: parse field names from the query string
-            const fields = qc.split(',').map(f => f.trim()).filter(f => !f.startsWith('('));
-            const subqueries = qc.match(/\(\s*SELECT\s+([\s\S]+?)\s+FROM\s+(\S+)/gi) || [];
+            // V1: split top-level tokens respecting parentheses depth
             const sections = [];
+            const baseFields = [];
+            const topTokens = this._splitTopLevel(qc);
 
-            if (fields.length > 0) {
+            const parseSubquery = (sqStr) => {
+                // Match: (SELECT fields FROM RelName WHERE ... ORDER BY ... LIMIT ...)
+                const m = sqStr.match(/^\(\s*SELECT\s+([\s\S]+?)\s+FROM\s+(\w+)([\s\S]*)\)$/i);
+                if (!m) return;
+                const relName = m[1 + 1]; // group 2 = relationship name
+                const rawFields = m[1];   // group 1 = field list (may contain nested subqueries)
+                const fieldTokens = this._splitTopLevel(rawFields);
+                const childFields = [];
+                for (const ft of fieldTokens) {
+                    if (ft.startsWith('(')) {
+                        // Nested subquery — recurse
+                        parseSubquery(ft);
+                    } else {
+                        childFields.push(ft);
+                    }
+                }
                 sections.push({
-                    name: this.editTemplateObject || 'Base Fields',
-                    isLoop: false,
-                    tags: fields.map(f => ({ code: '{' + f + '}' }))
+                    name: relName,
+                    isLoop: true,
+                    loopStart: '{#' + relName + '}',
+                    loopEnd: '{/' + relName + '}',
+                    tags: childFields.filter(f => f).map(f => ({ code: '{' + f + '}' }))
                 });
+            };
+
+            for (const token of topTokens) {
+                if (token.startsWith('(')) {
+                    parseSubquery(token);
+                } else if (token) {
+                    baseFields.push(token);
+                }
             }
 
-            for (const sq of subqueries) {
-                const match = sq.match(/SELECT\s+([\s\S]+?)\s+FROM\s+(\S+)/i);
-                if (match) {
-                    const childFields = match[1].split(',').map(f => f.trim());
-                    const relName = match[2].replace(')', '');
-                    sections.push({
-                        name: relName,
-                        isLoop: true,
-                        loopStart: '{#' + relName + '}',
-                        loopEnd: '{/' + relName + '}',
-                        tags: childFields.map(f => ({ code: '{' + f + '}' }))
-                    });
-                }
+            if (baseFields.length > 0) {
+                sections.unshift({
+                    name: this.editTemplateObject || 'Base Fields',
+                    isLoop: false,
+                    tags: baseFields.map(f => ({ code: '{' + f + '}' }))
+                });
             }
 
             return sections.length > 0 ? sections : null;
@@ -905,6 +942,26 @@ const VERSION_COLUMNS = [
         } catch {
             this.dispatchEvent(new ShowToastEvent({ title: 'Copy Failed', message: 'Unable to copy to clipboard.', variant: 'error' }));
         }
+    }
+
+    // Split a string on commas, but only at parentheses depth 0
+    _splitTopLevel(str) {
+        const tokens = [];
+        let depth = 0;
+        let current = '';
+        for (let i = 0; i < str.length; i++) {
+            const ch = str[i];
+            if (ch === '(') { depth++; current += ch; }
+            else if (ch === ')') { depth--; current += ch; }
+            else if (ch === ',' && depth === 0) {
+                tokens.push(current.trim());
+                current = '';
+            } else {
+                current += ch;
+            }
+        }
+        if (current.trim()) { tokens.push(current.trim()); }
+        return tokens;
     }
 
     _copyToClipboard(text) {
@@ -1006,14 +1063,6 @@ const VERSION_COLUMNS = [
         }
     }
 
-    // --- Sharing Logic ---
-    @track isSharingModalOpen = false;
-    sharingTemplateId;
-
-    handleCloseSharing() {
-        this.isSharingModalOpen = false;
-    }
-
     // --- Row Action ---
     async handleRowAction(event) {
         const actionName = event.detail.action.name;
@@ -1033,9 +1082,6 @@ const VERSION_COLUMNS = [
             this.openEditModal(row, 'tags');
         } else if (actionName === 'export') {
             this.handleExportTemplate(row);
-        } else if (actionName === 'share') {
-            this.sharingTemplateId = row.Id;
-            this.isSharingModalOpen = true;
         }
     }
 
@@ -1100,7 +1146,7 @@ const VERSION_COLUMNS = [
             this.editTemplateObject = row[F.BaseObject];
             this.editTemplateOutputFormat = row[F.OutputFormat] || 'Native';
             this.editTemplateDesc = row[F.Desc];
-            this.editTemplateQuery = row[F.QueryConfig];
+            this.editTemplateQuery = this._formatQueryConfig(row[F.QueryConfig]);
             this.editTemplateTestRecordId = row[F.TestRecordId];
             this.editTemplateTitleFormat = row[F.DocTitleFormat];
             this.editTemplateIsDefault = row[F.IsDefault] || false;
@@ -1129,6 +1175,17 @@ const VERSION_COLUMNS = [
             this.loadVersions(row.Id);
             this.isCreating = false;
             this.isEditModalOpen = true;
+            this._editContext = true;
+            this._loadObjectMetadata(this.editTemplateObject);
+            // Initialize query tree + sync textarea after DOM renders
+            // eslint-disable-next-line @lwc/lwc/no-async-operation
+            setTimeout(() => {
+                this._updateQueryTree();
+                this._loadSampleData();
+                // Native textarea doesn't reliably pick up value from LWC reactivity — set DOM directly
+                const ta = this.template.querySelector('.edit-query-textarea');
+                if (ta && this.editTemplateQuery) { ta.value = this.editTemplateQuery; }
+            }, 300);
         } catch (e) {
             this.showToast('Error', 'Failed to open modal: ' + e.message, 'error');
         }
@@ -1136,6 +1193,10 @@ const VERSION_COLUMNS = [
 
     closeEditModal() {
         this.isEditModalOpen = false;
+        this._editContext = false;
+        this.queryTreeNodes = [];
+        this.sampleRecordData = null;
+        this.showSuggestions = false;
     }
 
     // --- Versions Logic ---
@@ -1185,7 +1246,7 @@ const VERSION_COLUMNS = [
 
                 this.showToast('Success', 'Version activated.', 'success');
 
-                this.editTemplateQuery = row[F.QueryConfig];
+                this.editTemplateQuery = this._formatQueryConfig(row[F.QueryConfig]);
                 this.editTemplateCategory = row[F.Category];
                 this.editTemplateDesc = row[F.Desc];
                 this.editTemplateType = row[F.Type];
@@ -1284,7 +1345,7 @@ const VERSION_COLUMNS = [
             if (!this.previewVersion[F.VerIsActive]) {
                 await activateVersion({ versionId: this.previewVersion.Id });
                 // Sync version config to local edit state
-                this.editTemplateQuery = this.previewVersion[F.QueryConfig];
+                this.editTemplateQuery = this._formatQueryConfig(this.previewVersion[F.QueryConfig]);
                 this.editTemplateCategory = this.previewVersion[F.Category];
                 this.editTemplateDesc = this.previewVersion[F.Desc];
                 this.editTemplateType = this.previewVersion[F.Type];

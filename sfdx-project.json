@@ -1,13 +1,13 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.21.0 — Query Builder 2.0 & User Guide",
-      "versionNumber": "1.21.0.NEXT",
-      "ancestorId": "04tal000006PcppAAC",
+      "versionName": "1.23.0 — Security, Title Pages & Simplified Sharing",
+      "versionNumber": "1.23.0.NEXT",
+      "ancestorId": "04tal000006PemnAAC",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
-      "versionDescription": "Query Builder 2.0: replaced visual builder with manual-first textarea, inline field autocomplete, sample record data preview, inline syntax reference. Fixed query builder bug that blocked template creation. 629 Apex tests passing, 24/24 E2E tests passing."
+      "versionDescription": "Cover pages now render clean — no unwanted headers or footers on your title page. Section breaks in your Word template create proper page breaks in the PDF. Spaces between merge tags no longer disappear. Page numbers keep your font size, color, and bold formatting. Simpler permissions — works with standard Salesforce sharing out of the box."
     }
   ],
   "name": "Portwood DocGen",
@@ -37,6 +37,8 @@
     "Portwood DocGen Managed@1.17.0-2": "04tal000006POWjAAO",
     "Portwood DocGen Managed@1.18.0-2": "04tal000006PW4TAAW",
     "Portwood DocGen Managed@1.20.0-1": "04tal000006PcppAAC",
-    "Portwood DocGen Managed@1.21.0-1": "04tal000006PdtxAAC"
+    "Portwood DocGen Managed@1.21.0-1": "04tal000006PdtxAAC",
+    "Portwood DocGen Managed@1.22.0-1": "04tal000006PemnAAC",
+    "Portwood DocGen Managed@1.23.0-1": "04tal000006PfEDAA0"
   }
 }

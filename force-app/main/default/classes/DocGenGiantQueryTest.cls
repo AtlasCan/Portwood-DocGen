@@ -7,6 +7,7 @@ private class DocGenGiantQueryTest {
      */
     @TestSetup
     static void setup() {
+        TestDataFactory.assignAdminPermissionSet();
         // Create template with V3 config
         String v3Config = JSON.serialize(new Map<String, Object>{
             'v' => 3,

@@ -420,6 +420,9 @@ public with sharing class DocGenService {
             } else if (key == 'word__styles.xml') {
                 // Store styles.xml for table style resolution (not merged with record data)
                 mr.processedXmlEntries.put('word/styles.xml', rawXml);
+            } else if (key == 'word__numbering.xml') {
+                // Store numbering.xml for numbered vs bullet list detection
+                mr.passthroughEntries.put('word/numbering.xml', Blob.valueOf(rawXml));
             } else {
                 // Restore original path: word__document.xml → word/document.xml
                 String originalPath = key.replace('__', '/');
@@ -1088,10 +1091,11 @@ public with sharing class DocGenService {
             if (templateType == 'Word') {
                 if (name == 'word/document.xml' ||
                     name == 'word/styles.xml' ||
+                    name == 'word/numbering.xml' ||
                     (name.startsWith('word/header') && name.endsWith('.xml')) ||
                     (name.startsWith('word/footer') && name.endsWith('.xml'))) {
                     xmlEntries.put(name, entryBlob.toString());
-                    if (name != 'word/styles.xml') {
+                    if (name != 'word/styles.xml' && name != 'word/numbering.xml') {
                         isDocumentXml = true;
                         documentXmlPaths.add(name);
                     }

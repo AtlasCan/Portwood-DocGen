@@ -126,6 +126,11 @@ public with sharing class DocGenHtmlRenderer {
         Boolean hasHeader = String.isNotBlank(headerHtml);
         Boolean hasFooter = String.isNotBlank(footerHtml);
 
+        // Check if document has a title page (Different First Page in Word)
+        // <w:titlePg/> in the final <w:sectPr> means page 1 gets no header/footer
+        // Check the original documentXml since extractBodyContent strips the final sectPr
+        Boolean hasTitlePage = documentXml.contains('<w:titlePg/>') || documentXml.contains('<w:titlePg ');
+
         // Build @page rule with running header/footer margin boxes (Flying Saucer)
         String dynamicPageCss = '@page { size: ' + pageDims.get('pageWidth') + 'in ' + pageDims.get('pageHeight') + 'in; ' +
             'margin: ' + pageDims.get('marginTop') + 'in ' + pageDims.get('marginRight') + 'in ' +
@@ -138,6 +143,11 @@ public with sharing class DocGenHtmlRenderer {
         }
         dynamicPageCss += ' }';
 
+        // Title page: suppress header/footer on first page via @page :first
+        if (hasTitlePage && (hasHeader || hasFooter)) {
+            dynamicPageCss += ' @page :first { @top-center { content: normal; } @bottom-center { content: normal; } }';
+        }
+
         // Running element CSS — tells Flying Saucer to pull these divs out of flow
         // and place them in the @page margin boxes on every page
         String runningCss = '';
@@ -149,9 +159,10 @@ public with sharing class DocGenHtmlRenderer {
         }
 
         // Check if document default style is RTL (Normal style with <w:bidi/> in styles.xml)
-        // Note: Flying Saucer's Blob.toPdf() does NOT properly implement the Unicode Bidi Algorithm.
-        // Using CSS direction:rtl causes double-reversal of Hebrew/Arabic characters.
-        // Instead, we use text-align:right for layout and let Unicode handle character order.
+        // Spring '26 Blob.toPdf() uses the Visualforce PDF engine (Flying Saucer).
+        // Flying Saucer does NOT properly implement Unicode Bidi Algorithm —
+        // direction:rtl causes double-reversal. Use text-align:right for layout
+        // and Arial Unicode MS for glyph rendering (the only multibyte-capable font).
         Boolean isDocRtl = isDefaultStyleRtl();
         String bodyFont = isDocRtl ? '\'Arial Unicode MS\', Arial, sans-serif' : 'Arial, sans-serif';
 
@@ -175,8 +186,8 @@ public with sharing class DocGenHtmlRenderer {
             'hr { border: none; border-top: 1px solid #000; margin: 6pt 0; }' +
             'sub { vertical-align: sub; font-size: 0.8em; }' +
             'sup { vertical-align: super; font-size: 0.8em; }' +
-            '.docgen-page-num::after { content: counter(page); }' +
-            '.docgen-page-total::after { content: counter(pages); }';
+            '.docgen-page-num::before { content: counter(page); }' +
+            '.docgen-page-total::before { content: counter(pages); }';
         String bodyTag = '<body>';
         String dynamicPrefix = '<html><head><style>' + dynamicCss + '</style></head>' + bodyTag;
 
@@ -302,11 +313,39 @@ public with sharing class DocGenHtmlRenderer {
             Integer bodyEnd = xml.lastIndexOf('</w:body>');
             if (bodyEnd != -1) {
                 String content = xml.substring(bodyContentStart, bodyEnd);
-                // Strip <w:sectPr> (section properties) from end of body
-                Integer sectStart = content.lastIndexOf('<w:sectPr');
-                if (sectStart != -1) {
-                    content = content.substring(0, sectStart);
+                // Handle <w:sectPr> elements in the body:
+                // - Mid-body sectPr = section break → replace with page break marker
+                // - Final sectPr = document-level settings → strip entirely
+                // sectPr can appear inside <w:pPr> (paragraph properties) or standalone.
+                // When inside <w:pPr>, just remove it — the containing paragraph handles spacing.
+                // When standalone or the only content in a paragraph, replace with a page break.
+                Integer sectCursor = 0;
+                String processedContent = '';
+                while (sectCursor < content.length()) {
+                    Integer sectStart = content.indexOf('<w:sectPr', sectCursor);
+                    if (sectStart == -1) {
+                        processedContent += content.substring(sectCursor);
+                        break;
+                    }
+                    Integer sectEnd = content.indexOf('</w:sectPr>', sectStart);
+                    if (sectEnd == -1) {
+                        sectEnd = content.indexOf('/>', sectStart);
+                        if (sectEnd != -1) { sectEnd += 2; }
+                        else { processedContent += content.substring(sectCursor); break; }
+                    } else {
+                        sectEnd += 11;
+                    }
+                    processedContent += content.substring(sectCursor, sectStart);
+                    Boolean isLast = content.indexOf('<w:sectPr', sectEnd) == -1;
+                    if (!isLast) {
+                        // Mid-body section break — insert a page break run into the current context.
+                        // If inside a <w:pPr>, just add a page break run after the paragraph closes.
+                        // The sectPr is removed; the containing paragraph gets a page-break-after.
+                        processedContent += '<w:docgen-section-break/>';
+                    }
+                    sectCursor = sectEnd;
                 }
+                content = processedContent;
                 combinedContent += content;
             } else {
                 combinedContent += xml.substring(bodyContentStart);
@@ -506,6 +545,9 @@ public with sharing class DocGenHtmlRenderer {
             }
         }
 
+        // Section break marker (injected by extractBodyContent for mid-body w:sectPr)
+        Boolean sectionBreakAfter = pXml.contains('<w:docgen-section-break/>');
+
         // Process runs — for RTL paragraphs, reverse run order so first run (rightmost) renders last in HTML
         String content = processRuns(pXml, images, isRtl);
 
@@ -524,6 +566,11 @@ public with sharing class DocGenHtmlRenderer {
         }
 
         String pageBreakDiv = pageBreakBefore ? '<div style="page-break-before:always"></div>' : '';
+
+        // Section break after this paragraph (mid-body w:sectPr)
+        if (sectionBreakAfter) {
+            style += (String.isNotBlank(style) ? ';' : '') + 'page-break-after:always';
+        }
 
         // Empty paragraph = line break
         if (String.isBlank(content)) {
@@ -553,6 +600,7 @@ public with sharing class DocGenHtmlRenderer {
         List<String> styles = new List<String>();
 
         // RTL / Bidi: <w:bidi/> marks right-to-left paragraph (Hebrew, Arabic)
+        // Flying Saucer: use text-align:right (not direction:rtl which causes double-reversal)
         if (pPr.contains('<w:bidi/>') || pPr.contains('<w:bidi ')) {
             styles.add('text-align:right');
         }
@@ -934,7 +982,7 @@ public with sharing class DocGenHtmlRenderer {
             }
         }
 
-        if (String.isBlank(runContent)) { return ''; }
+        if (runContent.length() == 0) { return ''; }
 
         if (String.isNotBlank(style)) {
             return '<span style="' + style + '">' + openTags + runContent + closeTags + '</span>';
@@ -980,8 +1028,6 @@ public with sharing class DocGenHtmlRenderer {
         } else if (font != null) {
             styles.add('font-family:\'' + font.escapeHtml4() + '\',sans-serif');
         }
-        // Note: NOT applying direction:rtl on runs — Flying Saucer double-reverses characters.
-        // Hebrew/Arabic Unicode characters render correctly without explicit direction hints.
 
         // Font size: <w:sz w:val="24"/> (half-points)
         String sz = extractAttr(rPr, 'w:sz', 'w:val');
@@ -1305,6 +1351,7 @@ public with sharing class DocGenHtmlRenderer {
         Boolean inField = false;
         Boolean inFieldResult = false;
         String fieldInstr = '';
+        String fieldRpr = '';
         Integer fieldStartPos = -1;
 
         while (cursor < pXml.length()) {
@@ -1329,6 +1376,15 @@ public with sharing class DocGenHtmlRenderer {
                     inField = true;
                     inFieldResult = false;
                     fieldInstr = '';
+                    // Capture <w:rPr> from the begin run so page number spans preserve font size
+                    fieldRpr = '';
+                    Integer rprStart = pXml.indexOf('<w:rPr>', fieldStartPos);
+                    if (rprStart != -1 && rprStart < nextFldChar) {
+                        Integer rprEnd = pXml.indexOf('</w:rPr>', rprStart);
+                        if (rprEnd != -1 && rprEnd < nextFldChar) {
+                            fieldRpr = pXml.substring(rprStart, rprEnd + 8);
+                        }
+                    }
                     // Skip past this fldChar tag
                     Integer tagEnd = pXml.indexOf('>', nextFldChar);
                     cursor = (tagEnd != -1) ? tagEnd + 1 : nextFldChar + 1;
@@ -1362,11 +1418,11 @@ public with sharing class DocGenHtmlRenderer {
                         Integer runEnd = pXml.indexOf('</w:r>', nextFldChar);
                         cursor = (runEnd != -1) ? runEnd + 6 : ((fldTagEnd != -1) ? fldTagEnd + 1 : nextFldChar + 1);
 
-                        // Emit replacement based on field instruction
+                        // Emit replacement with preserved run properties (font size, color, etc.)
                         if (fieldInstr.contains('NUMPAGES')) {
-                            result += '<w:r><w:t><span class="docgen-page-total"></span></w:t></w:r>';
+                            result += '<w:r>' + fieldRpr + '<w:t><span class="docgen-page-total"></span></w:t></w:r>';
                         } else if (fieldInstr.contains('PAGE')) {
-                            result += '<w:r><w:t><span class="docgen-page-num"></span></w:t></w:r>';
+                            result += '<w:r>' + fieldRpr + '<w:t><span class="docgen-page-num"></span></w:t></w:r>';
                         }
                         // Other field types: silently drop (DATE, TIME, etc. have static cached values)
                         inField = false;
@@ -1403,10 +1459,21 @@ public with sharing class DocGenHtmlRenderer {
             if (closeTag == -1) { closeTag = pXml.indexOf('</w:fldSimple>', tagEnd); }
             if (closeTag == -1) { result += pXml.substring(fldStart); break; }
 
+            // Capture <w:rPr> from the inner run to preserve font size on page number spans
+            String innerContent = pXml.substring(tagEnd + 1, closeTag);
+            String fldRpr = '';
+            Integer rprIdx = innerContent.indexOf('<w:rPr>');
+            if (rprIdx != -1) {
+                Integer rprEndIdx = innerContent.indexOf('</w:rPr>', rprIdx);
+                if (rprEndIdx != -1) {
+                    fldRpr = innerContent.substring(rprIdx, rprEndIdx + 8);
+                }
+            }
+
             if (tag.contains('NUMPAGES')) {
-                result += '<w:r><w:t><span class="docgen-page-total"></span></w:t></w:r>';
+                result += '<w:r>' + fldRpr + '<w:t><span class="docgen-page-total"></span></w:t></w:r>';
             } else if (tag.contains('PAGE')) {
-                result += '<w:r><w:t><span class="docgen-page-num"></span></w:t></w:r>';
+                result += '<w:r>' + fldRpr + '<w:t><span class="docgen-page-num"></span></w:t></w:r>';
             }
             // Skip other fldSimple types
             cursor = closeTag + '</w:fldSimple>'.length();

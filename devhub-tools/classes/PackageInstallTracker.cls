@@ -217,6 +217,27 @@ public with sharing class PackageInstallTracker {
     }
 
     /**
+     * Creates a new Lead for a subscriber org so it can be enriched with
+     * industry, country, and contact info over time.
+     */
+    @AuraEnabled
+    public static Id createLeadForOrg(String orgKey, String orgName) {
+        // Check for existing Lead with same company name to avoid duplicates
+        List<Lead> existing = [SELECT Id FROM Lead WHERE Company = :orgName AND LeadSource = 'Package Install' WITH SYSTEM_MODE LIMIT 1];
+        if (!existing.isEmpty()) { return existing[0].Id; }
+
+        Lead l = new Lead(
+            LastName = orgName,
+            Company = orgName,
+            LeadSource = 'Package Install',
+            Status = 'New',
+            Description = 'Auto-created from Package Install Tracker. Org ID: ' + orgKey
+        );
+        insert l; // NOPMD ApexCRUDViolation — DevHub admin operation
+        return l.Id;
+    }
+
+    /**
      * Searches Accounts by name for the link-to-account lookup.
      */
     @AuraEnabled(cacheable=true)

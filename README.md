@@ -4,11 +4,11 @@ Generate PDFs and Word docs from any Salesforce record. Merge PDFs, add barcodes
 
 [Join the Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity) | [Website](https://portwoodglobalsolutions.com) | [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap)
 
-[![Version](https://img.shields.io/badge/version-1.21.0-blue.svg)](#install)
+[![Version](https://img.shields.io/badge/version-1.23.0-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![Namespace](https://img.shields.io/badge/namespace-portwoodglobal-purple.svg)](#install)
-[![Apex Tests](https://img.shields.io/badge/Apex_Tests-629%2F629_passing-brightgreen)](#code-quality)
+[![Apex Tests](https://img.shields.io/badge/Apex_Tests-623%2F623_passing-brightgreen)](#code-quality)
 [![Coverage](https://img.shields.io/badge/Coverage-76%25-green)](#code-quality)
 [![E2E](https://img.shields.io/badge/E2E-24%2F24_passing-brightgreen)](#code-quality)
 [![Website](https://img.shields.io/badge/website-portwoodglobalsolutions.com-blue)](https://portwoodglobalsolutions.com)
@@ -32,10 +32,10 @@ Scanned with `sf code-analyzer run --rule-selector "Security" --rule-selector "A
 **New install:**
 
 ```bash
-sf package install --package 04tal000006PdtxAAC --wait 10 --target-org <your-org>
+sf package install --package 04tal000006PfEDAA0 --wait 10 --target-org <your-org>
 ```
 
-[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PdtxAAC) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PdtxAAC)
+[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PfEDAA0) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PfEDAA0)
 
 **Then:** Assign **DocGen Admin** permission set | Enable **Blob.toPdf() Release Update** | Open the **DocGen** app
 
@@ -328,7 +328,7 @@ sf code-analyzer run --rule-selector "recommended" --target force-app
 
 ### Apex Test Results
 
-- **629 / 629 tests passing** (100% pass rate)
+- **623 / 623 tests passing** (100% pass rate)
 - **76% org-wide code coverage**
 - All tests use `System.runAs()`, assertion messages, and real data
 

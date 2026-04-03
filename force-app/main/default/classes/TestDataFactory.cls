@@ -11,6 +11,9 @@ public class TestDataFactory {
      * Use the getter methods below to retrieve records in individual tests.
      */
     public static void createStandardTestData() {
+        // 0. Assign DocGen_Admin permission set to running user for FLS access
+        assignAdminPermissionSet();
+
         // 1. Account
         Account acc = new Account(
             Name = 'DocGen Test Account',
@@ -310,5 +313,27 @@ public class TestDataFactory {
             '<w:name w:val="Normal"/><w:qFormat/>' +
             '<w:pPr><w:bidi/></w:pPr>' +
             '</w:style></w:styles>';
+    }
+
+    /**
+     * Assigns the DocGen_Admin permission set to the running test user.
+     * Required for WITH SYSTEM_MODE + stripInaccessible to work during
+     * package version creation tests where FLS isn't granted by default.
+     */
+    public static void assignAdminPermissionSet() {
+        try {
+            List<PermissionSet> ps = [SELECT Id FROM PermissionSet WHERE Name = 'DocGen_Admin' LIMIT 1];
+            if (!ps.isEmpty()) {
+                List<PermissionSetAssignment> existing = [
+                    SELECT Id FROM PermissionSetAssignment
+                    WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :ps[0].Id LIMIT 1
+                ];
+                if (existing.isEmpty()) {
+                    insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = ps[0].Id);
+                }
+            }
+        } catch (Exception e) {
+            // Non-fatal — tests may still pass if running as admin
+        }
     }
 }

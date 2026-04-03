@@ -6,12 +6,14 @@ import getVersions from '@salesforce/apex/PackageInstallTracker.getVersions';
 import sendInstallNotification from '@salesforce/apex/PackageInstallTracker.sendInstallNotification';
 import linkOrgToAccount from '@salesforce/apex/PackageInstallTracker.linkOrgToAccount';
 import createAccountForOrg from '@salesforce/apex/PackageInstallTracker.createAccountForOrg';
+import createLeadForOrg from '@salesforce/apex/PackageInstallTracker.createLeadForOrg';
 import searchAccounts from '@salesforce/apex/PackageInstallTracker.searchAccounts';
 import syncNow from '@salesforce/apex/DocGenSubscriberSync.syncNow';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { NavigationMixin } from 'lightning/navigation';
 
 const ROW_ACTIONS = [
+    { label: 'Create Lead', name: 'create_lead' },
     { label: 'Link to Account', name: 'link_account' },
     { label: 'Create Account', name: 'create_account' },
     { label: 'View Account', name: 'view_account' }
@@ -52,7 +54,7 @@ export default class PackageInstallTracker extends NavigationMixin(LightningElem
     @track versions = [];
     @track packages = [];
     @track stats = {};
-    selectedPackageId = '';
+    selectedPackageId = '033al000006QuSvAAK'; // Portwood DocGen Managed
     isLoading = true;
     sortBy = 'installedDate';
     sortDirection = 'desc';
@@ -77,7 +79,7 @@ export default class PackageInstallTracker extends NavigationMixin(LightningElem
                 value: p.id
             }));
             if (this.packages.length > 0 && !this.selectedPackageId) {
-                this.selectedPackageId = this.packages[0].value;
+                this.selectedPackageId = '033al000006QuSvAAK';
             }
         }
         if (error) {
@@ -226,12 +228,32 @@ export default class PackageInstallTracker extends NavigationMixin(LightningElem
                 this.selectedAccountId = null;
                 this.showLinkModal = true;
                 break;
+            case 'create_lead':
+                this._createLead(row.orgKey, row.orgName);
+                break;
             case 'create_account':
                 this._createAccount(row.orgKey, row.orgName);
                 break;
             default:
                 break;
         }
+    }
+
+    _createLead(orgKey, orgName) {
+        this.isLoading = true;
+        createLeadForOrg({ orgKey, orgName })
+            .then(leadId => {
+                this.dispatchEvent(new ShowToastEvent({ title: 'Lead Created', message: orgName + ' lead created.', variant: 'success' }));
+                this[NavigationMixin.Navigate]({
+                    type: 'standard__recordPage',
+                    attributes: { recordId: leadId, actionName: 'view' }
+                });
+                this.isLoading = false;
+            })
+            .catch(err => {
+                this.dispatchEvent(new ShowToastEvent({ title: 'Error', message: err.body ? err.body.message : err.message, variant: 'error' }));
+                this.isLoading = false;
+            });
     }
 
     _createAccount(orgKey, orgName) {

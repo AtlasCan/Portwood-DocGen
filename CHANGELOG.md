@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.23.0 — Cover Pages, Security & Simplified Sharing
+
+Cover pages now render clean — no unwanted headers or footers on your title page. Section breaks in your Word template create proper page breaks in the PDF. Simpler permissions model replaces custom sharing UI with standard Salesforce sharing.
+
+### Cover Page & Section Breaks
+- **Title page support** — Templates with "Different First Page" enabled in Word (`<w:titlePg/>`) now suppress headers and footers on the first page. Your cover page stays clean.
+- **Section breaks** — Mid-document section breaks in your Word template now create proper page breaks in the PDF instead of being silently stripped.
+
+### PDF Rendering Fixes
+- **Spaces between merge tags** — `{FirstName} {LastName}` no longer renders as "FirstNameLastName". Whitespace-only runs are preserved.
+- **Page number formatting** — Page numbers in headers and footers now honor the font size, color, bold, and other formatting from your Word template.
+- **Page counter CSS** — Switched to `::before` pseudo-elements for reliable page numbering in Flying Saucer running elements.
+- **Numbered list detection** — `numbering.xml` now included in the pre-decomposed XML path so numbered vs bulleted lists render correctly in PDF output.
+
+### UI Fixes
+- **Template selection persists** — Switching between Create Document, Document Packet, and Combine PDFs tabs no longer resets your template selection.
+
+### Simplified Sharing
+- Removed custom sharing UI — use standard Salesforce sharing rules and manual sharing for template access control. Simpler, more predictable, no custom code needed.
+
+### Housekeeping
+- Removed built-in sample templates — download templates from [portwoodglobalsolutions.com](https://portwoodglobalsolutions.com)
+- 623 Apex tests passing, 24/24 E2E tests, 0 security violations
+
+## v1.22.0 — Bug Fixes & Template Cleanup
+
+Patch release with merge tag spacing fixes and page number formatting. Sample templates moved online.
+
 ## v1.21.0 — Query Builder 2.0 & User Guide
 
 Replaced the visual query builder with a simpler, faster, more reliable manual-first experience. The old visual builder had persistent bugs — broken save state, empty config on object selection, template creation failures ("Please configure the query" error). Rather than continuing to patch a complex reactive UI, we stripped it back to what works: a text box with smart suggestions.

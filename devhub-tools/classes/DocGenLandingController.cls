@@ -106,6 +106,61 @@ public without sharing class DocGenLandingController {
         return 'created';
     }
 
+    @RemoteAction
+    public static String submitInstallLead(String company, String industry, String country, String email, String utmSource, String utmMedium, String utmCampaign, String utmContent, String utmTerm) {
+        if (String.isBlank(company) || String.isBlank(industry) || String.isBlank(country)) {
+            throw new AuraHandledException('Organization, industry, and country are required.');
+        }
+
+        // Dedup by email if provided
+        if (String.isNotBlank(email)) {
+            List<Lead> existing = [SELECT Id, Industry, Country FROM Lead WHERE Email = :email WITH SYSTEM_MODE LIMIT 1];
+            if (!existing.isEmpty()) {
+                Lead existingLead = existing[0];
+                if (String.isBlank(existingLead.Industry)) { existingLead.Industry = industry; }
+                if (String.isBlank(existingLead.Country)) { existingLead.Country = country; }
+                update existingLead; // NOPMD ApexCRUDViolation — landing page: enriching existing Lead with install data
+                return 'existing';
+            }
+        }
+
+        Lead newLead = new Lead(
+            LastName = company,
+            Company = company,
+            Industry = industry,
+            Country = country,
+            Email = String.isNotBlank(email) ? email : null,
+            LeadSource = 'DocGen Install',
+            Status = 'New',
+            UTM_Source__c = String.isNotBlank(utmSource) ? utmSource : null,
+            UTM_Medium__c = String.isNotBlank(utmMedium) ? utmMedium : null,
+            UTM_Campaign__c = String.isNotBlank(utmCampaign) ? utmCampaign : null,
+            UTM_Content__c = String.isNotBlank(utmContent) ? utmContent : null,
+            UTM_Term__c = String.isNotBlank(utmTerm) ? utmTerm : null
+        );
+        insert newLead; // NOPMD ApexCRUDViolation — landing page: creating Lead from install form
+        return 'created';
+    }
+
+    public class CountryCount {
+        public String country;
+        public Integer count;
+        public CountryCount(String c, Integer n) { this.country = c; this.count = n; }
+    }
+
+    @RemoteAction
+    public static List<CountryCount> getInstallMapData() {
+        List<CountryCount> results = new List<CountryCount>();
+        for (AggregateResult ar : [
+            SELECT Country, COUNT(Id) cnt FROM Lead
+            WHERE LeadSource IN ('DocGen Install', 'Package Install') AND Country != null
+            GROUP BY Country
+        ]) {
+            results.add(new CountryCount((String)ar.get('Country'), (Integer)ar.get('cnt')));
+        }
+        return results;
+    }
+
     /**
      * Creates a Chatter Free user and adds them to all DocGen community groups.
      * Sets a temporary password to suppress SF's welcome email, then sends
