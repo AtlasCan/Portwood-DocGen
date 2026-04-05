@@ -414,9 +414,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                     'childCount' => counts.get(giantRelationship)
                 })
             );
-            SObjectAccessDecision gqJobDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Job__c>{ job });
-            insert gqJobDec.getRecords();
-            job.Id = gqJobDec.getRecords()[0].Id;
+            insert job;
 
             // Launch batch — shell PDF generation happens in start() with fresh heap
             DocGenGiantQueryBatch batch = new DocGenGiantQueryBatch(
@@ -596,9 +594,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 Label__c = 'Giant Query PDF',
                 Parent_Record_Id__c = String.valueOf(recordId)
             );
-            SObjectAccessDecision lpJobDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Job__c>{ job });
-            insert lpJobDec.getRecords();
-            job.Id = lpJobDec.getRecords()[0].Id;
+            insert job;
 
             // Ensure relationshipName is in the config (V1 scout doesn't include it)
             childNodeConfig.put('relationshipName', giantRelationship);
@@ -849,13 +845,11 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                         other.Is_Default__c = false;
                     }
                     if (!otherDefaults.isEmpty()) {
-                        SObjectAccessDecision odUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, otherDefaults);
-                        update odUpdDec.getRecords();
+                        update otherDefaults;
                     }
                 }
             }
-            SObjectAccessDecision tmplUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
-            update tmplUpdDec.getRecords();
+            update template;
 
             // 2. Create Version if requested
             if (createVersion == true) {
@@ -867,8 +861,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                     av.Is_Active__c = false;
                 }
                 if (!activeVersions.isEmpty()) {
-                    SObjectAccessDecision avUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, activeVersions);
-                    update avUpdDec.getRecords();
+                    update activeVersions;
                 }
 
                 // Get latest ContentVersionId
@@ -897,9 +890,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 version.Type__c = (String) fields.get('Type__c');
                 version.Base_Object_API__c = (String) fields.get('Base_Object_API__c');
 
-                SObjectAccessDecision verInsDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template_Version__c>{ version });
-                insert verInsDec.getRecords();
-                version.Id = verInsDec.getRecords()[0].Id;
+                insert version;
 
                 // Extract images from DOCX/PPTX and save as ContentVersions linked to the version.
                 // Blob.toPdf() cannot render data URI images — needs committed CV URLs.
@@ -968,14 +959,12 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 v.Is_Active__c = false;
             }
             if (!others.isEmpty()) {
-                SObjectAccessDecision othUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, others);
-                update othUpdDec.getRecords();
+                update others;
             }
 
             // 2. Activate this one
             version.Is_Active__c = true;
-            SObjectAccessDecision verUpdDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template_Version__c>{ version });
-            update verUpdDec.getRecords();
+            update version;
 
             // 3. Update Template Record Headline
             DocGen_Template__c template = new DocGen_Template__c(Id = version.Template__c);
@@ -985,8 +974,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             template.Type__c = version.Type__c;
             template.Base_Object_API__c = version.Base_Object_API__c;
 
-            SObjectAccessDecision actTmplDec = Security.stripInaccessible(AccessType.UPDATABLE, new List<DocGen_Template__c>{ template });
-            update actTmplDec.getRecords();
+            update template;
 
         } catch (Exception e) {
             throw new DocGenException('Error activating version: ' + e.getMessage());
@@ -3074,11 +3062,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 Description__c = d.get('desc')
             ));
         }
-        SObjectAccessDecision stDec = Security.stripInaccessible(AccessType.CREATABLE, templates);
-        insert stDec.getRecords();
-        for (Integer i = 0; i < templates.size(); i++) {
-            templates[i].Id = stDec.getRecords()[i].Id;
-        }
+        insert templates;
 
         // Create ContentVersions (DOCX files) linked to templates
         List<ContentVersion> cvs = new List<ContentVersion>();
@@ -3111,11 +3095,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                 Base_Object_API__c = templates[i].Base_Object_API__c
             ));
         }
-        SObjectAccessDecision svDec = Security.stripInaccessible(AccessType.CREATABLE, versions);
-        insert svDec.getRecords();
-        for (Integer i = 0; i < versions.size(); i++) {
-            versions[i].Id = svDec.getRecords()[i].Id;
-        }
+        insert versions;
 
         // Extract and save template images for PDF rendering
         for (Integer i = 0; i < versions.size(); i++) {
@@ -3244,9 +3224,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             tmpl.Query_Config__c = (String) tmplData.get('Query_Config__c');
             tmpl.Document_Title_Format__c = (String) tmplData.get('Document_Title_Format__c');
             tmpl.Is_Default__c = tmplData.get('Is_Default__c') == true;
-            SObjectAccessDecision impTmplDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template__c>{ tmpl });
-            insert impTmplDec.getRecords();
-            tmpl.Id = impTmplDec.getRecords()[0].Id;
+            insert tmpl;
 
             // 2. Upload template file if present
             Map<String, Object> fileData = (Map<String, Object>) bundle.get('templateFile');
@@ -3273,9 +3251,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
             ver.Description__c = (String) tmplData.get('Description__c');
             ver.Type__c = (String) tmplData.get('Type__c');
             ver.Base_Object_API__c = (String) tmplData.get('Base_Object_API__c');
-            SObjectAccessDecision impVerDec = Security.stripInaccessible(AccessType.CREATABLE, new List<DocGen_Template_Version__c>{ ver });
-            insert impVerDec.getRecords();
-            ver.Id = impVerDec.getRecords()[0].Id;
+            insert ver;
 
             // 4. Extract images and pre-decompose (non-fatal)
             try {
@@ -3298,8 +3274,7 @@ public with sharing class DocGenController { // NOPMD ExcessivePublicCount — c
                     newSq.Description__c = (String) sq.get('Description__c');
                     sqs.add(newSq);
                 }
-                SObjectAccessDecision sqsDec = Security.stripInaccessible(AccessType.CREATABLE, sqs);
-                insert sqsDec.getRecords();
+                insert sqs;
             }
 
             return tmpl.Id;
