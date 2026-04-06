@@ -11,6 +11,11 @@ deploy-options.json
 # LWC VSCode autocomplete
 **/lwc/jsconfig.json
 
+# IntelliJ / Illuminated Cloud 2 (IDE-local, not for repo)
+.idea/
+.illuminatedCloud/
+**/lwc/tsconfig.json
+
 # LWC Jest coverage reports
 coverage/
 
