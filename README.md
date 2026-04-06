@@ -1,100 +1,72 @@
 # Portwood DocGen — Free Document Generation for Salesforce
 
-Generate PDFs, Word docs, Excel spreadsheets, and PowerPoint presentations from any Salesforce record. Merge PDFs, add barcodes and QR codes, compute totals — 100% native, zero external dependencies, completely free.
+Generate PDFs and Word docs from any Salesforce record. Merge PDFs, add barcodes and QR codes, compute totals — 100% native, zero external dependencies, 100% free forever. All features, all users, no paid tiers. PowerPoint and Excel coming soon.
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](#install)
+[Join the Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity) | [Website](https://portwoodglobalsolutions.com) | [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap)
+
+[![Version](https://img.shields.io/badge/version-1.25.0-blue.svg)](#install)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Salesforce-00A1E0.svg)](https://www.salesforce.com)
 [![Namespace](https://img.shields.io/badge/namespace-portwoodglobal-purple.svg)](#install)
-[![Apex Tests](https://img.shields.io/badge/Apex_Tests-615%2F615_passing-brightgreen)](#code-quality)
-[![Coverage](https://img.shields.io/badge/Coverage-76%25-green)](#code-quality)
+[![Apex Tests](https://img.shields.io/badge/Apex_Tests-683%2F683_passing-brightgreen)](#code-quality)
 [![E2E](https://img.shields.io/badge/E2E-24%2F24_passing-brightgreen)](#code-quality)
 [![Website](https://img.shields.io/badge/website-portwoodglobalsolutions.com-blue)](https://portwoodglobalsolutions.com)
-
-### Salesforce Code Analyzer Results
-
-| Severity | Count | Status |
-|----------|-------|--------|
-| Critical | 0 | :white_check_mark: |
-| High | 0 | :white_check_mark: |
-| Moderate | 376 | Style/complexity only |
-| Low | 462 | ApexDoc, SLDS suggestions |
-| Info | 70 | Whitespace, copy-paste |
-
-Scanned with `sf code-analyzer run --rule-selector "recommended"` — the rule set used by Salesforce Security Review. Zero security violations.
 
 ---
 
 ## Install
 
-**New install:**
-
 ```bash
-sf package install --package 04tal000006PEnVAAW --wait 10 --target-org <your-org>
+sf package install --package 04tal000006PhBBAA0 --wait 10 --target-org <your-org>
 ```
 
-[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PEnVAAW) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PEnVAAW)
+[Install in Production](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PhBBAA0) | [Install in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PhBBAA0)
 
 **Then:** Assign **DocGen Admin** permission set | Enable **Blob.toPdf() Release Update** | Open the **DocGen** app
-
-### Upgrading from the old unnamespaced package
-
-If you previously installed the unnamespaced "Document Generation" package:
-
-1. **Uninstall** the old package (Setup > Installed Packages > Document Generation > Uninstall)
-2. **Install** the new namespaced package using the links above
-3. Re-assign the **DocGen Admin** or **DocGen User** permission sets
-4. Re-create your templates (the old templates used different custom object API names without namespace)
-
-> **Why the change?** The package now uses the `portwoodglobal` namespace for better isolation, upgrade safety, and Salesforce Accelerator distribution. This is a one-time migration.
-
----
-
-## Giant Query PDF
-
-Generate PDFs from records with **3,000 to 50,000+ child records** — entirely server-side, no external dependencies.
-
-| | Standard Engine | Giant Query Engine |
-|---|---|---|
-| **When** | < 2,000 child records | > 2,000 child records |
-| **Detection** | Automatic | Automatic |
-| **PDF** | Instant render via `Blob.toPdf()` | Batch → Queueable chain → `Blob.toPdf()` |
-| **DOCX** | Server-side ZIP or client-side assembly | Client-side pagination + assembly |
-| **Speed** | ~2-5 seconds | ~1-5 minutes (async) |
-| **Output** | Download or save to record | Saved to record automatically |
-
-The engine auto-detects large datasets when you click Generate. Same template, same button — the complexity is invisible. Ideal for transaction logs, price books, audit trails, and bulk data reports.
 
 ---
 
 ## Quick Start
 
 1. **Create a template** — pick Word, Excel, or PowerPoint. Choose your Salesforce object.
-2. **Select your fields** — use the visual query builder to pick fields, parent lookups, and child records.
+2. **Select your fields** — use the visual query builder, or paste a full SOQL statement for complex nested relationships.
 3. **Add tags and upload** — type `{Name}` where you want data. Upload the file.
 4. **Generate** — from any record page, in bulk, or from a Flow.
 
+Download example templates from [portwoodglobalsolutions.com](https://portwoodglobalsolutions.com).
+
 ---
 
-## Merge Tags
+## What You Can Do
+
+### Template Formats
+
+| Format | Template | Output Options | Best For |
+|--------|----------|---------------|----------|
+| **Word** | `.docx` | PDF or DOCX | Contracts, proposals, invoices, letters |
+| **Excel** | `.xlsx` | XLSX | Data exports, reports, financial summaries |
+| **PowerPoint** | `.pptx` | PPTX | Presentations, slide decks |
+
+Word is the most capable — it's the only format that supports images, barcodes, QR codes, rich text, and PDF output.
+
+### Merge Tags
 
 | Tag | What It Does | Example |
 |-----|-------------|---------|
 | `{FieldName}` | Insert a field value | `{Name}`, `{Email}`, `{Phone}` |
 | `{Parent.Field}` | Pull from a related record | `{Account.Name}`, `{Owner.Email}` |
 | `{#ChildList}...{/ChildList}` | Repeat for each child record | `{#Contacts}{FirstName}{/Contacts}` |
-| `{#BoolField}...{/BoolField}` | Show/hide based on field value | `{#IsActive}Active member{/IsActive}` |
-| `{RichTextField}` | Rich text with formatting and images | `{Description}` on a Rich Text Area |
+| `{#BoolField}...{/BoolField}` | Show/hide based on checkbox | `{#IsActive}Active member{/IsActive}` |
+| `{RichTextField}` | Rich text with formatting and images | `{Description}` renders bold, italic, lists |
 
 ### Formatting
 
-| Tag | Output | Works In |
-|-----|--------|----------|
-| `{CloseDate:MM/dd/yyyy}` | 03/18/2026 | All formats |
-| `{Amount:currency}` | $500,000.00 | All formats |
-| `{Rate:percent}` | 15.5% | All formats |
-| `{Quantity:number}` | 1,234 | All formats |
-| `{Price:#,##0.00}` | 1,234.56 | All formats |
+| Tag | Output |
+|-----|--------|
+| `{CloseDate:MM/dd/yyyy}` | 03/18/2026 |
+| `{Amount:currency}` | $500,000.00 |
+| `{Rate:percent}` | 15.5% |
+| `{Quantity:number}` | 1,234 |
 
 ### Aggregates
 
@@ -107,169 +79,176 @@ Place these **outside** the loop to compute totals from child records:
 | `{AVG:List.Field}` | `{AVG:OpportunityLineItems.UnitPrice}` |
 | `{MIN:List.Field}` / `{MAX:List.Field}` | `{MIN:QuoteLineItems.Quantity}` |
 
-Zero extra SOQL — computed from child data already in memory.
+### Images
+
+Store a ContentVersion ID (starts with `068`) in a text field, then use `{%FieldName}` in your template:
+
+| Tag | What It Does |
+|-----|-------------|
+| `{%Logo__c}` | Insert image at original size |
+| `{%Logo__c:200x60}` | Fixed size: 200px wide, 60px tall |
+| `{%Logo__c:100%x}` | Full page width, keep aspect ratio |
+| `{%Logo__c:m100%xm50%}` | Shrink to fit within page width and 50% height |
+
+Images work in both **PDF** and **DOCX** output. You can also embed images directly in your Word template — they render in PDFs automatically.
+
+### Rich Text Fields
+
+Rich text fields render with full formatting (bold, italic, lists, images) in PDF output. Images inside rich text fields work in PDFs. For DOCX output, use `{%FieldName}` image tags instead of rich text images.
 
 ### Barcodes & QR Codes
 
-Rendered as CSS in PDF output. No fonts, no images, no external services.
+PDF output only. No external services required.
 
 | Tag | What You Get |
 |-----|-------------|
 | `{*ProductCode}` | Code 128 barcode |
 | `{*ProductCode:code128:300x80}` | Barcode at 300px wide, 80px tall |
-| `{*Website:qr}` | QR code at 150px (default) |
+| `{*Website:qr}` | QR code (150px default) |
 | `{*TrackingUrl:qr:200}` | QR code at 200px square |
 
-QR codes support up to **255 characters** — enough for a full Salesforce text field or URL.
+### Repeating Tables
 
-### Images
+To repeat rows inside a table (not the whole table), put the loop tags in the data row:
 
-| Tag | What It Does |
-|-----|-------------|
-| `{%Logo__c}` | Insert image at original size (from image metadata when available) |
-| `{%Logo__c:200x60}` | Fixed size: width 200px, height 60px |
-| `{%Logo__c:100%x}` | Fixed width: 100% of page content width, keep aspect ratio |
-| `{%Logo__c:x50%}` | Fixed height: 50% of page content height, keep aspect ratio |
-| `{%Logo__c:m100%x}` | Max width: shrink to fit page width, never upscale |
-| `{%Logo__c:xm50%}` | Max height: shrink to 50% page height, never upscale |
-| `{%Logo__c:m100%xm50%}` | Max width + max height constraints (shrink-to-fit) |
+| Name | Title | Email |
+|------|-------|-------|
+| `{#Contacts}{FirstName} {LastName}` | `{Title}` | `{Email}{/Contacts}` |
 
-Store a ContentVersion ID (starts with `068`) in a text field. Works in Word templates — PDF and DOCX output.
+The `{#Contacts}` goes in the first cell and `{/Contacts}` goes in the last cell of the same row. The header row stays fixed, and the data row repeats for each record.
 
-Image size syntax is `:widthxheight` with optional tokens:
+### Cover Pages & Section Breaks
 
-- `300` or `300px` = pixels
-- `100%` = percentage of current page content area
-- `m` prefix = max constraint (shrink only, CSS-style max behavior)
-- blank side is allowed: `100%x`, `x100%`, `m100%x`, `xm50%`
-
-### Rich Text Fields
-
-Rich text fields (`{Description}`, `{Notes__c}`) render with full formatting (bold, italic, lists) in both PDF and DOCX output.
-
-**Images in rich text fields:**
-
-| Output | Rich Text Images | Notes |
-|--------|-----------------|-------|
-| **PDF** | :white_check_mark: Works | `Blob.toPdf()` resolves Salesforce image URLs natively |
-| **DOCX** | :x: Not supported | Salesforce `rtaImage` servlet URLs are inaccessible server-side (CORS + redirect restrictions). Use `{%FieldName}` image tags instead |
-
-**Recommendation:** For documents that need images in DOCX format, upload the image as a Salesforce File, store the ContentVersion ID in a text field, and use `{%FieldName}` image tags. This works in both PDF and DOCX.
+- **Title pages** — If your Word template has "Different First Page" enabled, the PDF will suppress headers and footers on page 1. Your cover page stays clean.
+- **Section breaks** — Section breaks in your Word template create proper page breaks in the PDF.
 
 ### Page Breaks in Loops
 
-Child loops repeat whatever content is between the opening and closing tags — **including page breaks**. This means you can put each child record on its own page just by adding a page break inside the loop.
-
-**Example: One receipt per Opportunity**
-
-Say you have an Account with multiple Opportunities and you want each Opportunity printed as a separate receipt page. In your Word template:
+Put a page break inside a loop to give each child record its own page:
 
 ```
 {#Opportunities}
-                    RECEIPT
-Customer:   {Account.Name}
-Date:       {CloseDate:MM/dd/yyyy}
-Amount:     {Amount:currency}
-Rep:        {Owner.Name}
-
-Thank you for your business!
-                                        ← page break here
+Customer: {Account.Name}
+Amount:   {Amount:currency}
+                              ← page break here (Insert → Page Break in Word)
 {/Opportunities}
 ```
 
-Insert the page break in Word (Insert → Page Break, or Ctrl+Enter) right before the closing `{/Opportunities}` tag. Each Opportunity gets its own full page.
+### PDF Merger
 
-**How to set it up:**
-1. Open your `.docx` template in Word
-2. Place your opening loop tag (`{#Opportunities}`) at the top
-3. Design one page of content using merge tags
-4. At the bottom, insert a **Page Break** (Insert → Page Break)
-5. Place the closing tag (`{/Opportunities}`) right after the page break
-6. Upload the template — each child record gets its own page
+Five ways to combine PDFs:
 
-This works with any child loop — Contacts, Line Items, Cases, custom objects. Anything you can loop over, you can page-break over. Combine it with images, barcodes, QR codes, and formatting tags to build invoices, packing slips, certificates, or anything that needs one page per record.
-
----
-
-## Template Formats
-
-| Format | Template | Output | Images | Barcodes/QR | Rich Text | Best For |
-|--------|----------|--------|--------|-------------|-----------|----------|
-| **Word** | `.docx` | PDF or DOCX | Yes | Yes (PDF) | Yes | Contracts, proposals, letters, invoices |
-| **Excel** | `.xlsx` | XLSX | No | No | No | Data exports, reports, financial summaries |
-| **PowerPoint** | `.pptx` | PPTX | No | No | No | Presentations, slide decks |
-
-All formats support: field tags, parent lookups, child loops, aggregates, conditionals, date formatting, number/currency formatting.
-
-**Word** is the most capable — it's the only format that supports images, barcodes, QR codes, rich text, and PDF output.
-
----
-
-## PDF Merger
-
-Five ways to combine PDFs, all running client-side in the browser:
-
-| Mode | How It Works |
+| Mode | What It Does |
 |------|-------------|
-| **Generate & Merge** | Generate from a template, then append existing PDFs from the record |
-| **Document Packets** | Select multiple templates, generate them all, merge into one PDF |
+| **Generate & Merge** | Generate a doc, then append existing PDFs from the record |
+| **Document Packets** | Generate from multiple templates, merge into one PDF |
 | **Merge Only** | Combine existing PDFs on the record with drag-and-drop ordering |
-| **Child Record PDFs** | Pick a child relationship (e.g., Opportunities), filter, select PDFs from child records, merge |
-| **Bulk Merge** | After bulk generation, merge all generated PDFs into one downloadable document |
+| **Child Record PDFs** | Pull PDFs from child records (e.g., all Opportunity PDFs under an Account) |
+| **Bulk Merge** | After bulk generation, merge all generated PDFs into one download |
 
-Each PDF is fetched in its own Apex call (fresh 6 MB heap). The merge engine (`docGenPdfMerger.js`) handles the binary work — parsing object graphs, renumbering references, flattening page trees, writing cross-reference tables. No size limits on download. Save to record up to ~3 MB.
+### Giant Query Engine
 
-**Child Record PDFs** — From a parent record (e.g., Account), select a child relationship, optionally filter with a WHERE clause (e.g., `StageName = 'Closed Won' AND CloseDate = THIS_MONTH`), browse PDFs grouped by child record with Select All, and merge into one document.
+Records with **2,000 to 50,000+ child records** are detected automatically. Same template, same button — the engine handles pagination and async processing behind the scenes.
 
-**Bulk Merge** — After running bulk generation, each completed job shows a merge icon in the Recent Jobs list. Click it to download all generated PDFs merged into a single file. Name your jobs for easy searching later.
+### Query Builder
 
----
+The query builder accepts full SOQL statements with unlimited nesting depth. Paste a query like:
 
-## How It Stays Under Salesforce Limits
+```sql
+SELECT Name, Industry,
+    (SELECT FirstName, LastName, Account.Name FROM Contacts),
+    (SELECT Name, Amount,
+        (SELECT Quantity, Product2.Name FROM OpportunityLineItems)
+    FROM Opportunities WHERE StageName = 'Closed Won')
+FROM Account
+```
 
-| Technique | What It Does | Impact |
-|-----------|-------------|--------|
-| **Pre-decomposition** | Templates unzipped on save; generation loads only XML, never the full ZIP | ~75% heap reduction |
-| **Zero-heap images** | PDF images referenced by URL, not loaded into memory | Unlimited images |
-| **Client-side assembly** | Browser builds DOCX/XLSX files; each image gets its own request | No size limit |
-| **Client-side PDF merge** | PDFs fetched one at a time, merged in browser via pure JS engine | Unlimited merge |
-| **Multi-level queries** | One SOQL per relationship depth, stitched in Apex | 3 levels = 3 queries |
+The builder parses the query, displays the field tree with parent lookups highlighted, and generates copy-paste merge tags for your template. Outer `SELECT` / `FROM` clauses are stripped automatically — DocGen always runs against a specific record.
 
----
+**Tips:**
+- Test your query in Developer Console or tools like [Salesforce Inspector](https://chromewebstore.google.com/detail/salesforce-inspector-reloaded/hpijlohoihegkfehhibggnkbjhoemldh) before pasting.
+- Use AI to help build complex queries — Agentforce, ChatGPT, Gemini, and Claude can all generate valid SOQL with nested relationships.
+- Subqueries support WHERE, ORDER BY, and LIMIT clauses.
+- Parent lookups (e.g., `Account.Name`, `Product2.Family`) work at every nesting level.
 
-## Automation
+### Automation
 
-### Flow Actions
-
-| Action | Inputs | Output |
+| Action | Inputs | Use In |
 |--------|--------|--------|
-| `DocGenFlowAction` | templateId, recordId | contentDocumentId |
-| `DocGenBulkFlowAction` | templateId, queryCondition | jobId |
-
-Both work in Record-Triggered Flows, Screen Flows, and Subflows.
+| `DocGenFlowAction` | templateId, recordId | Record-Triggered Flows, Screen Flows |
+| `DocGenBulkFlowAction` | templateId, queryCondition | Scheduled Flows, Bulk Processing |
 
 ### Bulk Generation
 
-Generate documents for hundreds of records at once. Enter a filter condition, click Submit. Real-time progress tracking via the Bulk Generate tab.
-
-### Record Page Component
-
-Drop `docGenRunner` onto any Lightning Record Page via App Builder. Full UI with template selection, output mode, PDF merging, and document packets.
+Generate documents for hundreds of records at once. Enter a filter condition, click Submit. Real-time progress tracking in the app.
 
 ---
 
-## Limitations
+## What Works in PDF vs DOCX
 
-| Limitation | Details | Workaround |
-|-----------|---------|------------|
-| **PDF fonts** | Helvetica, Times, Courier, Arial Unicode MS only | Generate as DOCX for custom fonts |
-| **PDF file size** | ~3 MB per individual PDF for merge/save | Download has no limit |
-| **Barcodes/QR** | PDF output only | Not available in DOCX/XLSX/PPTX |
-| **Images** | Word templates only | Place static images directly in Excel/PPTX |
-| **Excel/PPTX output** | Native format only, no PDF conversion | Use Word template for PDF |
-| **Heap (sync)** | 6 MB per transaction | Use DOCX output for large docs (client-side assembly) |
-| **Heap (async)** | 12 MB per batch execute | Batch size 1 gives fresh heap per record |
-| **No e-signatures** | Intentionally excluded | Use DocuSign, Adobe Sign, etc. after generation |
+| Feature | PDF | DOCX |
+|---------|-----|------|
+| All merge tags and formatting | Yes | Yes |
+| Bold, italic, underline, colors, font sizes | Yes | Yes |
+| Tables with borders, shading, column widths | Yes | Yes |
+| Template-embedded images | Yes | Yes |
+| Dynamic images from record fields (`{%Field}`) | Yes | Yes |
+| Rich text field formatting | Yes | Yes |
+| Rich text images | Yes | No — use `{%Field}` image tags |
+| Barcodes and QR codes | Yes | No |
+| Page numbers in headers/footers | Yes | N/A (Word handles natively) |
+| Cover page (no header on page 1) | Yes | N/A (Word handles natively) |
+| Custom fonts (Calibri, branded, etc.) | No — falls back to Helvetica | Yes — preserves original fonts |
+| Clickable hyperlinks | No — rendered as styled text | Yes |
+
+---
+
+## PDF Font Support
+
+Salesforce's PDF engine supports these fonts:
+
+| Font | CSS Name | When It's Used |
+|------|----------|---------------|
+| **Helvetica** | `sans-serif` | Default for all text |
+| **Times** | `serif` | If explicitly set in template |
+| **Courier** | `monospace` | Fixed-width text |
+| **Arial Unicode MS** | (automatic) | Chinese, Japanese, Korean, Thai, Arabic, Hebrew |
+
+Custom fonts from your Word template (Calibri, Cambria, branded typefaces) **fall back to Helvetica** in PDF output. If custom fonts matter, generate as DOCX — Word preserves the original fonts.
+
+Starting with Spring '26, the renderer supports expanded multibyte character rendering for international scripts.
+
+---
+
+## What PDF Can't Do
+
+These are Salesforce platform limitations, not DocGen bugs:
+
+| Not Supported | Why | Workaround |
+|--------------|-----|------------|
+| Custom fonts | `Blob.toPdf()` only has 4 built-in fonts | Generate as DOCX |
+| `@font-face` CSS | Not supported by the PDF renderer | Generate as DOCX |
+| Text boxes and shapes | Word drawing objects aren't converted to HTML | Use tables for layout |
+| SmartArt and charts | Not rendered in the HTML conversion | Insert as images in your template |
+| Clickable hyperlinks | PDF renderer outputs styled text, not links | Links work in DOCX |
+| CSS Grid / Flexbox | The PDF renderer supports CSS 2.1 only | Use tables |
+| JavaScript | Ignored by the renderer | N/A |
+| Even/odd page headers | Not currently supported | Same header on all pages |
+| Multiple section headers | One header/footer set per document | Use page breaks, not section-specific headers |
+| E-signatures | Intentionally excluded | Use DocuSign, Adobe Sign after generation |
+
+---
+
+## Governor Limits
+
+| Limit | Details | How DocGen Handles It |
+|-------|---------|----------------------|
+| **6 MB heap (sync)** | Single document generation | DOCX uses client-side assembly; PDF uses zero-heap image pipeline |
+| **12 MB heap (async)** | Bulk batch generation | Batch size 1 = fresh heap per record |
+| **~3 MB PDF save** | Saving PDF to a record | Download has no size limit |
+| **4 MB Aura payload** | Saving DOCX to a record | Download works for any size |
+| **100 SOQL queries** | Per transaction | Multi-level queries use 1 SOQL per relationship depth |
+| **50,000+ child records** | Giant datasets | Auto-detected, processed async with cursor pagination |
 
 ---
 
@@ -287,108 +266,136 @@ Decompress → Merge XML tags → Recompress
 | Class | Role |
 |-------|------|
 | `DocGenService` | Core merge engine — tags, loops, images, aggregates, barcodes |
-| `DocGenHtmlRenderer` | DOCX XML → HTML for PDF rendering, barcode/QR CSS |
+| `DocGenHtmlRenderer` | DOCX XML → HTML for PDF rendering |
 | `DocGenDataRetriever` | Multi-level SOQL with query tree stitching |
-| `BarcodeGenerator` | Code 128 + QR code generation (pure Apex, Reed-Solomon) |
+| `BarcodeGenerator` | Code 128 + QR code generation (pure Apex) |
 | `DocGenController` | LWC controller — template CRUD, generation endpoints |
 | `DocGenBatch` | Batch Apex for bulk document generation |
-| `DocGenGiantQueryBatch` | Cursor-paginated harvest for 2,000+ child records |
-| `DocGenGiantQueryAssembler` | Progressive Queueable chain — accumulates HTML, renders PDF |
 | `docGenPdfMerger.js` | Client-side PDF merge engine (pure JS) |
-| `docGenZipWriter.js` | Client-side Office Open XML assembly (pure JS) |
+| `docGenZipWriter.js` | Client-side DOCX/XLSX assembly (pure JS) |
 
 ---
 
-## Changelog
+## Releases
+
+DocGen ships on a **biweekly release cycle**. Next release: **April 17, 2026**.
 
 See [CHANGELOG.md](CHANGELOG.md) for full version history.
 
 ---
 
-## Code Quality
-
-Scanned with [Salesforce Code Analyzer](https://developer.salesforce.com/docs/platform/salesforce-code-analyzer/overview) v5.9.0 using the `recommended` rule selector — the same rules used by Salesforce Security Review.
-
-### Security & Severity Scorecard
-
-| Severity | Count | Status | Notes |
-|----------|-------|--------|-------|
-| **Critical** | **0** | :white_check_mark: Pass | No security vulnerabilities |
-| **High** | **0** | :white_check_mark: Pass | No CRUD/FLS, SOQL injection, or XSS issues |
-| **Moderate** | 387 | :information_source: | Cyclomatic complexity, missing braces (style only) |
-| **Low** | 656 | :information_source: | Missing ApexDoc, SLDS class suggestions |
-| **Info** | 56 | :information_source: | Trailing whitespace, copy-paste detection |
-
-**Run it yourself:**
-```bash
-sf code-analyzer run --rule-selector "recommended" --target force-app
-```
-
-### Apex Test Results
-
-- **507 / 507 tests passing** (100% pass rate)
-- **77% org-wide code coverage**
-- All tests use `System.runAs()`, assertion messages, and real data
-
-### E2E Test Results
-
-```
-sf apex run --target-org <org> -f scripts/e2e-test.apex
-
-PASS: 24  FAIL: 0  ALL TESTS PASSED
-```
-
-| # | Test | Result |
-|---|------|--------|
-| T1 | Account Name field merge | PASS |
-| T2 | Owner.Name parent field lookup | PASS |
-| T3 | Contacts child loop (2 records) | PASS |
-| T4 | Opportunities child loop (1 record) | PASS |
-| T5 | Product2.Name on Line Items (parent field through child) | PASS |
-| T6 | Line Items count (2 records) | PASS |
-| T7 | Description ContentVersion ID (image field) | PASS |
-| T8 | Legacy V1 backward compatibility | PASS |
-| T9 | Image CV ID format validation | PASS |
-| T10 | Image CV file accessibility | PASS |
-| T11 | PDF document generation (Blob.toPdf) | PASS |
-| T12 | Generated file not empty | PASS |
-| T13 | Document generation size check | PASS |
-| T14 | Junction stitching (OCR -> Contact) | PASS |
-| T15 | COUNT:Contacts aggregate | PASS |
-| T16 | SUM:LineItems.TotalPrice aggregate | PASS |
-| T17 | SUM with :currency formatting | PASS |
-| T18 | AVG:UnitPrice aggregate | PASS |
-| T19 | MIN:Quantity aggregate | PASS |
-| T20 | MAX:Quantity aggregate | PASS |
-| T21 | V4 Apex Data Provider generation | PASS |
-| T22 | V4 missing class error handling | PASS |
-| T23 | Null parent lookup in loop renders blank | PASS |
-| T24 | Template export/import round-trip | PASS |
-
-### QR Code Verification
-
-QR encoding verified module-by-module against [qrcode-generator](https://www.npmjs.com/package/qrcode-generator) reference library for versions 1 (21x21), 3 (29x29), and 6 (41x41). All modules match. See `scripts/qr-verify.js`.
-
----
-
 ## Community
 
-DocGen is open source, community-driven, and published through [Portwood Global Solutions](https://portwoodglobalsolutions.com). We're working toward listing as a **Salesforce Accelerator** (like DLRS and other community tools).
+DocGen is 100% free, open source, and community-driven. Published through [Portwood Global Solutions](https://portwoodglobalsolutions.com).
 
 | Channel | What It's For |
 |---------|---------------|
-| [Issues](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues) | Bug reports, feature requests, questions |
-| [Discussions](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/discussions) | Ideas, show-and-tell, general conversation |
-| [Community Hub](https://portwoodglobalsolutions.com/DocGenCommunity) | Forum with real-time help and template sharing |
-| [Website](https://portwoodglobalsolutions.com) | Install links, live demo, documentation |
+| [Community Channel](https://portwoodglobalsolutions.com/DocGenCommunity) | Real-time help, feature requests, template sharing |
+| [GitHub Issues](https://github.com/Portwood-Global-Solutions/Portwood-DocGen/issues) | Bug reports and tracked feature requests |
+| [Roadmap](https://portwoodglobalsolutions.com/DocGenRoadmap) | What's shipped and what's coming next |
+| [Website](https://portwoodglobalsolutions.com) | Install links, feature overview |
+
+Need dedicated support? Contact us at [hello@portwoodglobalsolutions.com](mailto:hello@portwoodglobalsolutions.com).
 
 ## Contributing
 
-We welcome contributions of all kinds — bug fixes, features, documentation, and template examples. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, code guidelines, and how to submit a PR.
+We welcome contributions — see [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions.
 
 ## Security
 
-Found a vulnerability? Please report it privately — see [SECURITY.md](SECURITY.md) for details.
+### CRUD/FLS Transparency Report
+
+We run the [Salesforce Code Analyzer](https://developer.salesforce.com/docs/platform/salesforce-code-analyzer/guide/engine-sfge.html) with Security + AppExchange rule selectors on every release. The current scan reports **51 High-severity SFGE `ApexFlsViolation` findings** — all on package-internal custom objects. We believe in full transparency, so here they are:
+
+**Why these exist:** DocGen is a managed package with the `portwoodglobal` namespace. Salesforce's `USER_MODE` keyword (which SFGE requires for compliance) breaks namespace resolution during managed package builds — field names like `Query_Config__c` fail with "No such column" because the SOQL engine requires the fully-qualified `portwoodglobal__Query_Config__c`. Since namespace-qualified field names don't compile in development scratch orgs, `SYSTEM_MODE` is the only viable option for package-internal objects. This is standard practice for managed packages on the Salesforce platform.
+
+Salesforce's own [AppExchange security review guidance](https://developer.salesforce.com/blogs/2023/04/prepare-your-app-to-pass-the-appexchange-security-review) explicitly states that bypassing CRUD/FLS is acceptable for "custom objects or fields like logs or system metadata that shouldn't be directly accessible to the user via CRUD/FLS." All DocGen custom objects fall into this category.
+
+**How access is actually enforced:**
+- **Object-level CRUD**: Enforced by `DocGen_Admin` and `DocGen_User` permission sets (platform-level)
+- **Field-level security**: Enforced by the same permission sets (platform-level)
+- **Record-level sharing**: All Apex classes use `with sharing` (platform-enforced)
+- **Standard objects** (ContentVersion, ContentDocumentLink): Use `USER_MODE` + `Security.stripInaccessible()` (code-enforced)
+
+No user can read, create, update, or delete any DocGen data without an explicitly assigned permission set.
+
+<details>
+<summary>Full SFGE violation log (51 findings across 3 files)</summary>
+
+**DocGenBulkController.cls** (9 findings):
+| Line | Operation | Object | Fields |
+|------|-----------|--------|--------|
+| 9 | READ | DocGen_Template__c | Base_Object_API__c, Description__c, Name, Output_Format__c, Query_Config__c, Test_Record_Id__c |
+| 336 | INSERT | DocGen_Job__c | Label__c, Merge_Only__c, Query_Condition__c, Status__c, Template__c |
+| 336 | INSERT | DocGen_Job__c | (duplicate path) |
+| 356 | READ | DocGen_Job__c | Error_Count__c, Name, Status__c, Success_Count__c, Total_Records__c |
+| 366 | READ | DocGen_Job__c | CreatedDate, Error_Count__c, Label__c, Name, Status__c, Success_Count__c, Total_Records__c |
+| 382 | READ | DocGen_Job__c | CreatedDate, Query_Condition__c, Template__c |
+| 438 | READ | DocGen_Saved_Query__c | CreatedDate, Description__c, DocGen_Template__c, Name, Query_Condition__c |
+| 461 | INSERT | DocGen_Saved_Query__c | Description__c, DocGen_Template__c, Name, Query_Condition__c |
+
+**DocGenController.cls** (41 findings):
+| Line | Operation | Object | Fields |
+|------|-----------|--------|--------|
+| 16 | READ | DocGen_Template__c | Base_Object_API__c, Document_Title_Format__c, Output_Format__c, Query_Config__c, Type__c |
+| 448 | READ | DocGen_Job__c | Label__c, Status__c, Success_Count__c, Total_Records__c |
+| 637 | READ | DocGen_Template__c | Base_Object_API__c, Query_Config__c |
+| 787 | READ | DocGen_Template__c | Base_Object_API__c, Description__c, Is_Default__c, Name, Output_Format__c, Query_Config__c, Type__c |
+| 800 | READ | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Document_Title_Format__c, Is_Default__c, Name, Output_Format__c, Query_Config__c, Test_Record_Id__c, Type__c |
+| 800 | READ | ContentDocumentLinks | ContentDocument.CreatedDate, ContentDocumentId |
+| 839 | READ | DocGen_Template__c | Base_Object_API__c, Is_Default__c |
+| 848 | UPDATE | DocGen_Template__c | Base_Object_API__c, Is_Default__c |
+| 852 | UPDATE | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Document_Title_Format__c, Is_Default__c, Name, Output_Format__c, Query_Config__c, Test_Record_Id__c, Type__c |
+| 857 | READ | DocGen_Template_Version__c | Is_Active__c, Template__c |
+| 864 | UPDATE | DocGen_Template_Version__c | Is_Active__c, Template__c |
+| 893 | INSERT | DocGen_Template_Version__c | Base_Object_API__c, Category__c, Content_Version_Id__c, Description__c, Is_Active__c, Query_Config__c, Template__c, Type__c |
+| 932 | READ | DocGen_Template_Version__c | Base_Object_API__c, Category__c, Content_Version_Id__c, CreatedBy.Name, CreatedDate, Description__c, Is_Active__c, Name, Query_Config__c, Template__c, Type__c |
+| 947 | READ | DocGen_Template_Version__c | Base_Object_API__c, Category__c, Content_Version_Id__c, Description__c, Query_Config__c, Template__c, Type__c |
+| 955 | READ | DocGen_Template_Version__c | Is_Active__c, Template__c |
+| 962 | UPDATE | DocGen_Template_Version__c | Is_Active__c, Template__c |
+| 967 | UPDATE | DocGen_Template_Version__c | Is_Active__c |
+| 977 | UPDATE | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Query_Config__c, Type__c |
+| 3065 | INSERT | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Name, Output_Format__c, Query_Config__c, Type__c |
+| 3098 | INSERT | DocGen_Template_Version__c | Base_Object_API__c, Category__c, Content_Version_Id__c, Description__c, Is_Active__c, Query_Config__c, Template__c, Type__c |
+| 3131 | READ | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Document_Title_Format__c, Is_Default__c, Name, Output_Format__c, Query_Config__c, Type__c |
+| 3131 | READ | Saved_Queries__r | Description__c, Name, Query_Condition__c |
+| 3131 | READ | Versions__r | Base_Object_API__c, Category__c, Content_Version_Id__c, Description__c, Is_Active__c, Query_Config__c, Type__c |
+| 3227 | INSERT | DocGen_Template__c | Base_Object_API__c, Category__c, Description__c, Document_Title_Format__c, Is_Default__c, Name, Output_Format__c, Query_Config__c, Type__c |
+| 3254 | INSERT | DocGen_Template_Version__c | Base_Object_API__c, Category__c, Content_Version_Id__c, Description__c, Is_Active__c, Query_Config__c, Template__c, Type__c |
+| 3277 | INSERT | DocGen_Saved_Query__c | Description__c, DocGen_Template__c, Name, Query_Condition__c |
+
+**DocGenTemplateManager.cls** (1 finding):
+| Line | Operation | Object | Fields |
+|------|-----------|--------|--------|
+| 14 | READ | DocGen_Template_Version__c | Content_Version_Id__c, Is_Active__c, Template__c |
+
+All 51 findings are `sfge:ApexFlsViolation` on package-internal custom objects using `SYSTEM_MODE`. Standard object queries (ContentVersion, ContentDocumentLink) use `USER_MODE` with `Security.stripInaccessible()` and have zero violations.
+
+</details>
+
+Found a vulnerability? See [SECURITY.md](SECURITY.md).
+
+## Beta Version (Sandbox Only)
+
+We maintain a beta channel for users who want early access to security hardening and new features before they're promoted to production. Beta packages can only be installed in **sandboxes and scratch orgs**.
+
+```bash
+sf package install --package 04tal000006PhG1AAK --wait 10 --target-org <your-sandbox>
+```
+
+[Install Beta in Sandbox](https://test.salesforce.com/packaging/installPackage.apexp?p0=04tal000006PhG1AAK)
+
+**Current beta (v1.26.0)** includes:
+- Everything in v1.25.0 (stable)
+- Schema-based allowlisting for all dynamic SOQL queries (SOQL injection hardening)
+- `validateObjectName()` and `validateFieldList()` enforce that all dynamic values in queries are validated against `Schema.getGlobalDescribe()` before execution
+
+| Version | Channel | Install Target | Package ID |
+|---------|---------|----------------|------------|
+| v1.25.0 | **Stable (Released)** | Production + Sandbox | `04tal000006PhBBAA0` |
+| v1.26.0 | **Beta** | Sandbox only | `04tal000006PhG1AAK` |
+
+Once the beta passes Checkmarx re-scan and additional hardening (CSRF, DML bulkification), it will be promoted to a stable release.
 
 ## License
 

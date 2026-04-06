@@ -34,12 +34,12 @@ public with sharing class DocGenMergeJob implements Queueable {
             List<ContentVersion> snippets = [
                 SELECT VersionData, ContentDocumentId FROM ContentVersion
                 WHERE Title LIKE :(prefix + '%')
-                WITH SYSTEM_MODE
+                WITH USER_MODE
                 ORDER BY Title
             ];
 
             if (snippets.isEmpty()) {
-                update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
+                update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
                 return;
             }
 
@@ -72,27 +72,27 @@ public with sharing class DocGenMergeJob implements Queueable {
                 IsMajorVersion = true,
                 FirstPublishLocationId = jobId
             );
-            insert pdfCv; // NOPMD ApexCRUDViolation - internal bulk merge output
+            SObjectAccessDecision cvDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ pdfCv });
+            insert cvDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+            pdfCv.Id = cvDec.getRecords()[0].Id;
 
             // Update Job with merged PDF CV Id
-            update new DocGen_Job__c( // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
-                Id = jobId,
-                Status__c = 'Completed',
-                Merged_PDF_CV__c = pdfCv.Id
-            );
+            update new DocGen_Job__c(Id = jobId, Status__c = 'Completed', Merged_PDF_CV__c = pdfCv.Id); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
 
             // Clean up HTML snippets
             List<ContentDocument> docsToDelete = new List<ContentDocument>();
             for (Id docId : docIdsToDelete) {
                 docsToDelete.add(new ContentDocument(Id = docId));
             }
-            delete docsToDelete; // NOPMD ApexCRUDViolation - cleaning up internal temp files
+            if (Schema.sObjectType.ContentDocument.isDeletable()) {
+                delete docsToDelete; // NOPMD ApexCRUDViolation — CRUD checked above
+            }
 
             // Send bell + push notification to the job submitter
             sendCompletionNotification(job, fileName, snippets.size());
 
         } catch (Exception e) {
-            update new DocGen_Job__c(Id = jobId, Status__c = 'Completed with Errors'); // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
+            update new DocGen_Job__c(Id = jobId, Status__c = 'Completed with Errors'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
         }
     }
 
@@ -121,15 +121,13 @@ public with sharing class DocGenMergeJob implements Queueable {
         }
     }
 
-    public class DocGenMergeJobFinalizer implements Finalizer {
+    public with sharing class DocGenMergeJobFinalizer implements Finalizer {
         private Id jobId;
         public DocGenMergeJobFinalizer(Id jobId) { this.jobId = jobId; }
         public void execute(FinalizerContext ctx) {
             if (ctx.getResult() == ParentJobResult.UNHANDLED_EXCEPTION) {
                 try {
-                    DocGen_Job__c job = [SELECT Id FROM DocGen_Job__c WHERE Id = :jobId WITH USER_MODE LIMIT 1];
-                    job.Status__c = 'Failed';
-                    update job; // NOPMD ApexCRUDViolation — package-internal object; updating job status on failure
+                    update new DocGen_Job__c(Id = jobId, Status__c = 'Failed'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
                 } catch (Exception e) {
                     // Intentionally swallowed — best-effort; job record may not exist
                     String noop = e.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule

@@ -59,8 +59,7 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
      */
     public Database.QueryLocator start(Database.BatchableContext bc) {
         // Update Status to Processing
-        DocGen_Job__c jobStatus = new DocGen_Job__c(Id = jobId, Status__c = 'Processing');
-        update jobStatus; // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
+        update new DocGen_Job__c(Id = jobId, Status__c = 'Processing'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
 
         // Validate object name against Schema to prevent injection
         if (Schema.getGlobalDescribe().get(baseObject) == null) {
@@ -79,10 +78,8 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
         if (String.isNotBlank(sanitizedCondition)) {
             countQuery += ' WHERE ' + sanitizedCondition;
         }
-        countQuery += ' WITH USER_MODE';
-        Integer total = Database.countQuery(countQuery);
-        DocGen_Job__c jobTotal = new DocGen_Job__c(Id = jobId, Status__c = 'Processing', Total_Records__c = total);
-        update jobTotal; // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
+        Integer total = Database.countQuery(countQuery, AccessLevel.USER_MODE);
+        update new DocGen_Job__c(Id = jobId, Status__c = 'Processing', Total_Records__c = total); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
 
         // Bulk data pre-cache for V3 configs
         buildDataCache(query, sanitizedCondition);
@@ -104,10 +101,10 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
             if (String.isNotBlank(sanitizedCondition)) {
                 idQuery += ' WHERE ' + sanitizedCondition;
             }
-            idQuery += ' WITH USER_MODE LIMIT 50000';
+            idQuery += ' LIMIT 50000';
 
             Set<Id> recordIds = new Set<Id>();
-            for (SObject rec : Database.query(idQuery)) { // NOPMD ApexSOQLInjection - baseObject validated by Schema.getGlobalDescribe() above; condition sanitized; USER_MODE
+            for (SObject rec : Database.query(idQuery, AccessLevel.USER_MODE)) { // NOPMD ApexSOQLInjection - baseObject validated by Schema.getGlobalDescribe() above; condition sanitized
                 recordIds.add(rec.Id);
             }
                         if (recordIds.isEmpty()) { return; }
@@ -142,14 +139,15 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
                 IsMajorVersion = true,
                 FirstPublishLocationId = jobId
             );
-            insert cv; // NOPMD ApexCRUDViolation - internal cache file for batch processing
+            SObjectAccessDecision cvDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
+            insert cvDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
+            cv.Id = cvDec.getRecords()[0].Id;
 
             // Store CV Id on Job and in Stateful memory
             dataCacheCvId = cv.Id;
             cachedDataJson = jsonStr;
 
-            DocGen_Job__c jobCache = new DocGen_Job__c(Id = jobId, Data_Cache_CV__c = cv.Id);
-            update jobCache; // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
+            update new DocGen_Job__c(Id = jobId, Data_Cache_CV__c = cv.Id); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
 
         } catch (Exception e) {
             // Graceful fallback: continue without cache
@@ -212,7 +210,8 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
             IsMajorVersion = false,
             FirstPublishLocationId = jobId
         );
-        insert cv; // NOPMD ApexCRUDViolation - internal merge snippet
+        SObjectAccessDecision cvDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentVersion>{ cv });
+        insert cvDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
     }
 
     /**
@@ -224,7 +223,7 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
         // Lazy-load cache from ContentVersion if Stateful string was lost
         if (dataCacheCvId != null && cachedDataJson == null) {
             try {
-                ContentVersion cv = [SELECT VersionData FROM ContentVersion WHERE Id = :dataCacheCvId WITH SYSTEM_MODE LIMIT 1];
+                ContentVersion cv = [SELECT VersionData FROM ContentVersion WHERE Id = :dataCacheCvId WITH USER_MODE LIMIT 1];
                 cachedDataJson = cv.VersionData.toString();
             } catch (Exception e) {
                 // Intentionally swallowed: cached data CV not found or inaccessible — fall through to fresh query
@@ -266,12 +265,11 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
         }
 
         // Update Job record incrementally for real-time progress tracking
-        DocGen_Job__c jobProgress = new DocGen_Job__c(
+        update new DocGen_Job__c( // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
             Id = jobId,
             Success_Count__c = successCount,
             Error_Count__c = failCount
         );
-        update jobProgress; // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
     }
 
     /**
@@ -293,28 +291,26 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
             try {
                 status = 'Merging';
 
-                DocGen_Job__c jobToUpdate = new DocGen_Job__c(
+                update new DocGen_Job__c( // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
                     Id = jobId,
                     Status__c = status,
                     Success_Count__c = successCount,
                     Error_Count__c = failCount
                 );
-                update jobToUpdate; // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
 
                 // Chain the merge Queueable — it reads all snippets by title prefix
                 System.enqueueJob(new DocGenMergeJob(jobId));
             } catch (Exception e) {
                 status = 'Completed with Errors';
-                update new DocGen_Job__c(Id = jobId, Status__c = status, Success_Count__c = successCount, Error_Count__c = failCount); // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
+                update new DocGen_Job__c(Id = jobId, Status__c = status, Success_Count__c = successCount, Error_Count__c = failCount); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
             }
         } else {
-            DocGen_Job__c jobToUpdate = new DocGen_Job__c(
+            update new DocGen_Job__c( // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
                 Id = jobId,
                 Status__c = status,
                 Success_Count__c = successCount,
                 Error_Count__c = failCount
             );
-            update jobToUpdate; // NOPMD ApexCRUDViolation — package-internal object; CRUD controlled by permission set
         }
 
         // Send notification for non-merge jobs (merge jobs notify from DocGenMergeJob)
@@ -325,8 +321,10 @@ public with sharing class DocGenBatch implements Database.Batchable<SObject>, Da
         // Clean up data cache ContentVersion
         if (dataCacheCvId != null) {
             try {
-                Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :dataCacheCvId WITH SYSTEM_MODE].ContentDocumentId;
-                delete new ContentDocument(Id = docId); // NOPMD ApexCRUDViolation — cleaning up internal cache file
+                Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :dataCacheCvId WITH USER_MODE].ContentDocumentId;
+                if (Schema.sObjectType.ContentDocument.isDeletable()) {
+                    delete new ContentDocument(Id = docId); // NOPMD ApexCRUDViolation — CRUD checked above
+                }
             } catch (Exception e) {
                 // Intentionally swallowed — cleanup failure is non-fatal
                 String noop = e.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule

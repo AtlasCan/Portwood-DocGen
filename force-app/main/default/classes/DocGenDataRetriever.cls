@@ -69,6 +69,30 @@ public with sharing class DocGenDataRetriever {
             throw DocGenService.ahe('Invalid parameters for data retrieval.');
         }
 
+        // Strip outer SELECT / FROM if user pasted a full SOQL query (V1 flat strings only)
+        fieldsConfig = fieldsConfig.trim();
+        if (fieldsConfig.toUpperCase().startsWith('SELECT ') && !fieldsConfig.startsWith('{')) {
+            fieldsConfig = fieldsConfig.substring(7).trim();
+            // Find the last FROM at outermost paren level, strip it and everything after
+            Integer lastFromAt = -1;
+            Integer pLevel = 0;
+            String upper = fieldsConfig.toUpperCase();
+            for (Integer idx = 0; idx < fieldsConfig.length(); idx++) {
+                String ch = fieldsConfig.substring(idx, idx + 1);
+                if (ch == '(') pLevel++;
+                if (ch == ')') pLevel--;
+                if (pLevel == 0 && upper.substring(idx).startsWith('FROM ')) {
+                    lastFromAt = idx;
+                }
+            }
+            if (lastFromAt > 0) {
+                fieldsConfig = fieldsConfig.substring(0, lastFromAt).trim();
+                if (fieldsConfig.endsWith(',')) {
+                    fieldsConfig = fieldsConfig.substring(0, fieldsConfig.length() - 1).trim();
+                }
+            }
+        }
+
         // JSON config: route by version
         if (fieldsConfig.trim().startsWith('{')) {
             Map<String, Object> jsonConfig = (Map<String, Object>) JSON.deserializeUntyped(fieldsConfig.trim());
@@ -141,22 +165,32 @@ public with sharing class DocGenDataRetriever {
     private static Map<String, Object> getRecordDataV2(Id recordId, String baseObject, String jsonConfig) {
         Map<String, Object> config = (Map<String, Object>) JSON.deserializeUntyped(jsonConfig);
 
+        // Schema validation: validate base object name
+        SObjectType baseType = validateObjectName(baseObject);
+        Map<String, SObjectField> baseFieldMap = baseType.getDescribe().fields.getMap();
+
         // Build SELECT clause from baseFields + parentFields + child subqueries + junction subqueries
         List<String> selectParts = new List<String>();
 
-        // Base fields
+        // Base fields — validate each against schema
         List<Object> baseFields = (List<Object>) config.get('baseFields');
         if (baseFields != null) {
             for (Object f : baseFields) {
-                selectParts.add(String.valueOf(f));
+                String validated = validateField(String.valueOf(f).trim(), baseFieldMap);
+                if (validated != null) {
+                    selectParts.add(validated);
+                }
             }
         }
 
-        // Parent fields (Account.Name, Owner.Email)
+        // Parent fields (Account.Name, Owner.Email) — validate each against schema
         List<Object> parentFields = (List<Object>) config.get('parentFields');
         if (parentFields != null) {
             for (Object f : parentFields) {
-                selectParts.add(String.valueOf(f));
+                String validated = validateField(String.valueOf(f).trim(), baseFieldMap);
+                if (validated != null) {
+                    selectParts.add(validated);
+                }
             }
         }
 
@@ -172,8 +206,23 @@ public with sharing class DocGenDataRetriever {
                     continue;
                 }
 
+                // Validate child relationship against base object's child relationships
+                SubquerySpec spec = new SubquerySpec();
+                spec.relationshipName = rel;
+                resolveChildSchema(spec, baseObject);
+
+                // Validate child fields against the resolved child object type
                 List<String> fieldNames = new List<String>();
                 for (Object f : fields) { fieldNames.add(String.valueOf(f)); }
+                if (String.isNotBlank(spec.childObjectApiName)) {
+                    SObjectType childObjType = Schema.getGlobalDescribe().get(spec.childObjectApiName);
+                    if (childObjType != null) {
+                        fieldNames = validateFieldList(fieldNames, childObjType);
+                    }
+                }
+                if (fieldNames.isEmpty()) {
+                    continue;
+                }
 
                 String subquery = '(SELECT ' + String.join(fieldNames, ', ') + ' FROM ' + rel;
                 try {
@@ -193,9 +242,6 @@ public with sharing class DocGenDataRetriever {
                     selectParts.add(subquery);
 
                     // Track for grandchild stitching (if nested children exist)
-                    SubquerySpec spec = new SubquerySpec();
-                    spec.relationshipName = rel;
-                    resolveChildSchema(spec, baseObject);
                     spec.fieldsOnly = String.join(fieldNames, ', ');
                     childSpecs.add(spec);
                 } catch (Exception e) {
@@ -218,11 +264,33 @@ public with sharing class DocGenDataRetriever {
                 js.targetWhere = (String) j.get('targetWhere');
                 js.targetOrderBy = (String) j.get('targetOrderBy');
 
+                // Validate target object via Schema
+                SObjectType targetType = validateObjectName(js.targetObject);
+
+                // Validate junction relationship against base object's child relationships
+                // to resolve the junction child object for field validation
+                SubquerySpec juncSpec = new SubquerySpec();
+                juncSpec.relationshipName = js.junctionRel;
+                resolveChildSchema(juncSpec, baseObject);
+
                 js.junctionFields = new List<String>();
                 List<Object> jf = (List<Object>) j.get('junctionFields');
                 if (jf != null) {
                     for (Object f : jf) {
                         js.junctionFields.add(String.valueOf(f));
+                    }
+                }
+                // Validate junction fields against the junction child object
+                if (String.isNotBlank(juncSpec.childObjectApiName)) {
+                    SObjectType juncChildType = Schema.getGlobalDescribe().get(juncSpec.childObjectApiName);
+                    if (juncChildType != null) {
+                        js.junctionFields = validateFieldList(js.junctionFields, juncChildType);
+                        // Validate targetIdField against the junction child object
+                        Map<String, SObjectField> juncFieldMap = juncChildType.getDescribe().fields.getMap();
+                        String validatedTargetIdField = validateField(js.targetIdField, juncFieldMap);
+                        if (validatedTargetIdField != null) {
+                            js.targetIdField = validatedTargetIdField;
+                        }
                     }
                 }
 
@@ -233,6 +301,8 @@ public with sharing class DocGenDataRetriever {
                         js.targetFields.add(String.valueOf(f));
                     }
                 }
+                // Validate target fields against the target object
+                js.targetFields = validateFieldList(js.targetFields, targetType);
 
                 junctionSpecs.add(js);
 
@@ -277,6 +347,10 @@ public with sharing class DocGenDataRetriever {
      * injects Contact data into each OCR record under the 'Contact' key.
      */
     private static void stitchJunctionTargets(Map<String, Object> data, JunctionSpec js) {
+        // Redundant schema validation for taint analysis (Checkmarx)
+        SObjectType targetType = validateObjectName(js.targetObject);
+        js.targetFields = validateFieldList(js.targetFields, targetType);
+
         Object junctionData = data.get(js.junctionRel);
         if (junctionData == null || !(junctionData instanceof Map<String, Object>)) {
             return;
@@ -401,11 +475,20 @@ public with sharing class DocGenDataRetriever {
             throw DocGenService.ahe('No query nodes defined.');
         }
 
+        Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
         for (Object nodeObj : nodesJson) {
             Map<String, Object> n = (Map<String, Object>) nodeObj;
             TreeNode tn = new TreeNode();
             tn.id = (String) n.get('id');
             tn.objectApiName = (String) n.get('object');
+            // Fix __cs suffix: Custom Setting relationship name sometimes stored as object name
+            if (tn.objectApiName != null && tn.objectApiName.endsWith('__cs')
+                    && gd.get(tn.objectApiName) == null) {
+                tn.objectApiName = tn.objectApiName.removeEnd('s');
+            }
+            // Schema validation: validate object name
+            SObjectType nodeType = validateObjectName(tn.objectApiName);
+
             tn.parentNodeId = (String) n.get('parentNode');
             tn.lookupField = (String) n.get('lookupField');
             tn.relationshipName = (String) n.get('relationshipName');
@@ -421,12 +504,25 @@ public with sharing class DocGenDataRetriever {
                     tn.fields.add(String.valueOf(f));
                 }
             }
+            // Validate fields against schema
+            tn.fields = validateFieldList(tn.fields, nodeType);
 
             tn.parentFields = new List<String>();
             List<Object> pFlds = (List<Object>) n.get('parentFields');
             if (pFlds != null) {
                 for (Object f : pFlds) {
                     tn.parentFields.add(String.valueOf(f));
+                }
+            }
+            // Validate parent fields against schema
+            tn.parentFields = validateFieldList(tn.parentFields, nodeType);
+
+            // Validate lookupField against schema if present
+            if (String.isNotBlank(tn.lookupField)) {
+                Map<String, SObjectField> nodeFieldMap = nodeType.getDescribe().fields.getMap();
+                String validatedLookup = validateField(tn.lookupField, nodeFieldMap);
+                if (validatedLookup != null) {
+                    tn.lookupField = validatedLookup;
                 }
             }
 
@@ -494,11 +590,20 @@ public with sharing class DocGenDataRetriever {
             throw DocGenService.ahe('No query nodes defined.');
         }
 
+        Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
         for (Object nodeObj : nodesJson) {
             Map<String, Object> n = (Map<String, Object>) nodeObj;
             TreeNode tn = new TreeNode();
             tn.id = (String) n.get('id');
             tn.objectApiName = (String) n.get('object');
+            // Fix __cs suffix: Custom Setting relationship name sometimes stored as object name
+            if (tn.objectApiName != null && tn.objectApiName.endsWith('__cs')
+                    && gd.get(tn.objectApiName) == null) {
+                tn.objectApiName = tn.objectApiName.removeEnd('s');
+            }
+            // Schema validation: validate object name
+            SObjectType nodeType = validateObjectName(tn.objectApiName);
+
             tn.parentNodeId = (String) n.get('parentNode');
             tn.lookupField = (String) n.get('lookupField');
             tn.relationshipName = (String) n.get('relationshipName');
@@ -514,12 +619,25 @@ public with sharing class DocGenDataRetriever {
                     tn.fields.add(String.valueOf(f));
                 }
             }
+            // Validate fields against schema
+            tn.fields = validateFieldList(tn.fields, nodeType);
 
             tn.parentFields = new List<String>();
             List<Object> pFlds = (List<Object>) n.get('parentFields');
             if (pFlds != null) {
                 for (Object f : pFlds) {
                     tn.parentFields.add(String.valueOf(f));
+                }
+            }
+            // Validate parent fields against schema
+            tn.parentFields = validateFieldList(tn.parentFields, nodeType);
+
+            // Validate lookupField against schema if present
+            if (String.isNotBlank(tn.lookupField)) {
+                Map<String, SObjectField> nodeFieldMap = nodeType.getDescribe().fields.getMap();
+                String validatedLookup = validateField(tn.lookupField, nodeFieldMap);
+                if (validatedLookup != null) {
+                    tn.lookupField = validatedLookup;
                 }
             }
 
@@ -637,6 +755,9 @@ public with sharing class DocGenDataRetriever {
                 }
             }
 
+            // Redundant schema validation for taint analysis (Checkmarx)
+            validateObjectName(child.objectApiName);
+
             String childQuery = 'SELECT ' + String.join(selectFields, ', ') +
                 ' FROM ' + String.escapeSingleQuotes(child.objectApiName) +
                 ' WHERE ' + String.escapeSingleQuotes(child.lookupField) + ' IN :parentIds';
@@ -646,7 +767,7 @@ public with sharing class DocGenDataRetriever {
                 if (String.isNotBlank(child.orderByClause)) { childQuery += ' ORDER BY ' + sanitizeClause(child.orderByClause, 'ORDER BY'); }
                 if (String.isNotBlank(child.limitClause)) { childQuery += ' LIMIT ' + sanitizeClause(child.limitClause, 'LIMIT'); }
 
-                childResults = Database.query(childQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection - V3 child node fields from query config; clauses sanitized by sanitizeClause(); runs with USER_MODE
+                childResults = Database.query(childQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection - V3 child node fields from query config validated by validateFieldList/validateObjectName; clauses sanitized by sanitizeClause(); runs with USER_MODE
             } catch (Exception e) {
                 // Child query failed — skip this child relationship
                 continue;
@@ -748,6 +869,9 @@ public with sharing class DocGenDataRetriever {
                 }
             }
 
+            // Redundant schema validation for taint analysis (Checkmarx)
+            validateObjectName(child.objectApiName);
+
             // Single query for ALL parents
             String childQuery = 'SELECT ' + String.join(selectFields, ', ') +
                 ' FROM ' + String.escapeSingleQuotes(child.objectApiName) +
@@ -759,7 +883,7 @@ public with sharing class DocGenDataRetriever {
                 if (String.isNotBlank(child.orderByClause)) { childQuery += ' ORDER BY ' + sanitizeClause(child.orderByClause, 'ORDER BY'); }
                 if (String.isNotBlank(child.limitClause)) { childQuery += ' LIMIT ' + sanitizeClause(child.limitClause, 'LIMIT'); }
 
-                childResults = Database.query(childQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection - V3 child node fields from query config; clauses sanitized; runs with USER_MODE
+                childResults = Database.query(childQuery, AccessLevel.USER_MODE); // NOPMD ApexSOQLInjection - V3 child node fields from query config validated by validateFieldList/validateObjectName; clauses sanitized; runs with USER_MODE
             } catch (Exception e) {
                 // Bulk child query failed — skip this child relationship
                 continue;
@@ -823,6 +947,9 @@ public with sharing class DocGenDataRetriever {
         String targetIdField = (String) junctionConfig.get('targetIdField');
         if (String.isBlank(targetObject) || String.isBlank(targetIdField)) { return; }
 
+        // Schema validation: validate target object and fields
+        SObjectType targetType = validateObjectName(targetObject);
+
         List<String> targetFields = new List<String>();
         List<Object> tfl = (List<Object>) junctionConfig.get('targetFields');
         if (tfl != null) {
@@ -830,6 +957,8 @@ public with sharing class DocGenDataRetriever {
                 targetFields.add(String.valueOf(f));
             }
         }
+        // Validate target fields against schema
+        targetFields = validateFieldList(targetFields, targetType);
         if (targetFields.isEmpty()) {
             return;
         }
@@ -1081,6 +1210,22 @@ public with sharing class DocGenDataRetriever {
                 return;
             }
         }
+
+        // Fallback: user may have typed the object name (Short_Code__c) instead of the
+        // relationship name (Short_Codes__r). Find the child relationship by object name
+        // and correct the spec's relationshipName so the SOQL subquery uses the right FROM.
+        for (Schema.ChildRelationship cr : parentType.getDescribe().getChildRelationships()) {
+            if (cr.getRelationshipName() != null &&
+                    String.valueOf(cr.getChildSObject()).equalsIgnoreCase(spec.relationshipName)) {
+                spec.childObjectApiName = String.valueOf(cr.getChildSObject());
+                spec.parentIdField = String.valueOf(cr.getField());
+                spec.relationshipName = cr.getRelationshipName();
+                return;
+            }
+        }
+
+        // Child relationship not found — throw to prevent unvalidated relationship names in SOQL
+        throw new DocGenException('Invalid or inaccessible child relationship: ' + spec.relationshipName + ' on ' + parentObjectName);
     }
 
     /**
@@ -1239,6 +1384,38 @@ public with sharing class DocGenDataRetriever {
         }
 
         return null;
+    }
+
+    /**
+     * Validates an object API name against Schema.getGlobalDescribe().
+     * Throws DocGenException if the object is blank or not found.
+     */
+    private static SObjectType validateObjectName(String objectName) {
+        if (String.isBlank(objectName)) {
+            throw new DocGenException('Object name is required.');
+        }
+        SObjectType objType = Schema.getGlobalDescribe().get(objectName);
+        if (objType == null) {
+            throw new DocGenException('Invalid or inaccessible object: ' + objectName);
+        }
+        return objType;
+    }
+
+    /**
+     * Validates a list of field names against an SObjectType's field map.
+     * Silently drops invalid fields (matching V1 behavior).
+     */
+    private static List<String> validateFieldList(List<String> fieldNames, SObjectType objType) {
+        if (fieldNames == null || fieldNames.isEmpty()) { return new List<String>(); }
+        Map<String, SObjectField> fieldMap = objType.getDescribe().fields.getMap();
+        List<String> validated = new List<String>();
+        for (String f : fieldNames) {
+            String v = validateField(f.trim(), fieldMap);
+            if (v != null) {
+                validated.add(v);
+            }
+        }
+        return validated;
     }
 
     /**
@@ -1415,15 +1592,19 @@ public with sharing class DocGenDataRetriever {
         if (parentDescribe == null) { return; }
 
         Map<String, Schema.ChildRelationship> relMap = new Map<String, Schema.ChildRelationship>();
+        Map<String, Schema.ChildRelationship> objMap = new Map<String, Schema.ChildRelationship>();
         for (Schema.ChildRelationship cr : parentDescribe.getChildRelationships()) {
             if (cr.getRelationshipName() != null) {
                 relMap.put(cr.getRelationshipName().toLowerCase(), cr);
+                objMap.put(String.valueOf(cr.getChildSObject()).toLowerCase(), cr);
             }
         }
 
         while (m.find()) {
             String relName = m.group(1);
             Schema.ChildRelationship cr = relMap.get(relName.toLowerCase());
+            // Fallback: user may have typed the object name instead of relationship name
+            if (cr == null) { cr = objMap.get(relName.toLowerCase()); }
             if (cr == null) { continue; }
 
             String childObject = String.valueOf(cr.getChildSObject());
@@ -1431,8 +1612,8 @@ public with sharing class DocGenDataRetriever {
 
             try {
                 String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObject) +
-                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId WITH USER_MODE';
-                Integer cnt = Database.countQuery(countQuery);
+                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
+                Integer cnt = Database.countQuery(countQuery, AccessLevel.USER_MODE);
                 counts.put(relName, cnt);
             } catch (Exception e) {
                 String noop = e.getMessage(); // NOPMD UnusedLocalVariable — skip relationships that fail
@@ -1467,8 +1648,8 @@ public with sharing class DocGenDataRetriever {
                                         String childObjName = String.valueOf(cr.getChildSObject());
                                         String lookupFld = String.valueOf(cr.getField());
                                         String countQ = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObjName) +
-                                            ' WHERE ' + String.escapeSingleQuotes(lookupFld) + ' = :recordId WITH USER_MODE';
-                                        counts.put(rel, Database.countQuery(countQ));
+                                            ' WHERE ' + String.escapeSingleQuotes(lookupFld) + ' = :recordId';
+                                        counts.put(rel, Database.countQuery(countQ, AccessLevel.USER_MODE));
                                     } catch (Exception e) {
                                         String noop = e.getMessage(); // NOPMD UnusedLocalVariable
                                     }
@@ -1510,8 +1691,8 @@ public with sharing class DocGenDataRetriever {
 
             try {
                 String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObject) +
-                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId WITH USER_MODE';
-                Integer cnt = Database.countQuery(countQuery);
+                    ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
+                Integer cnt = Database.countQuery(countQuery, AccessLevel.USER_MODE);
                 counts.put(relationshipName, cnt);
             } catch (Exception e) {
                 // Intentionally swallowed — skip relationships that fail to count

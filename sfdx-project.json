@@ -1,13 +1,13 @@
 {
   "packageDirectories": [
     {
-      "versionName": "1.5.0 — Giant Query PDF (Ancestor Chain)",
-      "versionNumber": "1.5.0.NEXT",
-      "ancestorId": "04tal000006PEltAAG",
+      "versionName": "1.26.0 — SOQL Injection Hardening",
+      "versionNumber": "1.26.0.NEXT",
+      "ancestorId": "04tal000006PhBBAA0",
       "path": "force-app",
       "default": true,
       "package": "Portwood DocGen Managed",
-      "versionDescription": "Giant Query PDF: render 3K-50K+ child records as formatted PDF entirely server-side. Pre-baked HTML templates, progressive Queueable assembly, column formatting, parent lookup fields. Plus all v1.2.0 features: DOCX/PDF/PPTX/XLSX generation, visual query builder, bulk generation, Flow actions, barcodes, QR codes, and zero-heap PDF rendering."
+      "versionDescription": "Portwood DocGen is a native Salesforce document generation engine. Build Word and PDF documents from any Salesforce record using merge tags in your own templates. Includes a visual query builder, bulk generation, multi-object support, and Flow integration — all without leaving Salesforce."
     }
   ],
   "name": "Portwood DocGen",
@@ -22,6 +22,26 @@
     "Portwood DocGen Managed@1.2.0-1": "04tal000006PEabAAG",
     "Portwood DocGen Managed@1.3.0-1": "04tal000006PEkHAAW",
     "Portwood DocGen Managed@1.4.0-1": "04tal000006PEltAAG",
-    "Portwood DocGen Managed@1.5.0-1": "04tal000006PEnVAAW"
+    "Portwood DocGen Managed@1.5.0-1": "04tal000006PEnVAAW",
+    "Portwood DocGen Managed@1.6.0-1": "04tal000006PFA5AAO",
+    "Portwood DocGen Managed@1.7.0-1": "04tal000006PFEvAAO",
+    "Portwood DocGen Managed@1.8.0-1": "04tal000006PFQDAA4",
+    "Portwood DocGen Managed@1.9.0-1": "04tal000006PFRpAAO",
+    "Portwood DocGen Managed@1.10.0-1": "04tal000006PFWfAAO",
+    "Portwood DocGen Managed@1.11.0-1": "04tal000006PGR7AAO",
+    "Portwood DocGen Managed@1.12.0-1": "04tal000006PH2DAAW",
+    "Portwood DocGen Managed@1.13.0-1": "04tal000006PJqPAAW",
+    "Portwood DocGen Managed@1.14.0-1": "04tal000006PM3VAAW",
+    "Portwood DocGen Managed@1.15.0-1": "04tal000006PMUvAAO",
+    "Portwood DocGen Managed@1.16.0-1": "04tal000006PNh7AAG",
+    "Portwood DocGen Managed@1.17.0-2": "04tal000006POWjAAO",
+    "Portwood DocGen Managed@1.18.0-2": "04tal000006PW4TAAW",
+    "Portwood DocGen Managed@1.20.0-1": "04tal000006PcppAAC",
+    "Portwood DocGen Managed@1.21.0-1": "04tal000006PdtxAAC",
+    "Portwood DocGen Managed@1.22.0-1": "04tal000006PemnAAC",
+    "Portwood DocGen Managed@1.23.0-1": "04tal000006PfEDAA0",
+    "Portwood DocGen Managed@1.24.0-1": "04tal000006PgztAAC",
+    "Portwood DocGen Managed@1.25.0-1": "04tal000006PhBBAA0",
+    "Portwood DocGen Managed@1.26.0-1": "04tal000006PhG1AAK"
   }
 }

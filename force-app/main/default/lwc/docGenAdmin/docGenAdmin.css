@@ -3,6 +3,18 @@
     color: var(--docgen-color-neutral-10, #111827);
 }
 
+/* Builder 2.0 */
+.slash-item:hover {
+    background: #f0f4ff !important;
+}
+.builder-tab-active {
+    color: #1a56db !important;
+    border-bottom-color: #1a56db !important;
+}
+.builder-item-selected {
+    background: #eef4ff !important;
+}
+
 /* Wizard */
 .wizard-header {
     background: var(--docgen-color-neutral-base-2, #f9fafb);

@@ -129,7 +129,7 @@
         <field>DocGen_Job__c.Total_Records__c</field>
         <readable>true</readable>
     </fieldPermissions>
-    <fieldPermissions>
+<fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Saved_Query__c.Description__c</field>
         <readable>true</readable>
@@ -174,7 +174,7 @@
         <field>DocGen_Template_Version__c.Type__c</field>
         <readable>true</readable>
     </fieldPermissions>
-    <fieldPermissions>
+<fieldPermissions>
         <editable>true</editable>
         <field>DocGen_Template__c.Category__c</field>
         <readable>true</readable>

@@ -394,7 +394,7 @@ public with sharing class DocGenService {
             List<ContentVersion> xmlCvs = [
                 SELECT Id, Title, VersionData FROM ContentVersion
                 WHERE Title LIKE :(xmlPrefix + '%')
-                WITH SYSTEM_MODE
+                WITH USER_MODE
             ];
 
             if (xmlCvs.isEmpty()) {
@@ -420,6 +420,9 @@ public with sharing class DocGenService {
             } else if (key == 'word__styles.xml') {
                 // Store styles.xml for table style resolution (not merged with record data)
                 mr.processedXmlEntries.put('word/styles.xml', rawXml);
+            } else if (key == 'word__numbering.xml') {
+                // Store numbering.xml for numbered vs bullet list detection
+                mr.passthroughEntries.put('word/numbering.xml', Blob.valueOf(rawXml));
             } else {
                 // Restore original path: word__document.xml → word/document.xml
                 String originalPath = key.replace('__', '/');
@@ -814,7 +817,7 @@ public with sharing class DocGenService {
 
         List<ContentVersion> xmlCvs = [
             SELECT Title, VersionData FROM ContentVersion
-            WHERE Title IN (:docKey, :stylesKey) WITH SYSTEM_MODE // NOPMD — internal pre-decomposed parts
+            WHERE Title IN (:docKey, :stylesKey) WITH USER_MODE // NOPMD — internal pre-decomposed parts
         ];
         for (ContentVersion cv : xmlCvs) {
             if (cv.Title == docKey) {
@@ -955,7 +958,7 @@ public with sharing class DocGenService {
         String xmlPrefix = 'docgen_tmpl_xml_' + activeVersions[0].Id + '_';
         List<ContentVersion> xmlCvs = [
             SELECT Title, VersionData FROM ContentVersion
-            WHERE Title LIKE :(xmlPrefix + '%') WITH SYSTEM_MODE // NOPMD
+            WHERE Title LIKE :(xmlPrefix + '%') WITH USER_MODE // NOPMD
         ];
 
         String rawDocumentXml = null;
@@ -1008,6 +1011,7 @@ public with sharing class DocGenService {
         if (mr.processedXmlEntries.containsKey('word/styles.xml')) {
             DocGenHtmlRenderer.stylesXml = mr.processedXmlEntries.get('word/styles.xml');
         }
+        setNumberingXml(mr);
         String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
         mr = null;
         pdfImages = null;
@@ -1087,10 +1091,11 @@ public with sharing class DocGenService {
             if (templateType == 'Word') {
                 if (name == 'word/document.xml' ||
                     name == 'word/styles.xml' ||
+                    name == 'word/numbering.xml' ||
                     (name.startsWith('word/header') && name.endsWith('.xml')) ||
                     (name.startsWith('word/footer') && name.endsWith('.xml'))) {
                     xmlEntries.put(name, entryBlob.toString());
-                    if (name != 'word/styles.xml') {
+                    if (name != 'word/styles.xml' && name != 'word/numbering.xml') {
                         isDocumentXml = true;
                         documentXmlPaths.add(name);
                     }
@@ -1239,6 +1244,7 @@ public with sharing class DocGenService {
                 if (htmlMr.processedXmlEntries.containsKey('word/styles.xml')) {
                     DocGenHtmlRenderer.stylesXml = htmlMr.processedXmlEntries.get('word/styles.xml');
                 }
+                setNumberingXml(htmlMr);
 
                 String templateHtml = DocGenHtmlRenderer.convertToHtml(
                     combineXmlWithHeadersFooters(htmlMr), pdfImages
@@ -1284,7 +1290,7 @@ public with sharing class DocGenService {
             List<ContentVersion> tmplCvs = [
                 SELECT Id, Title FROM ContentVersion
                 WHERE Title LIKE :(prefix + '%')
-                WITH SYSTEM_MODE
+                WITH USER_MODE
             ];
             for (ContentVersion cv : tmplCvs) {
                 String relId = cv.Title.substring(prefix.length());
@@ -1325,6 +1331,7 @@ public with sharing class DocGenService {
         if (mr.processedXmlEntries != null && mr.processedXmlEntries.containsKey('word/styles.xml')) {
             DocGenHtmlRenderer.stylesXml = mr.processedXmlEntries.get('word/styles.xml');
         }
+        setNumberingXml(mr);
         String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
         lastRenderedHtml = html;
 
@@ -1375,6 +1382,7 @@ public with sharing class DocGenService {
             }
         }
 
+        setNumberingXml(mr);
         return DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), previewImages);
     }
 
@@ -1427,6 +1435,7 @@ public with sharing class DocGenService {
             }
         }
 
+        setNumberingXml(mr);
         String html = DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), mergedMap);
 
         return new Map<String, Object>{
@@ -1477,6 +1486,17 @@ public with sharing class DocGenService {
      * processes all template content (not just the main body).
      * Image relIds in header/footer XML are namespaced to prevent collisions.
      */
+    /**
+     * Sets DocGenHtmlRenderer.numberingXml from the template's word/numbering.xml
+     * passthrough entry, enabling accurate numbered vs bullet list detection.
+     */
+    private static void setNumberingXml(MergeResult mr) {
+        DocGenHtmlRenderer.numberingXml = null;
+        if (mr.passthroughEntries != null && mr.passthroughEntries.containsKey('word/numbering.xml')) {
+            DocGenHtmlRenderer.numberingXml = mr.passthroughEntries.get('word/numbering.xml').toString();
+        }
+    }
+
     private static String combineXmlWithHeadersFooters(MergeResult mr) {
         if (mr.processedXmlEntries == null) { return mr.documentXml; }
 
@@ -1517,11 +1537,11 @@ public with sharing class DocGenService {
     private static String namespaceImageRelIds(String xml, String partPrefix) {
         String result = xml;
         Integer cursor = 0;
-        String searchToken = 'r:embed="';
+        String embedMarker = 'r:embed="';
         while (cursor < result.length()) {
-            Integer embedStart = result.indexOf(searchToken, cursor);
+            Integer embedStart = result.indexOf(embedMarker, cursor);
             if (embedStart == -1) { break; }
-            Integer valStart = embedStart + searchToken.length();
+            Integer valStart = embedStart + embedMarker.length();
             Integer valEnd = result.indexOf('"', valStart);
             if (valEnd == -1) { break; }
             String relId = result.substring(valStart, valEnd);
@@ -1548,6 +1568,7 @@ public with sharing class DocGenService {
         MergeResult mr = mergeTemplate(templateId, recordId, null, 'PDF');
 
         Map<String, String> pdfImages = buildPdfImageMap(mr, templateId);
+        setNumberingXml(mr);
         return DocGenHtmlRenderer.convertToHtml(combineXmlWithHeadersFooters(mr), pdfImages);
     }
 
@@ -2755,14 +2776,14 @@ public with sharing class DocGenService {
                 if (currentOutputFormat == 'PDF') {
                     // PDF path: only need the URL — Blob.toPdf() fetches images server-side.
                     // Skip loading the blob entirely to save heap.
-                    List<ContentVersion> cvs = [SELECT Id, FileExtension FROM ContentVersion WHERE Id = :spec.fieldValue WITH SYSTEM_MODE LIMIT 1];
+                    List<ContentVersion> cvs = [SELECT Id, FileExtension FROM ContentVersion WHERE Id = :spec.fieldValue WITH USER_MODE LIMIT 1];
                     if (!cvs.isEmpty()) {
                         if (cvs[0].FileExtension != null) { ext = cvs[0].FileExtension.toLowerCase(); }
                         spec.contentVersionImageUrl = '/sfc/servlet.shepherd/version/download/' + cvs[0].Id;
                     }
                 } else {
                     // DOCX path: need the blob for ZIP embedding
-                    List<ContentVersion> cvs = [SELECT Id, VersionData, FileExtension FROM ContentVersion WHERE Id = :spec.fieldValue WITH SYSTEM_MODE LIMIT 1];
+                    List<ContentVersion> cvs = [SELECT Id, VersionData, FileExtension FROM ContentVersion WHERE Id = :spec.fieldValue WITH USER_MODE LIMIT 1];
                     if (!cvs.isEmpty()) {
                         spec.imageBlobData = cvs[0].VersionData;
                         if (cvs[0].FileExtension != null) { ext = cvs[0].FileExtension.toLowerCase(); }
@@ -3135,17 +3156,17 @@ public with sharing class DocGenService {
         try {
             // Try as ContentVersion ID first
             if (fileRef.startsWith('068')) {
-                List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :fileRef WITH SYSTEM_MODE LIMIT 1];
+                List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :fileRef WITH USER_MODE LIMIT 1];
                 if (!cvs.isEmpty()) {
                     return cvs[0].VersionData;
                 }
             }
             // Try as ContentDocument ID
             if (fileRef.startsWith('069')) {
-                List<ContentDocument> docs = [SELECT LatestPublishedVersionId FROM ContentDocument WHERE Id = :fileRef WITH SYSTEM_MODE LIMIT 1];
+                List<ContentDocument> docs = [SELECT LatestPublishedVersionId FROM ContentDocument WHERE Id = :fileRef WITH USER_MODE LIMIT 1];
                 if (!docs.isEmpty() && docs[0].LatestPublishedVersionId != null) {
                     Id latestCvId = docs[0].LatestPublishedVersionId;
-                    List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :latestCvId WITH SYSTEM_MODE LIMIT 1];
+                    List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :latestCvId WITH USER_MODE LIMIT 1];
                     if (!cvs.isEmpty()) {
                         return cvs[0].VersionData;
                     }
@@ -3153,7 +3174,7 @@ public with sharing class DocGenService {
             }
             // Try as a generic ID that could be linked
             if (fileRef.length() >= 15) {
-                List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :fileRef WITH SYSTEM_MODE LIMIT 1];
+                List<ContentVersion> cvs = [SELECT VersionData FROM ContentVersion WHERE Id = :fileRef WITH USER_MODE LIMIT 1];
                 if (!cvs.isEmpty()) {
                     return cvs[0].VersionData;
                 }
@@ -3205,7 +3226,7 @@ public with sharing class DocGenService {
                 insert cvDecision2.getRecords();
                 savedCvId = cvDecision2.getRecords()[0].Id;
 
-                Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH SYSTEM_MODE].ContentDocumentId;
+                Id docId = [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH USER_MODE].ContentDocumentId;
                 // Try to link the file to the source record — some objects (e.g. Pricebook2) don't support CDLs
                 try {
                     ContentDocumentLink cdl = new ContentDocumentLink(
@@ -3214,7 +3235,8 @@ public with sharing class DocGenService {
                         ShareType = 'V',
                         Visibility = 'AllUsers'
                     );
-                    insert cdl; // NOPMD ApexCRUDViolation - linking generated document to source record
+                    SObjectAccessDecision cdlDec = Security.stripInaccessible(AccessType.CREATABLE, new List<ContentDocumentLink>{ cdl });
+                    insert cdlDec.getRecords(); // NOPMD ApexCRUDViolation — FLS enforced by stripInaccessible
                 } catch (DmlException linkErr) {
                     // Intentionally swallowed — object may not support ContentDocumentLink
                     String noop = linkErr.getMessage(); // NOPMD UnusedLocalVariable — satisfies EmptyCatchBlock rule
@@ -3224,7 +3246,7 @@ public with sharing class DocGenService {
             throw dml;
         }
 
-        return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH SYSTEM_MODE].ContentDocumentId;
+        return [SELECT ContentDocumentId FROM ContentVersion WHERE Id = :savedCvId WITH USER_MODE].ContentDocumentId;
     }
     /**
      * Extracts an attribute value from an XML tag string.

@@ -8,6 +8,7 @@ import previewRecordData from '@salesforce/apex/DocGenController.previewRecordDa
 import getAvailableReports from '@salesforce/apex/DocGenController.getAvailableReports';
 import importReportConfig from '@salesforce/apex/DocGenController.importReportConfig';
 import { refreshApex } from '@salesforce/apex';
+import { parseSOQLFields } from 'c/docGenUtils';
 
 export default class DocGenQueryBuilder extends LightningElement {
     @track objectOptions = [];
@@ -329,90 +330,13 @@ export default class DocGenQueryBuilder extends LightningElement {
         if (!queryStr) return;
         this._isParsing = true;
 
-        // 1. Extract Subqueries (Nested Parentheses Handling is tricky with Regex, assuming standard SOQL)
-        // Match: (SELECT ... FROM ...)
-        // We use a non-greedy match for the content to allow multiple subqueries
-        const subqueryRegex = /\(\s*SELECT\s+([\s\S]+?)\s+FROM\s+([\s\S]+?)\s*\)/gi;
-        
-        let match;
-        const subqueries = [];
-        const fullMatches = []; // To remove them from base string later
-        
-        while ((match = subqueryRegex.exec(queryStr)) !== null) {
-            fullMatches.push(match[0]);
-            
-            const fieldsStr = match[1];
-            const tailStr = match[2].trim(); // Relationship + Clauses
-            
-            // Parse Tail: Relationship [WHERE ...] [ORDER BY ...] [LIMIT ...]
-            // Regex identifying tokens. 
-            // NOTE: SOQL sequence is FROM -> WHERE -> WITH -> GROUP BY -> ORDER BY -> LIMIT
-            // We only care about WHERE, ORDER BY, LIMIT
-            
-            // Simple approach: Split by keywords? Or regex extraction.
-            // Relationship is the first word.
-            const relationshipMatch = tailStr.match(/^(\w+)/);
-            if (!relationshipMatch) continue;
-            
-            const relationshipName = relationshipMatch[1];
-            let clauses = tailStr.substring(relationshipName.length).trim();
-            
-            let whereClause = '';
-            let orderBy = '';
-            let limitAmount = '';
-            
-            // Extract LIMIT (Last)
-            const limitMatch = clauses.match(/\s+LIMIT\s+(\d+)$/i);
-            if (limitMatch) {
-                limitAmount = limitMatch[1];
-                clauses = clauses.substring(0, clauses.length - limitMatch[0].length).trim();
-            }
-            
-            // Extract ORDER BY (Before LIMIT)
-            const orderMatch = clauses.match(/\s+ORDER\s+BY\s+(.+)$/i);
-            if (orderMatch) {
-                orderBy = orderMatch[1];
-                clauses = clauses.substring(0, clauses.length - orderMatch[0].length).trim();
-            }
-            
-            // Extract WHERE (Remaining)
-            const whereMatch = clauses.match(/\s*WHERE\s+(.+)$/i);
-            if (whereMatch) {
-                 whereClause = whereMatch[1];
-            }
-            
-            subqueries.push({
-                relationshipName: relationshipName,
-                fields: fieldsStr.split(',').map(s => s.trim()),
-                whereClause: whereClause,
-                orderBy: orderBy,
-                limitAmount: limitAmount
-            });
-        }
-        
-        // 2. Base Fields
-        // Remove all subquery blocks to get base fields
-        let baseFieldsStr = queryStr;
-        fullMatches.forEach(m => {
-            baseFieldsStr = baseFieldsStr.replace(m, ''); 
-        });
-        
-        // Cleanup commas left behind "Name, , Industry" if subquery was in middle
-        const allFlatFields = baseFieldsStr.split(',')
-            .map(s => s.trim())
-            .filter(s => s.length > 0 && !s.startsWith('('));
-            
+        // Parse using nesting-aware SOQL parser (handles nested subqueries + full SOQL statements)
+        const parsed = parseSOQLFields(queryStr);
+        const subqueries = parsed.subqueries;
+
         // Distribute to Base vs Parent
-        this.baseFieldSelection = [];
-        this.parentFieldSelection = [];
-        
-        allFlatFields.forEach(f => {
-            if (f.includes('.')) {
-                this.parentFieldSelection.push(f);
-            } else {
-                this.baseFieldSelection.push(f);
-            }
-        });
+        this.baseFieldSelection = [...parsed.baseFields];
+        this.parentFieldSelection = [...parsed.parentFields];
         
         this.updateCombinedSelection();
             

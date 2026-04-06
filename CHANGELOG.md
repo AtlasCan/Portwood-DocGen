@@ -1,5 +1,204 @@
 # Changelog
 
+## v1.23.0 — Cover Pages, Security & Simplified Sharing
+
+Cover pages now render clean — no unwanted headers or footers on your title page. Section breaks in your Word template create proper page breaks in the PDF. Simpler permissions model replaces custom sharing UI with standard Salesforce sharing.
+
+### Cover Page & Section Breaks
+- **Title page support** — Templates with "Different First Page" enabled in Word (`<w:titlePg/>`) now suppress headers and footers on the first page. Your cover page stays clean.
+- **Section breaks** — Mid-document section breaks in your Word template now create proper page breaks in the PDF instead of being silently stripped.
+
+### PDF Rendering Fixes
+- **Spaces between merge tags** — `{FirstName} {LastName}` no longer renders as "FirstNameLastName". Whitespace-only runs are preserved.
+- **Page number formatting** — Page numbers in headers and footers now honor the font size, color, bold, and other formatting from your Word template.
+- **Page counter CSS** — Switched to `::before` pseudo-elements for reliable page numbering in Flying Saucer running elements.
+- **Numbered list detection** — `numbering.xml` now included in the pre-decomposed XML path so numbered vs bulleted lists render correctly in PDF output.
+
+### UI Fixes
+- **Template selection persists** — Switching between Create Document, Document Packet, and Combine PDFs tabs no longer resets your template selection.
+
+### Simplified Sharing
+- Removed custom sharing UI — use standard Salesforce sharing rules and manual sharing for template access control. Simpler, more predictable, no custom code needed.
+
+### Housekeeping
+- Removed built-in sample templates — download templates from [portwoodglobalsolutions.com](https://portwoodglobalsolutions.com)
+- 623 Apex tests passing, 24/24 E2E tests, 0 security violations
+
+## v1.22.0 — Bug Fixes & Template Cleanup
+
+Patch release with merge tag spacing fixes and page number formatting. Sample templates moved online.
+
+## v1.21.0 — Query Builder 2.0 & User Guide
+
+Replaced the visual query builder with a simpler, faster, more reliable manual-first experience. The old visual builder had persistent bugs — broken save state, empty config on object selection, template creation failures ("Please configure the query" error). Rather than continuing to patch a complex reactive UI, we stripped it back to what works: a text box with smart suggestions.
+
+### Query Builder 2.0
+- **Manual-first approach** — Type your query directly in a monospace textarea. No drag-and-drop, no multi-panel visual builder. Admins who know their objects type faster than they click.
+- **Inline field autocomplete** — Start typing a field name and suggestions appear from the object schema. Click to insert with auto-comma formatting.
+- **Context-aware suggestions** — Type `Owner.` and it loads the User object's fields. Type `(` and it shows child relationships. Inside `(SELECT ... FROM Contacts)` it suggests Contact fields.
+- **Sample record preview** — Pick a sample record on step 1. The query structure tree on step 2 shows real values: `Name = Acme Corporation`, child record rows in mini-tables. See exactly what your query returns before uploading a template.
+- **Object selection on step 1** — Base object is picked alongside template name and type. By the time you reach step 2, metadata is pre-loaded. No loading spinners, no async rendering bugs.
+- **Inline quick reference** — Syntax examples for fields, parent lookups, related list subqueries with WHERE/ORDER BY/LIMIT right below the textarea.
+- **Trailing comma cleanup** — Auto-stripped when clicking Next.
+- **Query persistence** — Navigate forward to step 3 and back to step 2, your query is exactly as you left it.
+
+### Builder Bug Fix
+- Fixed the root cause of "Please configure the query" error — `_notifyChange()` was firing in `_initRootNode()` before fields loaded asynchronously, emitting empty config to the parent component.
+
+### User Guide
+- New public `/DocGenGuide` page with full documentation — 28 sections covering every feature from template creation to Flow automation.
+- Sticky sidebar navigation with scroll-spy active section highlighting.
+- Consistent nav bar (`Home | User Guide | Roadmap | Community | GitHub`) across all 7 site pages.
+
+### Testing
+- **629 Apex tests passing, 0 failures**
+- **24/24 E2E tests passing**
+- **0 Code Analyzer security violations**
+
+## v1.20.0 — Dynamic Page Numbers & Bug Fixes
+
+Feature release: dynamic page numbering in PDF headers/footers, closing all community-reported rendering issues.
+
+### Dynamic Page Numbers (#9)
+- **PAGE and NUMPAGES field codes** — Word's `PAGE` and `NUMPAGES` field codes in headers and footers now render as dynamic page numbers in PDF output. Supports both complex field codes (`w:fldChar begin/separate/end`) and simple field wrappers (`w:fldSimple`). Uses CSS `counter(page)` and `counter(pages)` via `::after` pseudo-elements inside Flying Saucer running headers.
+- **Works in both headers and footers** — "Page 1 of 5" style numbering works anywhere in header or footer content, alongside other text and formatting.
+
+### Bug Fixes (Since v1.15.0)
+- **Headers/footers on all pages (#9)** — PDF headers and footers now repeat on every page via Flying Saucer running elements with `@page` margin boxes.
+- **Numbered lists render correctly (#9)** — Replaced odd/even numId heuristic with actual `numbering.xml` lookup (`w:num` → `w:abstractNum` → `w:lvl` → `w:numFmt`).
+- **Font colors from theme references (#9)** — Theme colors (`w:themeColor="accent1"`) now resolve to hex via default Office theme palette (all 16 colors).
+- **Ampersand rendering (#5)** — Fixed double-encoding where `&amp;` in XML became `&amp;amp;` in HTML. Added `unescapeXmlEntities()` before `escapeHtml4()`.
+- **Create Packet button state (#6)** — Template selection persists across mode switches; button no longer requires re-selection.
+
+### Package Chain
+- Ancestor: 1.18.0-2 (04tal000006PW4TAAW)
+- Chain: 1.15.0 → 1.16.0 → 1.17.0 → 1.18.0 → 1.20.0
+
+### Testing
+- **629 Apex tests passing, 0 failures**
+- **76% org-wide code coverage**
+- **24/24 E2E tests passing**
+- **Visual proof PDFs** generated on clean scratch org verifying each fix
+
+## v1.14.0 — PDF Rendering Fixes + Community Channel + Support Page
+
+Bug fix release addressing community-reported PDF rendering issues, Slack community channel migration, and new Support the Project page.
+
+### PDF Rendering Fixes
+- **Headers and footers on all pages** — PDF headers and footers now repeat on every page. Previously they only appeared on page one. Switched from CSS absolute positioning to Flying Saucer's running elements with `@page` margin boxes.
+- **Numbered lists render correctly** — Numbered lists no longer render as bullet points. Replaced the unreliable odd/even numId heuristic with actual `numbering.xml` lookup. The renderer now parses `w:num` to `w:abstractNum` to `w:lvl` to `w:numFmt` to determine the real list type (decimal, lowerLetter, upperRoman, bullet, etc.).
+- **Font colors from theme references** — Font colors defined as Word theme references (`w:themeColor="accent1"`) now render in PDFs. Added default Office theme color palette mapping for all 16 standard theme colors.
+- **Ampersand rendering fixed (#5)** — Ampersands (`&`) no longer render as literal `&amp;` in PDF output. Fixed double-encoding where XML entities in `<w:t>` text were escaped twice (once by XML, once by `escapeHtml4()`).
+
+### UI Fixes
+- **Create Packet button state (#6)** — The "Create Packet" button no longer stays disabled after navigating away from the Create Document tab and back. Template selection now persists across mode switches.
+
+### Community
+- **Slack community channel** — Migrated from workspace invite to Slack Connect channel invite. Users join from their own Slack workspace, no separate account needed. Updated language across all docs, legal pages, and community landing page.
+- **Support the Project page** — New `/DocGenSupport` page with the DocGen origin story, pay-what-you-can philosophy, Circles Indy as featured nonprofit, split-your-donation model, and family photo.
+
+### Testing
+- **890 Apex tests passing, 0 failures** — Fixed 4 pre-existing test failures (3 Giant Query tests missing DOCX in `@TestSetup`, 1 numbered list test updated for new `numbering.xml` detection).
+- **76% org-wide code coverage** (up from 74%)
+- **Code Analyzer: 0 violations** across pmd, eslint, retire-js
+
+## v1.13.0 — Community + AppExchange Prep
+
+Community-first release: Slack community, 100% free model, and AppExchange submission readiness.
+
+### Community
+- **Slack community channel** — Replaced custom forum with Slack community channel. Join from your own Slack workspace — no separate account needed.
+- **Community link in Command Hub** — "Join the Community" link added to the sidebar, above "Made with love."
+- **Slack invite URL from MDT** — `Slack_Invite_Url__c` field on `DocGen_Landing_Config__mdt`. Update one record when the link expires — no code deploy needed.
+
+### Website
+- **100% free model** — Removed all paid tier references, premium pricing, and freemium language across all pages.
+- **Community promotion** — Landing page help form replaced with community section (Discussion Board, Feature Requests, Report Issues).
+- **Roadmap rework** — Removed Premium Launch and tier comparison. Single "Full Feature Set" card at $0. Community-driven roadmap.
+- **Terms & Privacy updated** — Accurate PackageSubscriber data disclosure, Slack community channel terms, free model pricing, $100 liability cap.
+
+### AppExchange
+- **Security review docs** — Solution architecture, submission form, code analyzer summary — all as `.doc` files ready for upload.
+- **LISTING.md** — Complete AppExchange listing reference: SEO title, highlights, description, keywords, screenshots, demo script.
+- **Code Analyzer** — Clean scan: 0 Critical, 0 High across all 6 engines (pmd, eslint, retire-js, cpd, regex, flow).
+
+### Fixes
+- **Giant Query test fix** — Added missing `DocGen_Template_Version__c` to test setup. Created local DOCX helper to avoid cross-class test data dependency.
+
+## v1.12.0 — RTL Support + Giant Query 28K+ + Custom Object Fix
+
+Major release: RTL language support for PDF output, Giant Query scaling to 28K+ rows, custom object query builder fix, V1 object name resolution, Giant Query Flow action, and install tracker improvements.
+
+### RTL Language Support (Hebrew, Arabic)
+- **RTL text rendering** — Detects `<w:bidi/>` and `<w:rtl/>` in DOCX XML. Reverses Hebrew/Arabic text for correct right-to-left display in `Blob.toPdf()`. English merge field values are preserved.
+- **RTL paragraph alignment** — Right-aligns paragraphs when document default style or paragraph properties specify `<w:bidi/>`.
+- **RTL table layout** — Tables with `<w:bidiVisual/>` render columns right-to-left.
+- **RTL run ordering** — Multiple runs within an RTL paragraph display in correct right-to-left order.
+- **Complex Script font** — Uses Arial Unicode MS (built into `Blob.toPdf()`) for Hebrew/Arabic glyphs. Detects `w:cs` font attribute.
+- **Bidi-aware indentation** — Falls back to `w:start`/`w:end` when `w:left`/`w:right` absent.
+- **Known limitation**: Long paragraphs that wrap to multiple lines may have continuation lines starting from the left instead of the right. This is a Flying Saucer (PDF engine) limitation — it does not implement the Unicode Bidirectional Algorithm. Will be addressed in a future release.
+
+### Giant Query (from v1.8.0-v1.9.0)
+- **28K+ row scaling** — Single-pass fragment assembly, no Queueable chaining.
+- **Reduced HTML size** — `td:nth-child(N)` CSS instead of per-cell classes.
+- **Parent merge tag fix** — Validates dot-notation fields against base object schema.
+- **V1 object name resolution** — Auto-resolves object names to relationship names in subqueries.
+
+### Query Builder (from v1.7.0)
+- **Custom object label fix** — Fixed `_createNode` pluralizing API names (`__c` → `__cs`).
+- **Schema-based lookup fields** — Report import uses describe instead of hardcoded `parentObj + 'Id'`.
+- **Dynamic child discovery** — Report import for custom object report types.
+
+### Other
+- **Giant Query Flow Action** — `DocGenGiantQueryFlowAction` invocable: auto-detects large datasets, sync under 2K rows, async batch over 2K. Customer portal ready.
+- **Install tracker** — Net-new notifications only, per-row Account actions, fuzzy org name matching.
+- **PPTX/XLSX** — Marked as "Coming Soon" on landing page (not battle-tested).
+
+## v1.11.0 — RTL Language Support (Hebrew/Arabic)
+
+(Superseded by v1.12.0)
+
+## v1.10.0 — Giant Query Flow Action
+
+- **feat: Generate Document (Auto Giant Query)** — New `DocGenGiantQueryFlowAction` invocable action. Scouts child counts automatically — under 2,000 rows generates synchronously, over 2,000 launches async Giant Query batch. PDF saved to record when complete. Returns `isGiantQuery` flag and `jobId` for Screen Flow status tracking.
+- **Use case: Customer portals** — Screen Flows on Experience Cloud can offer "Download All Transactions" regardless of dataset size.
+
+## v1.9.0 — V1 Object Name Resolution
+
+- **fix: V1 subquery object name fallback** — When a V1 config uses the object API name (e.g., `FROM Short_Code__c`) instead of the relationship name (`FROM Short_Codes__r`), the parser now auto-resolves it by matching against the parent object's child relationships. Fixes configs generated via Manual Query mode with custom objects.
+
+## v1.8.0 — "Giant Query 28K+ & Custom Object Fix" (Portwood DocGen Managed)
+
+Giant Query PDF now scales to 28,000+ rows. Fixed Queueable chain depth limit and reduced HTML size.
+
+- **fix: Giant Query single-pass assembly** — Assembler now loads all HTML fragments in one Queueable execution instead of chaining. Eliminates the 5-deep Queueable chain limit that caused "Maximum stack depth" on large datasets.
+- **fix: Drop per-cell CSS classes** — Removed `class="c1"` from every `<td>` in batch HTML output, saving ~2.5MB on 28K rows. Column formatting now uses `td:nth-child(N)` CSS selectors.
+- **fix: Giant Query parent merge tags** — Fixed parent field resolution that silently failed when child loop fields (e.g., `Product2.Name`) were included in the parent SOQL query. Now validates dot-notation fields have a valid relationship on the base object.
+- **fix: Multi-part PDF rendering** — When row count exceeds 2,000, renders separate PDFs per chunk for client-side merge. Prevents `Blob.toPdf()` stack overflow on very large documents.
+- **Tested**: 28,000 PricebookEntries, 6 columns, ~3.2MB HTML → 8MB PDF.
+- **Ancestor Chain** — v1.8.0 → v1.7.0 → v1.6.0. Seamless upgrades.
+
+## v1.7.0 — "Custom Object Query Builder Fix" (Portwood DocGen Managed)
+
+Fixed query builder label processing that broke custom objects with `__c` suffix. The label cleanup logic was extracting the API name from the display label and pluralizing it (e.g., `Record_Consolidation__c` → `Record_Consolidation__cs`), causing invalid object references at generation time.
+
+- **fix: Custom object label pluralization** — `_createNode` no longer pluralizes API names extracted from parenthesized labels. Custom objects like `Record_Consolidation__c` now display their friendly label instead of a mangled API name.
+- **fix: Lookup field resolution** — Report import and V2 config parsing now use schema describe to find the correct lookup field instead of hardcoding `parentObj + 'Id'`. Custom object lookups (e.g., `Account__c` instead of `AccountId`) resolve correctly.
+- **fix: `_guessLookupField` for custom relationships** — Handles `__r` → `__c` and `__cs` → `__c` relationship suffixes. V1/V2 config parsers now pass lookup fields instead of null.
+- **fix: Report import for custom objects** — Dynamic child discovery via schema describe when the hardcoded report type map doesn't match. `resolveReportBaseObject` now resolves custom object report types directly.
+- **Defensive `__cs` correction** — V3 data retriever auto-corrects `__cs` object names to `__c` at runtime if the object doesn't exist in global describe.
+- **Ancestor Chain** — v1.7.0 → v1.6.0 → v1.5.0. Seamless upgrades.
+
+## v1.6.0 — "Sample Flows" (Portwood DocGen Managed)
+
+Sample Flows demonstrating DocGen Flow action integration. Proper upgrade chain from v1.5.0.
+
+- **DocGen: Generate Account Summary** — Screen Flow for Account record page. Resolves default template via `Is_Default__c`, generates PDF, saves to Files. Launch as Quick Action or App Page button.
+- **DocGen: Welcome Pack on New Contact** — Record-Triggered Flow (After Save, Create). Auto-generates welcome document and creates follow-up Task for Contact Owner.
+- **Flow Entry Criteria** — Record-triggered flow includes entry criteria to satisfy Code Analyzer (0 High).
+- **Ancestor Chain** — v1.6.0 → v1.5.0 → v1.4.0. Seamless upgrades.
+- **615 Apex tests**, 76% coverage, 24/24 E2E, 0 Critical, 0 High.
+
 ## v1.5.0 — "Giant Query PDF" (Portwood DocGen Managed)
 
 Same features as v1.3.0/v1.4.0 with critical fixes and proper package ancestor chain for upgrades.

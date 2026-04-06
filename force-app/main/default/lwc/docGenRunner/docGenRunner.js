@@ -190,6 +190,12 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     handleTemplateChangeInternal(event) {
         this.selectedTemplateId = event.target.value;
         this.selectedPdfCvIds = [];
+        // Keep templateOptions.selected in sync so the <select> re-renders
+        // correctly when the Generate section is destroyed/recreated by lwc:if
+        this.templateOptions = this.templateOptions.map(t => ({
+            ...t,
+            selected: t.value === this.selectedTemplateId
+        }));
     }
 
     handleMergeToggle(event) {
@@ -540,7 +546,7 @@ export default class DocGenRunner extends NavigationMixin(LightningElement) {
     // --- Helpers ---
 
     resetState() {
-        this.selectedTemplateId = '';
+        // Keep selectedTemplateId so it persists when switching back to generate mode
         this.selectedPdfCvIds = [];
         this.packetTemplateIds = [];
         this.mergeOnlyCvIds = [];

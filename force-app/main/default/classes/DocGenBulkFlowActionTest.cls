@@ -3,6 +3,7 @@ private class DocGenBulkFlowActionTest {
 
     @TestSetup
     static void setup() {
+        TestDataFactory.assignAdminPermissionSet();
         DocGen_Template__c temp = new DocGen_Template__c(
             Name = 'Test Bulk Template',
             Base_Object_API__c = 'Account',

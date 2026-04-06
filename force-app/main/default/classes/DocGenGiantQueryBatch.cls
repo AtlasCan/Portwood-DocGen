@@ -55,15 +55,11 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
 
     public Iterable<String> start(Database.BatchableContext bc) {
         String countQuery = 'SELECT COUNT() FROM ' + String.escapeSingleQuotes(childObjectName) +
-            ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId WITH USER_MODE';
-        Integer totalChildren = Database.countQuery(countQuery);
+            ' WHERE ' + String.escapeSingleQuotes(lookupField) + ' = :recordId';
+        Integer totalChildren = Database.countQuery(countQuery, AccessLevel.USER_MODE);
 
         Integer totalPages = (Integer) Math.ceil((Decimal) totalChildren / batchSize);
-        update new DocGen_Job__c( // NOPMD ApexCRUDViolation — package-internal
-            Id = jobId,
-            Status__c = 'Harvesting',
-            Total_Records__c = totalChildren
-        );
+        update new DocGen_Job__c(Id = jobId, Status__c = 'Harvesting', Total_Records__c = totalChildren); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
 
         List<String> pages = new List<String>();
         for (Integer i = 0; i < totalPages; i++) {
@@ -82,6 +78,8 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
      * Both PDF and DOCX save raw XML — PDF assembly happens in finish().
      */
     public void execute(Database.BatchableContext bc, List<String> scope) {
+        // Collect fragment CVs, bulk insert after loop. Fragments are small HTML text (~5-50KB each).
+        List<ContentVersion> fragmentCvs = new List<ContentVersion>();
         for (String pageDescriptor : scope) {
             List<String> selectFields = new List<String>{ 'Id' };
             for (String f : childFields) {
@@ -121,16 +119,20 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             }
             renderedRows = null;
 
-            ContentVersion cv = new ContentVersion(
+            fragmentCvs.add(new ContentVersion(
                 Title = 'docgen_giant_' + jobId + '_' + seq,
                 PathOnClient = 'docgen_giant_' + jobId + '_' + seq + '.html',
                 VersionData = fragmentData,
                 IsMajorVersion = false
-            );
-            insert cv; // NOPMD ApexCRUDViolation — internal fragment for Giant Query
-
-            update new DocGen_Job__c(Id = jobId, Success_Count__c = fragmentSequence); // NOPMD ApexCRUDViolation — package-internal
+            ));
         }
+        // Bulk insert all fragments
+        if (!fragmentCvs.isEmpty()) {
+            SObjectAccessDecision cvDec = Security.stripInaccessible(AccessType.CREATABLE, fragmentCvs);
+            insert cvDec.getRecords();
+        }
+        // Update progress
+        update new DocGen_Job__c(Id = jobId, Success_Count__c = fragmentSequence); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
     }
 
     /**
@@ -184,7 +186,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                     }
                 }
 
-                row += '<td class="c' + colNum + '">' + txt + '</td>';
+                row += '<td>' + txt + '</td>';
             }
             result += row + '</tr>';
         }
@@ -258,7 +260,7 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
             }
 
             if (!styles.isEmpty()) {
-                css += '.c' + colNum + '{' + String.join(styles, ';') + '} ';
+                css += 'td:nth-child(' + colNum + '){' + String.join(styles, ';') + '} ';
             }
         }
         return css;
@@ -275,10 +277,10 @@ public with sharing class DocGenGiantQueryBatch implements Database.Batchable<St
                 // Chain to assembler Queueable — finish() heap is too constrained
                 System.enqueueJob(new DocGenGiantQueryAssembler(jobId, templateId, recordId, giantRelationshipName));
             } else {
-                update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation — package-internal
+                update new DocGen_Job__c(Id = jobId, Status__c = 'Completed'); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
             }
         } catch (Exception e) {
-            update new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = e.getMessage().left(255)); // NOPMD ApexCRUDViolation — package-internal
+            update new DocGen_Job__c(Id = jobId, Status__c = 'Failed', Label__c = e.getMessage().left(255)); // NOPMD ApexCRUDViolation — package-internal; CRUD controlled by permission sets
         }
     }
 }
